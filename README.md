@@ -81,7 +81,7 @@ cp .env.example .env
 .venv/bin/python -m dotenv -f .env run -- .venv/bin/python -m uvicorn server.app.main:app --host 0.0.0.0 --port 8000
 ```
 
-以上命令让 Alembic 与 Uvicorn 从同一个 `.env` 读取 `DATABASE_URL`，先迁移再监听 `0.0.0.0:8000`。当前 `scripts/start-server.ps1` 和 `scripts/start-server.sh` 在 Alembic 之后才把 `.env` 交给 Uvicorn；只有使用默认 SQLite 或已经在父进程导出同一 `DATABASE_URL` 时才安全，修复脚本前不要用它们迁移自定义 PostgreSQL。
+以上命令让 Alembic 与 Uvicorn 从同一个 `.env` 读取 `DATABASE_URL`，先迁移再监听 `0.0.0.0:8000`。也可以在仓库根目录运行 `scripts/start-server.ps1`（Windows）或 `scripts/start-server.sh`（Linux）；两个脚本会用同一个 `.env` 依次启动迁移和服务。
 
 - 健康检查：`http://127.0.0.1:8000/api/v1/health`
 - OpenAPI：`http://127.0.0.1:8000/docs`

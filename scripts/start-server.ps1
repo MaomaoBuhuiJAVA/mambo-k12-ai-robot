@@ -12,8 +12,8 @@ if (-not (Test-Path $envFile)) {
 }
 
 Set-Location $root
-& $python -m alembic upgrade head
+& $python -m dotenv -f $envFile run -- $python -m alembic upgrade head
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
-& $python -m uvicorn server.app.main:app --host 0.0.0.0 --port 8000 --env-file .env
+& $python -m dotenv -f $envFile run -- $python -m uvicorn server.app.main:app --host 0.0.0.0 --port 8000

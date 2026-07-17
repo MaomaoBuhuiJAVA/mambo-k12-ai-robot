@@ -13,9 +13,8 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-.venv/bin/python -m alembic upgrade head
+.venv/bin/python -m dotenv -f .env run -- .venv/bin/python -m alembic upgrade head
 
-exec .venv/bin/python -m uvicorn server.app.main:app \
+exec .venv/bin/python -m dotenv -f .env run -- .venv/bin/python -m uvicorn server.app.main:app \
   --host 0.0.0.0 \
-  --port 8000 \
-  --env-file .env
+  --port 8000

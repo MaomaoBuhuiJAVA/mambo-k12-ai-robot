@@ -104,7 +104,7 @@ npm run start --workspace apps/web
 .venv/bin/python -m dotenv -f .env run -- .venv/bin/python -m uvicorn server.app.main:app --host 0.0.0.0 --port 8000
 ```
 
-当前两个 `scripts/start-server.*` 在迁移前没有加载 `.env`；自定义 `DATABASE_URL` 时不要用它们，否则 Alembic 可能迁移默认 SQLite、Uvicorn 却连接另一数据库。容器环境变量由平台直接注入，不受这个本地 helper 限制。
+也可以运行 `scripts/start-server.ps1`（Windows）或 `scripts/start-server.sh`（Linux）；两个本地 helper 会用同一个 `.env` 依次运行 Alembic 和 Uvicorn。容器环境变量仍由平台直接注入。
 
 ### 5.2 固定接口
 
