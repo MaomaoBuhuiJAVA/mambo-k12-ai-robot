@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CircleStop, Lightbulb, Play, RefreshCw, RotateCcw, Terminal } from "lucide-react";
 
 import type { Stage } from "@/lib/domain";
+import { announceLearningStateChanged } from "@/lib/learning-events";
 import { loadLearningState, saveLearningState } from "@/lib/learning-store";
 import { recordLabCompletion } from "./lab-progress";
 import {
@@ -80,19 +81,33 @@ export function PythonLab({
     setOutput([]);
     setResultMessage("正在运行确定性检查…");
 
-    const response = await runner.run({ templateId, code, timeoutMs: 5_000 });
+    const hintsUsed = Math.max(0, hintIndex + 1);
+    const response = await runner.run({
+      templateId,
+      challengeVersion: template.challengeVersion,
+      code,
+      timeoutMs: 5_000,
+    });
     setOutput(outputFrom(response));
 
     if (response.type === "result" && response.passed) {
-      setResultMessage("挑战完成：形成性练习记录已保存");
       const now = new Date().toISOString();
-      const nextState = recordLabCompletion(loadLearningState(), {
+      const currentState = loadLearningState();
+      const nextState = recordLabCompletion(currentState, {
         templateId,
+        challengeVersion: template.challengeVersion,
         passed: true,
         completedAt: now,
-        attemptId: `lab-${templateId}-${Date.now()}`,
+        hintsUsed,
       });
-      saveLearningState(nextState);
+      if (nextState === currentState) {
+        setResultMessage("本挑战版本已经记录，本次运行不重复增加掌握证据");
+      } else if (saveLearningState(nextState)) {
+        announceLearningStateChanged();
+        setResultMessage("形成性练习已保存到本机学习记录");
+      } else {
+        setResultMessage("挑战已通过，但本机学习记录保存失败");
+      }
     } else if (response.type === "result") {
       setResultMessage("代码已运行，但挑战检查尚未全部通过");
     } else if (response.category === "cancelled") {
@@ -124,7 +139,7 @@ export function PythonLab({
         <div>
           <p className={styles.eyebrow}>Python 编程实验室</p>
           <h1 id="lab-title">边改边运行，亲手验证算法</h1>
-          <p>代码只在浏览器 Worker 中执行，不会发送到服务端。</p>
+          <p>代码在无主站同源权限的隔离页面 Worker 中执行，不会发送到服务端。</p>
         </div>
         <div className={styles.runtimeStatus} data-status={status} aria-live="polite">
           <span aria-hidden="true" />
@@ -211,7 +226,7 @@ export function PythonLab({
       </div>
 
       <p className={styles.safetyNote}>
-        浏览器内课程练习不是服务端正式判题沙箱；结果仅作低权重形成性学习证据，请勿运行来源不明的代码。
+        浏览器内课程练习不是服务端正式判题沙箱；导入提示也不是安全边界。隔离页面、CSP 和运行后禁网共同保护主站数据，结果仅作低权重形成性学习证据。
       </p>
     </section>
   );

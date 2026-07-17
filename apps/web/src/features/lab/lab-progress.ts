@@ -5,10 +5,13 @@ import type { LabTemplateId } from "./lab-protocol";
 
 interface LabCompletion {
   templateId: LabTemplateId;
+  challengeVersion: number;
   passed: boolean;
   completedAt: string;
-  attemptId: string;
+  hintsUsed: number;
 }
+
+export const LAB_FORMATIVE_SCORE = 0.7;
 
 export function recordLabCompletion(
   state: LearningState,
@@ -17,15 +20,24 @@ export function recordLabCompletion(
   if (!completion.passed) return state;
 
   const knowledgePointId = getLabTemplate(completion.templateId).knowledgePointId;
+  const attemptId = `lab:${completion.templateId}:v${completion.challengeVersion}`;
+  if (state.attempts.some((attempt) => attempt.attemptId === attemptId)) return state;
+
+  const hints = Number.isFinite(completion.hintsUsed)
+    ? Math.max(0, Math.floor(completion.hintsUsed))
+    : 0;
   const previous = state.masteryByKnowledgePoint[knowledgePointId];
-  const mastery = updateMastery(previous?.mastery ?? 0, { score: 1, hints: 0 });
+  const mastery = updateMastery(previous?.mastery ?? 0, {
+    score: LAB_FORMATIVE_SCORE,
+    hints,
+  });
   const nextReview = new Date(completion.completedAt);
   nextReview.setUTCDate(nextReview.getUTCDate() + 3);
 
   const record: MasteryRecord = {
     knowledgePointId,
     mastery,
-    confidence: Math.min(1, (previous?.confidence ?? 0) + 0.15),
+    confidence: Math.min(1, (previous?.confidence ?? 0) + 0.06),
     evidenceCount: (previous?.evidenceCount ?? 0) + 1,
     lastPracticedAt: completion.completedAt,
     nextReviewAt: nextReview.toISOString(),
@@ -41,10 +53,10 @@ export function recordLabCompletion(
     attempts: [
       ...state.attempts,
       {
-        attemptId: completion.attemptId,
+        attemptId,
         knowledgePointId,
-        score: 1,
-        hints: 0,
+        score: LAB_FORMATIVE_SCORE,
+        hints,
         mode: "code",
         completedAt: completion.completedAt,
       },

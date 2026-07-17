@@ -11,6 +11,7 @@ const runRequestSchema = z.object({
   type: z.literal("run"),
   id: z.uuid(),
   templateId: z.enum(LAB_TEMPLATE_IDS),
+  challengeVersion: z.number().int().min(1).max(1_000),
   code: z.string().min(1).max(MAX_CODE_LENGTH),
   timeoutMs: z.number().int().min(500).max(10_000),
 }).strict();

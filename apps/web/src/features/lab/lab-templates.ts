@@ -9,6 +9,7 @@ export interface LabTemplate {
   hints: readonly string[];
   starterCode: string;
   knowledgePointId: string;
+  challengeVersion: number;
 }
 
 export const LAB_TEMPLATES: Record<LabTemplateId, LabTemplate> = {
@@ -30,6 +31,7 @@ export const LAB_TEMPLATES: Record<LabTemplateId, LabTemplate> = {
 
 print(bubble_sort([5, 1, 4, 2, 8]))`,
     knowledgePointId: "algorithm.bubble-sort",
+    challengeVersion: 1,
   },
   "image-classifier": {
     id: "image-classifier",
@@ -50,6 +52,7 @@ print(bubble_sort([5, 1, 4, 2, 8]))`,
 sample = {"color": "green", "shape": "long", "texture": "veined"}
 print(classify_image(sample))`,
     knowledgePointId: "ai.image-classification-features",
+    challengeVersion: 1,
   },
 };
 
@@ -126,30 +129,4 @@ export function getLabGuidance(
           "检查 max 在分数相同时依赖的插入顺序是否符合既定策略。",
         ],
       };
-}
-
-export function appendDeterministicChecks(id: LabTemplateId, code: string): string {
-  const checks = id === "bubble-sort"
-    ? `
-_mambo_cases = [([], []), ([1], [1]), ([3, 1, 2], [1, 2, 3]), ([4, 4, -1], [-1, 4, 4])]
-for _source, _expected in _mambo_cases:
-    _before = _source[:]
-    _actual = bubble_sort(_source)
-    assert _actual == _expected, f"输入 {_source} 时得到 {_actual}，期望 {_expected}"
-    assert _source == _before, "请不要修改传入的原列表"
-_mambo_passed = True
-print("挑战测试：全部通过")`
-    : `
-_mambo_cases = [
-    ({"color": "green", "shape": "long", "texture": "veined"}, "leaf"),
-    ({"color": "white", "shape": "round", "texture": "striped"}, "ball"),
-    ({"color": "blue", "shape": "tall", "texture": "handle"}, "cup"),
-]
-for _features, _expected in _mambo_cases:
-    _actual = classify_image(_features)
-    assert _actual == _expected, f"特征 {_features} 得到 {_actual}，期望 {_expected}"
-_mambo_passed = True
-print("挑战测试：全部通过")`;
-
-  return `${code}\n\n# 课程的确定性检查（用于形成性练习）\n${checks}`;
 }

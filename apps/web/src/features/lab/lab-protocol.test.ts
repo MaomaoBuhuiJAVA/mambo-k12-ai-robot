@@ -11,6 +11,7 @@ const validRequest = {
   type: "run" as const,
   id: "550e8400-e29b-41d4-a716-446655440000",
   templateId: "bubble-sort" as const,
+  challengeVersion: 1,
   code: "print(1)",
   timeoutMs: 4_000,
 };

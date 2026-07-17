@@ -1,16 +1,25 @@
+import { createIframeRuntimeTransport } from "./iframe-runtime-transport";
 import {
   parseRunRequest,
   parseWorkerResponse,
+  toSafeLabError,
   type LabErrorCategory,
   type LabRunRequest,
   type LabTemplateId,
   type LabTerminalResponse,
 } from "./lab-protocol";
+import type {
+  LabRuntimeTransport,
+  RuntimeTransportFactory,
+} from "./runtime-transport";
 
 export type LabRunnerStatus = "loading" | "ready" | "running" | "error";
-export type LabRunInput = Pick<LabRunRequest, "templateId" | "code" | "timeoutMs">;
+export type LabRunInput = Pick<
+  LabRunRequest,
+  "templateId" | "challengeVersion" | "code" | "timeoutMs"
+>;
 type StatusListener = (status: LabRunnerStatus) => void;
-type WorkerFactory = () => Worker;
+export const LAB_RUNTIME_INIT_TIMEOUT_MS = 30_000;
 
 export interface LabRunner {
   initialize(): void;
@@ -27,13 +36,6 @@ interface PendingRun {
   timer: ReturnType<typeof setTimeout>;
 }
 
-function defaultWorkerFactory(): Worker {
-  return new Worker(new URL("./pyodide.worker.ts", import.meta.url), {
-    type: "module",
-    name: "mambo-pyodide-lab",
-  });
-}
-
 function createId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -47,26 +49,32 @@ function createId(): string {
 
 function localError(
   id: string,
-  category: Extract<LabErrorCategory, "timeout" | "cancelled" | "runtime">,
+  category: Extract<
+    LabErrorCategory,
+    "validation" | "timeout" | "cancelled" | "runtime"
+  >,
   message: string,
 ): LabTerminalResponse {
   return { type: "error", id, category, message, output: [] };
 }
 
 export class PyodideWorkerController implements LabRunner {
-  private worker: Worker | null = null;
+  private transport: LabRuntimeTransport | null = null;
   private pending: PendingRun | null = null;
   private status: LabRunnerStatus = "loading";
+  private initializationTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly listeners = new Set<StatusListener>();
   private disposed = false;
 
-  constructor(private readonly workerFactory: WorkerFactory = defaultWorkerFactory) {
+  constructor(
+    private readonly transportFactory: RuntimeTransportFactory = createIframeRuntimeTransport,
+  ) {
     this.initialize();
   }
 
   initialize(): void {
-    if (this.worker || this.disposed) return;
-    this.spawnWorker();
+    if (this.transport || this.disposed) return;
+    this.spawnRuntime();
   }
 
   getStatus(): LabRunnerStatus {
@@ -80,38 +88,46 @@ export class PyodideWorkerController implements LabRunner {
   }
 
   run(input: LabRunInput): Promise<LabTerminalResponse> {
+    const id = createId();
     if (this.disposed) {
-      return Promise.resolve(localError(createId(), "runtime", "实验环境已关闭，请刷新页面后重试。"));
+      return Promise.resolve(localError(id, "runtime", "实验环境已关闭，请刷新页面后重试。"));
     }
     if (this.pending) {
-      return Promise.resolve(localError(createId(), "runtime", "已有代码正在运行。"));
+      return Promise.resolve(localError(id, "runtime", "已有代码正在运行。"));
     }
-    if (!this.worker) this.spawnWorker();
 
-    const request = parseRunRequest({ type: "run", id: createId(), ...input });
+    let request: LabRunRequest;
+    try {
+      request = parseRunRequest({ type: "run", id, ...input });
+    } catch (error) {
+      return Promise.resolve(
+        localError(id, "validation", toSafeLabError(error).message),
+      );
+    }
+
+    if (!this.transport) this.spawnRuntime();
     this.setStatus("running");
 
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         if (this.pending?.id !== request.id) return;
         this.pending = null;
-        resolve(localError(request.id, "timeout", "运行超过时限，实验环境已重新启动。"));
-        this.rebuildWorker();
+        resolve(localError(request.id, "timeout", "运行超过时限，隔离环境已重新启动。"));
+        this.rebuildRuntime();
       }, request.timeoutMs);
 
       this.pending = { id: request.id, resolve, timer };
-      this.worker?.postMessage(request);
+      this.transport?.postMessage(request);
     });
   }
 
   stop(): void {
     const pending = this.pending;
     if (!pending) return;
-
     clearTimeout(pending.timer);
     this.pending = null;
     pending.resolve(localError(pending.id, "cancelled", "已停止本次运行。"));
-    this.rebuildWorker();
+    this.rebuildRuntime();
   }
 
   dispose(): void {
@@ -123,67 +139,126 @@ export class PyodideWorkerController implements LabRunner {
       pending.resolve(localError(pending.id, "cancelled", "实验页面已关闭。"));
       this.pending = null;
     }
-    this.worker?.terminate();
-    this.worker = null;
+    this.transport?.destroy();
+    this.transport = null;
+    this.clearInitializationTimer();
     this.listeners.clear();
   }
 
-  private spawnWorker(): void {
-    this.worker = this.workerFactory();
-    this.worker.onmessage = (event: MessageEvent<unknown>) => {
-      let response;
-      try {
-        response = parseWorkerResponse(event.data);
-      } catch {
-        return;
-      }
-
-      if (response.type === "ready") {
-        if (!this.pending) this.setStatus("ready");
-        return;
-      }
-      if (response.type === "error" && response.id === null) {
-        const pending = this.pending;
-        if (pending) {
-          clearTimeout(pending.timer);
-          this.pending = null;
-          pending.resolve(localError(pending.id, "runtime", response.message));
-        }
-        this.worker?.terminate();
-        this.worker = null;
-        this.setStatus("error");
-        return;
-      }
-      if (!this.pending || response.id !== this.pending.id) return;
-      if (response.type === "running") {
-        this.setStatus("running");
-        return;
-      }
-
-      const pending = this.pending;
-      clearTimeout(pending.timer);
-      this.pending = null;
-      pending.resolve(response);
-      this.setStatus(response.type === "error" && response.category === "runtime" ? "error" : "ready");
-    };
-    this.worker.onerror = () => {
+  private spawnRuntime(): void {
+    const transport = this.transportFactory();
+    this.transport = transport;
+    transport.start({
+      onMessage: (value) => this.handleRuntimeMessage(transport, value),
+      onError: (message) => this.handleRuntimeError(transport, message),
+    });
+    this.clearInitializationTimer();
+    this.initializationTimer = setTimeout(() => {
+      if (transport !== this.transport) return;
       const pending = this.pending;
       if (pending) {
         clearTimeout(pending.timer);
         this.pending = null;
-        pending.resolve(localError(pending.id, "runtime", "Python 环境已停止，请点击重试加载。"));
+        pending.resolve(
+          localError(
+            pending.id,
+            "runtime",
+            "Python 隔离环境加载超时，请点击重试加载。",
+          ),
+        );
       }
-      this.worker?.terminate();
-      this.worker = null;
+      this.stopRuntime(transport);
       this.setStatus("error");
-    };
+    }, LAB_RUNTIME_INIT_TIMEOUT_MS);
     this.setStatus("loading");
   }
 
-  private rebuildWorker(): void {
-    this.worker?.terminate();
-    this.worker = null;
-    if (!this.disposed) this.spawnWorker();
+  private handleRuntimeMessage(
+    source: LabRuntimeTransport,
+    value: unknown,
+  ): void {
+    if (source !== this.transport) return;
+    let response;
+    try {
+      response = parseWorkerResponse(value);
+    } catch {
+      return;
+    }
+
+    if (response.type === "ready") {
+      this.clearInitializationTimer();
+      if (!this.pending) this.setStatus("ready");
+      return;
+    }
+    if (response.type === "error" && response.id === null) {
+      const pending = this.pending;
+      if (pending) {
+        clearTimeout(pending.timer);
+        this.pending = null;
+        pending.resolve(localError(pending.id, "runtime", response.message));
+      }
+      this.stopRuntime(source);
+      this.setStatus("error");
+      return;
+    }
+    if (!this.pending || response.id !== this.pending.id) return;
+    if (response.type === "running") {
+      this.setStatus("running");
+      return;
+    }
+
+    const pending = this.pending;
+    clearTimeout(pending.timer);
+    this.pending = null;
+    pending.resolve(response);
+    this.setStatus(
+      response.type === "error" && response.category === "runtime"
+        ? "error"
+        : "ready",
+    );
+  }
+
+  private handleRuntimeError(
+    source: LabRuntimeTransport,
+    message: string,
+  ): void {
+    if (source !== this.transport) return;
+    const pending = this.pending;
+    if (pending) {
+      clearTimeout(pending.timer);
+      this.pending = null;
+      pending.resolve(
+        localError(
+          pending.id,
+          "runtime",
+          `${message.slice(0, 900)} 请点击重试加载。`,
+        ),
+      );
+    }
+    this.stopRuntime(source);
+    this.setStatus("error");
+  }
+
+  private stopRuntime(runtime: LabRuntimeTransport): void {
+    runtime.destroy();
+    if (this.transport === runtime) {
+      this.transport = null;
+      this.clearInitializationTimer();
+    }
+  }
+
+  private rebuildRuntime(): void {
+    this.transport?.destroy();
+    this.transport = null;
+    this.clearInitializationTimer();
+    if (!this.disposed) this.spawnRuntime();
+  }
+
+  private clearInitializationTimer(): void {
+    if (this.initializationTimer !== null) {
+      clearTimeout(this.initializationTimer);
+      this.initializationTimer = null;
+    }
   }
 
   private setStatus(status: LabRunnerStatus): void {

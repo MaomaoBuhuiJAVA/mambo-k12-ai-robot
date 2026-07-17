@@ -1,9 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { LabRunner } from "./worker-controller";
+import { LEARNING_STATE_CHANGED_EVENT } from "@/lib/learning-events";
+import { loadLearningState } from "@/lib/learning-store";
 import type { LabTerminalResponse } from "./lab-protocol";
+import type { LabRunner } from "./worker-controller";
 import { PythonLab } from "./python-lab";
 
 vi.mock("./monaco-python-editor", () => ({
@@ -33,6 +35,9 @@ function fakeRunner(): LabRunner {
 }
 
 describe("PythonLab", () => {
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => vi.restoreAllMocks());
+
   it("offers templates plus run, stop and reset controls", async () => {
     const user = userEvent.setup();
     const runner = fakeRunner();
@@ -45,7 +50,10 @@ describe("PythonLab", () => {
     expect(screen.getByRole("button", { name: "重置代码" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "运行代码" }));
-    expect(runner.run).toHaveBeenCalledWith(expect.objectContaining({ templateId: "bubble-sort" }));
+    expect(runner.run).toHaveBeenCalledWith(expect.objectContaining({
+      templateId: "bubble-sort",
+      challengeVersion: 1,
+    }));
     expect(await screen.findByText("挑战测试：全部通过")).toBeInTheDocument();
   });
 
@@ -103,5 +111,42 @@ describe("PythonLab", () => {
     await user.click(await screen.findByRole("button", { name: "重试加载" }));
 
     expect(runner.initialize).toHaveBeenCalledTimes(2);
+  });
+
+  it("records real hint use as low-weight evidence and announces the saved change", async () => {
+    const user = userEvent.setup();
+    const changed = vi.fn();
+    window.addEventListener(LEARNING_STATE_CHANGED_EVENT, changed);
+    render(<PythonLab createRunner={fakeRunner} />);
+
+    await user.click(screen.getByRole("button", { name: "查看第一条提示" }));
+    await user.click(screen.getByRole("button", { name: "运行代码" }));
+
+    const attempt = loadLearningState().attempts.at(-1);
+    expect(attempt).toMatchObject({
+      attemptId: "lab:bubble-sort:v1",
+      score: 0.7,
+      hints: 1,
+      mode: "code",
+    });
+    expect(changed).toHaveBeenCalledOnce();
+    expect(await screen.findByText("形成性练习已保存到本机学习记录")).toBeInTheDocument();
+    window.removeEventListener(LEARNING_STATE_CHANGED_EVENT, changed);
+  });
+
+  it("reports storage failure honestly and does not announce a saved change", async () => {
+    const user = userEvent.setup();
+    const changed = vi.fn();
+    window.addEventListener(LEARNING_STATE_CHANGED_EVENT, changed);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota exceeded");
+    });
+    render(<PythonLab createRunner={fakeRunner} />);
+
+    await user.click(screen.getByRole("button", { name: "运行代码" }));
+
+    expect(await screen.findByText("挑战已通过，但本机学习记录保存失败")).toBeInTheDocument();
+    expect(changed).not.toHaveBeenCalled();
+    window.removeEventListener(LEARNING_STATE_CHANGED_EVENT, changed);
   });
 });
