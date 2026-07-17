@@ -298,11 +298,12 @@ describe("POST /api/chat", () => {
       courseId: "lower-bubble-sort",
       messages: [{ role: "user", content: "help" }],
     })));
-    const read = response.body?.getReader().read();
-    const rejection = expect(read).rejects.toMatchObject({ name: "TimeoutError" });
+    const reader = response.body?.getReader();
+    const read = reader?.read();
     await vi.advanceTimersByTimeAsync(90_000);
 
-    await rejection;
+    await expect(read).resolves.toMatchObject({ done: false, value: expect.stringContaining("AI 服务暂时不可用") });
+    await expect(reader?.read()).resolves.toEqual({ done: true, value: undefined });
   });
 
   it("holds concurrency until a chat response stream is cancelled", async () => {

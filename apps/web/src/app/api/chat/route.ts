@@ -2,6 +2,7 @@ import { createTextStreamResponse, streamText, toTextStream } from "ai";
 
 import { getCourseById } from "@/data/curriculum";
 import { chatRequestSchema, toModelMessages } from "@/lib/ai/chat-schema";
+import { buildCourseFallback } from "@/lib/ai/course-fallback";
 import { getGoogleModel } from "@/lib/ai/provider";
 import { buildSystemPrompt } from "@/lib/ai/prompt";
 import {
@@ -10,6 +11,7 @@ import {
   requestGuardRejectionResponse,
 } from "@/lib/ai/request-guard";
 import { AI_ROUTE_DEADLINE_MS, createRouteDeadline } from "@/lib/ai/route-deadline";
+import { withTextStreamFallback } from "@/lib/ai/text-stream-fallback";
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 const MAX_CHAT_BODY_BYTES = 6 * 1024 * 1024;
@@ -109,9 +111,10 @@ export async function POST(request: Request): Promise<Response> {
         abortSignal: deadline.signal,
       });
       const textStream = toTextStream({ stream: result.stream });
+      const resilientStream = withTextStreamFallback(textStream, buildCourseFallback(course));
 
       const response = createTextStreamResponse({
-        stream: leaseReadableStream(textStream, access.lease, deadline.cleanup),
+        stream: leaseReadableStream(resilientStream, access.lease, deadline.cleanup),
         headers: NO_STORE_HEADERS,
       });
       streamOwnsLease = true;

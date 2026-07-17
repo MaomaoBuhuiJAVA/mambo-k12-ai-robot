@@ -82,7 +82,8 @@ describe("ConversationClassroom", () => {
     await user.type(screen.getByRole("textbox", { name: "给 Mambo 发消息" }), "Help");
     await user.click(screen.getByRole("button", { name: "发送消息" }));
 
-    expect(await screen.findByText(/我先用课程内容回答/)).toBeVisible();
+    expect(await screen.findByText(/AI 服务暂时不可用/)).toBeVisible();
+    expect(screen.getByText(/\[S1\]/)).toBeVisible();
     expect(screen.queryByText(/network|503/i)).not.toBeInTheDocument();
   });
 

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import type { CurriculumCourse } from "@/data/curriculum";
+import { buildCourseFallback } from "@/lib/ai/course-fallback";
 import { loadConversation, saveConversation } from "@/lib/conversation-store";
 import type { Stage } from "@/lib/domain";
 
@@ -34,9 +35,6 @@ const actions = [
   { label: "演示一下", icon: CirclePlay },
   { label: "来道练习", icon: PencilLine },
 ];
-
-const fallback = (course: CurriculumCourse) =>
-  `我先用课程内容回答。我们继续围绕“${course.title}”来想：${course.explanation.keyIdeas[0]}。${course.explanation.workedExample}`;
 
 function createWelcomeMessages(course: CurriculumCourse): Message[] {
   return [
@@ -206,7 +204,7 @@ export function ConversationClassroom({ course, stage }: { course: CurriculumCou
         });
       } else {
         setMessages((current) => {
-          const completed = current.map((item) => item.id === assistantId ? { ...item, text: fallback(course) } : item);
+          const completed = current.map((item) => item.id === assistantId ? { ...item, text: buildCourseFallback(course) } : item);
           saveConversation(course.id, completed);
           return completed;
         });
