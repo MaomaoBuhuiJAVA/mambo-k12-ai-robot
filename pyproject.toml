@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mambo-k12-ai-robot"
+version = "0.1.0"
+description = "K12 multimodal teaching robot device and server communication foundation"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["server/tests", "device/tests"]
+addopts = "-q"
+

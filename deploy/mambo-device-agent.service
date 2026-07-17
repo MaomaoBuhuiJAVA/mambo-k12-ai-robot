@@ -1,0 +1,20 @@
+[Unit]
+Description=Mambo OrangePi Device Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=orangepi
+Group=orangepi
+WorkingDirectory=/opt/mambo-k12-ai-robot
+EnvironmentFile=/etc/mambo/device-agent.env
+ExecStart=/opt/mambo-k12-ai-robot/.venv/bin/python -m device.agent
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+
