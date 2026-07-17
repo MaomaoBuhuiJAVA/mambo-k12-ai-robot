@@ -1,152 +1,167 @@
 # Mambo K12 AI Robot
 
-面向 K12 人工智能通识教育的多模态桌面机器人。当前阶段完成了 OrangePi 设备网关和学习业务数据基础，暂不接入 ESP32、传感器与 Knodo。
+Mambo 是面向 K12 人工智能通识教育的多模态学习原型。学生可以按学段学习原创课程，通过对话、图片、语音、动画、绘本、编程和游戏化练习完成一个可重复演示的学习闭环；OrangePi 作为可选的桌面机器人终端，通过独立 Core API 保持长连接。
 
-## 当前能力
+> 当前状态：比赛 P0 原型，不是可直接面向真实学校上线的生产系统。网页学习数据仍保存在当前浏览器，尚未完成登录、教材 RAG、教师 CMS、共享学习会话和生产数据库贯通。实际实现边界见 [P0 保真清单](docs/evidence/p0-fidelity-ledger.md)。
 
-- OrangePi 主动建立 WebSocket 长连接，支持认证、心跳、状态上报和自动重连
-- 服务端持久化设备、状态历史和命令结果，重启后记录不丢失
-- 服务端只下发 `ping`、`get_status` 白名单命令，不提供远程 Shell
-- 学生档案支持四个学段和兴趣标签
-- 课程按学段管理，学习会话会校验学生与课程学段是否匹配
-- 持久化对话消息、多模态元数据、练习答案、成绩和反馈
-- 开发环境使用 SQLite，生产环境可通过连接串切换 PostgreSQL
-- 提供 Alembic 数据库迁移、OpenAPI 文档、Dockerfile 和自动化测试
+## 已实现
 
-## 目录
+- 四个学段：小学低年级、小学高年级、初中、高中；每个学段 2 门原创种子课，共 8 门。
+- Gemini 流式对话、单张 JPEG/PNG/WebP 图片提问、浏览器录音转写、浏览器中文朗读；每门课程有界保存完整文字轮次并可刷新恢复。
+- 冒泡排序和神经网络/图像分类锚点课程使用版本化参考目录，展示经核对事实和 NIST/PyTorch/scikit-learn 来源，并把 `[S#]` 引用上下文加入提示词。
+- DOCX 讲义与 PPTX 课件真实生成、下载；锚点课编入来源标签/URL，其他课明确标注为未绑定正式教材的项目种子内容。
+- 冒泡排序与神经网络两套确定性交互动画，支持播放、暂停、单步、重置和调速。
+- 4-8 页结构化互动绘本，包含项目内插图、旁白、页内问题、本机保存与回看；AI 不可用时回退原创种子内容。
+- Monaco + Pyodide Python 实验室，提供冒泡排序和图像特征分类两个确定性挑战。
+- 单选、排序、代码追踪三类确定性练习，即时反馈、知识点掌握度、间隔复习与可解释推荐。
+- OrangePi WebSocket 自动重连、心跳、状态上报、`ping`/`get_status` 白名单命令，以及网页只读设备状态。
+- FastAPI、SQLAlchemy、Alembic、SQLite/PostgreSQL、Dockerfile、systemd 和 OpenAPI 基础。
+
+## 架构边界
+
+```mermaid
+flowchart LR
+    B["学生浏览器"] -->|HTTPS| V["Next.js / Vercel"]
+    V -->|Gemini API| G["Google Gemini"]
+    V -->|Redis REST 限流| R["Upstash / Vercel KV"]
+    V -->|HTTPS + 管理令牌，仅服务端| C["FastAPI Core API"]
+    O["OrangePi device-agent"] -->|WSS 长连接| C
+    C --> P["PostgreSQL / 本地 SQLite"]
+```
+
+- `apps/web` 是学生使用的 Next.js 网页，可部署到 Vercel。
+- `server` 是支持常驻进程和 WebSocket 的 Core API，必须部署到容器、云主机或其他支持长连接的平台，不能由 Vercel 网页替代。
+- `device` 是 OrangePi 代理。它主动连接 Core API，不接受远程 Shell。
+- 当前网页只通过 `/api/device` 读取经清洗的设备状态。网页的答题、掌握度与绘本仍使用 `localStorage`，尚未写入 Core API 数据库。
+
+## 仓库结构
 
 ```text
-device/                 OrangePi device-agent
-server/app/             FastAPI 服务端
-server/migrations/      Alembic 数据库迁移
-docs/protocol.md        WebSocket 消息协议
-docs/architecture.md    架构边界与后续路线
-docs/product-technical-design.md  产品与完整技术设计
-deploy/                 OrangePi systemd 配置
-scripts/                服务端启动脚本
+apps/web/                   Next.js 学习工作台与 Server Route Handlers
+device/                     OrangePi device-agent
+server/app/                 FastAPI Core API 与设备网关
+server/migrations/          Alembic 数据库迁移
+compose.yaml                Core API + PostgreSQL 单副本容器栈
+deploy/                     OrangePi systemd 配置
+.github/workflows/ci.yml    Web 与 Python 自动化验证
+docs/deployment/            本地与公网部署说明
+docs/evidence/              需求、评分项与实现保真证据
+docs/report/                项目报告与演示脚本
+docs/verification/          发布验收命令与证据记录规则
 ```
 
-## 启动服务端
+## 本地启动
 
-要求 Python 3.10 或更高版本。
+要求：Node.js 20+、npm、Python 3.10+。Windows 与 Linux 可以分别启动 Core API 和网页；它们也可以运行在两台机器上。
 
-```bash
-python -m venv .venv
-source .venv/bin/activate          # Linux/macOS
-# .venv\Scripts\activate          # Windows PowerShell
-pip install -r server/requirements-dev.txt
-cp .env.example .env
-```
-
-修改 `.env`，至少设置不同的 `DEVICE_AUTH_TOKEN` 和 `ADMIN_API_TOKEN`。本地默认数据库为 `data/mambo.db`。
+### 1. Core API
 
 Windows PowerShell：
 
 ```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r server/requirements-dev.txt
+Copy-Item .env.example .env
+# 编辑 .env，为 DEVICE_AUTH_TOKEN 与 ADMIN_API_TOKEN 生成不同的随机值
 .\scripts\start-server.ps1
 ```
 
 Linux：
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r server/requirements-dev.txt
+cp .env.example .env
+# 编辑 .env，为 DEVICE_AUTH_TOKEN 与 ADMIN_API_TOKEN 生成不同的随机值
 ./scripts/start-server.sh
 ```
 
-启动脚本会先执行 `python -m alembic upgrade head`，再启动 API。检查地址：
+启动脚本先执行 `python -m alembic upgrade head`，再监听 `0.0.0.0:8000`。
 
 - 健康检查：`http://127.0.0.1:8000/api/v1/health`
-- OpenAPI 页面：`http://127.0.0.1:8000/docs`
+- OpenAPI：`http://127.0.0.1:8000/docs`
 
-## 核心 API
+### 2. 学习网页
 
-除健康检查和设备 WebSocket 外，以下接口均需管理令牌：
+Windows PowerShell：
 
-```text
-GET    /api/v1/devices
-GET    /api/v1/devices/{device_id}
-GET    /api/v1/devices/{device_id}/status-history
-GET    /api/v1/devices/{device_id}/commands
-POST   /api/v1/devices/{device_id}/commands
-GET    /api/v1/commands/{command_id}
-
-POST   /api/v1/students
-GET    /api/v1/students
-GET    /api/v1/students/{student_id}
-PATCH  /api/v1/students/{student_id}
-
-POST   /api/v1/courses
-GET    /api/v1/courses
-GET    /api/v1/courses/{course_id}
-
-POST   /api/v1/learning-sessions
-GET    /api/v1/learning-sessions
-GET    /api/v1/learning-sessions/{session_id}
-POST   /api/v1/learning-sessions/{session_id}/end
-GET    /api/v1/learning-sessions/{session_id}/messages
-POST   /api/v1/learning-sessions/{session_id}/messages
-GET    /api/v1/learning-sessions/{session_id}/attempts
-POST   /api/v1/learning-sessions/{session_id}/attempts
+```powershell
+npm install
+Copy-Item apps/web/.env.example apps/web/.env.local
+# 编辑 apps/web/.env.local；密钥只放在本机环境文件
+npm run dev
 ```
 
-请求头：
+Linux：
 
-```text
-Authorization: Bearer <ADMIN_API_TOKEN>
+```bash
+npm install
+cp apps/web/.env.example apps/web/.env.local
+# 编辑 apps/web/.env.local；密钥只放在本机环境文件
+npm run dev
 ```
 
-## 启动 OrangePi 代理
+打开 `http://localhost:3000`。只看固定课程、动画、种子绘本、材料、练习和编程实验时可不配置 Gemini；对话和录音转写需要 `GOOGLE_GENERATIVE_AI_API_KEY`。
 
-在开发板上：
+### 3. OrangePi 代理
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r device/requirements.txt
+python -m pip install -r device/requirements.txt
 
 export DEVICE_ID="orangepi4pro-dev-01"
-export DEVICE_AUTH_TOKEN="与服务端一致的设备令牌"
-export SERVER_WS_URL="ws://<服务端局域网IP>:8000/ws/v1/devices"
+export DEVICE_AUTH_TOKEN="与 Core API 中该环境的设备令牌一致"
+export SERVER_WS_URL="ws://<Core API 局域网地址>:8000/ws/v1/devices"
 python -m device.agent
 ```
 
-已经安装 systemd 服务时，开发板开机后会自行连接服务端，无需先 SSH。部署详情见 `deploy/mambo-device-agent.service`。
+正式公网环境必须把 `SERVER_WS_URL` 攓为 `wss://.../ws/v1/devices`。systemd 示例见 `deploy/mambo-device-agent.service`；安装 systemd 单元和写入 `/etc` 需要用户明确执行 `sudo`。
 
-## 数据库
+## 数据与演示边界
 
-本地默认值：
+| 数据 | 当前保存位置 | 刷新后 | 跨浏览器/跨设备 |
+|---|---|---:|---:|
+| 学段、最近课程、兴趣、答题、掌握度 | 浏览器 `localStorage` | 保留 | 不共享 |
+| 保存的绘本版本 | 浏览器 `localStorage` | 保留 | 不共享 |
+| 每门课完整文字对话轮次 | 浏览器 `localStorage`，最多 20 条/20,000 字符 | 保留 | 不共享 |
+| 对话图片、录音二进制 | 当前页面内存；发送给 Gemini API | 不保留 | 不共享 |
+| 设备、状态历史、命令结果 | Core API 数据库 | 保留 | 可共享 |
+| Core API 学生/课程/会话基础表 | Core API 数据库 | 保留 | 网页尚未接入 |
 
-```text
-DATABASE_URL=sqlite+aiosqlite:///./data/mambo.db
-AUTO_CREATE_SCHEMA=false
+因此，本版本适合单浏览器比赛演示。刷新可恢复当前课程的有界文字对话，但图片/录音不会恢复；不应将本机掌握度称为正式成绩，也不能声称网页与机器人已共享同一学习会话。
+
+## 验证命令
+
+```powershell
+npm run test --workspace apps/web -- --run
+npm run lint --workspace apps/web
+npm run typecheck --workspace apps/web
+npm run build --workspace apps/web
+npm run smoke:lab --workspace apps/web
+.\.venv\Scripts\python.exe -m pytest
+git diff --check
 ```
 
-生产 PostgreSQL 示例：
+Linux 将最后一条 Python 命令改为 `.venv/bin/python -m pytest`。完整发布清单见 [P0 发布验收](docs/verification/p0-release-checklist.md)。本轮按用户要求未执行浏览器视觉验收，不能用单元测试和构建结果替代真实浏览器、麦克风权限、移动端布局或云端链路验收。
 
-```text
-DATABASE_URL=postgresql+asyncpg://mambo:password@db:5432/mambo
-```
+GitHub Actions 在 push/PR 时使用 Node.js 22 执行 Web 测试、lint、typecheck、build 和真实 Pyodide smoke，并使用 Python 3.12 执行 `pytest`。CI 配置存在不等于当前 release 已通过，结论以对应 commit 的 Actions 结果和本地发布日志为准。
 
-数据库结构只通过迁移升级：
+## 部署
 
-```bash
-python -m alembic upgrade head
-python -m alembic current
-```
+- [生产部署指南](docs/deployment/production.md)：Vercel、Redis、Core API、PostgreSQL、WSS 和 OrangePi 配置。
+- [比赛演示脚本](docs/report/demo-script.md)：在网络或机器人不可用时也能降级完成的 8-10 分钟流程。
+- [项目技术报告](docs/report/project-report.md)：架构、模型策略、多模态路线、难题、安全与后续计划。
+- [赛题证据矩阵](docs/evidence/index.md)：R01-R16 与代码、测试、手工证据状态。
 
-`AUTO_CREATE_SCHEMA=true` 仅供隔离测试使用，不应在正式环境开启。
+## 安全提示
 
-## 测试
+- 不要提交 `.env`、`.env.local`、API Key、Redis Token、Core 管理令牌、设备令牌或 SSH 私钥。
+- Vercel 上的 AI 路由在没有 Redis REST 限流存储时会返回 `AI_GUARD_UNAVAILABLE`，这是故障关闭设计。
+- 公网 Core API 必须使用 HTTPS/WSS；当前设备鉴权是环境级共享令牌，真实多设备部署前应升级为每设备独立凭证。
+- Python 实验是无主站同源权限的浏览器隔离练习，不是正式判题沙箱，结果只作为低权重形成性证据。
+- 公开试用前仍需补齐登录授权、未成年人监护/同意、数据删除、内容审核、审计、备份、监控与事件响应。
 
-```bash
-python -m pytest
-```
-
-测试覆盖设备连接与断开、状态持久化、命令回执、鉴权、学习记录闭环和学段匹配。
-
-## 安全边界
-
-- 不在仓库、浏览器前端或开发板中存放 Knodo PAT、模型 API Key 或管理令牌。
-- 设备端不执行服务端传来的任意命令或脚本。
-- 公网部署必须使用 `https://` 和 `wss://`，并为每台设备逐步切换独立凭证。
-- 机器人运动控制未来必须经过服务端命令白名单和 ESP32 本地安全约束。
-- Knodo 只通过服务端适配器调用；设备端和网页端不直接持有 Knodo 密钥。
+本项目不进行医学、心理或自闭症诊断，也不允许大模型直接控制电机、执行 Shell 或运行任意服务端代码。
