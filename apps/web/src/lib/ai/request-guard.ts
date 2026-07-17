@@ -50,8 +50,8 @@ const DEFAULT_LIMITS: Record<GuardRoute, RequestLimits> = {
   storybook: { minute: 4, day: 30, clientConcurrency: 1, routeConcurrency: 4 },
 };
 const OVERALL_CONCURRENCY = 20;
-const CONCURRENCY_LEASE_MS = 180_000;
-const CONCURRENCY_KEY_TTL_SECONDS = Math.ceil(CONCURRENCY_LEASE_MS / 1000) + 60;
+export const AI_LEASE_DURATION_MS = 180_000;
+const CONCURRENCY_KEY_TTL_SECONDS = Math.ceil(AI_LEASE_DURATION_MS / 1000) + 60;
 const GUARD_UNAVAILABLE_RETRY_SECONDS = 30;
 const REDIS_TIMEOUT_MS = 2_500;
 const REDIS_PREFIX = "mambo:ai-guard:{mambo-ai}:v3";
@@ -263,7 +263,7 @@ async function acquireDurableLease(
 ): Promise<AcquireResult> {
   const timestamp = Date.now();
   const leaseToken = crypto.randomUUID();
-  const leaseExpiry = timestamp + CONCURRENCY_LEASE_MS;
+  const leaseExpiry = timestamp + AI_LEASE_DURATION_MS;
   const minuteBucket = Math.floor(timestamp / 60_000);
   const dayBucket = Math.floor(timestamp / 86_400_000);
   const client = clientKey(request, ["x-vercel-forwarded-for", "x-forwarded-for"]);

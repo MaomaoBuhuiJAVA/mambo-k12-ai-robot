@@ -55,6 +55,42 @@ function unreadRequest() {
   };
 }
 
+function stalledRequest() {
+  const cancel = vi.fn();
+  const request = new Request("http://localhost/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: new ReadableStream<Uint8Array>({ cancel }),
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+  return { cancel, request };
+}
+
+function delayedChatRequest(delayMs: number) {
+  const payload = JSON.stringify({
+    stage: "lower_primary",
+    courseId: "lower-bubble-sort",
+    messages: [{ role: "user", content: "help" }],
+  });
+  const midpoint = Math.floor(payload.length / 2);
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(payload.slice(0, midpoint)));
+      setTimeout(() => {
+        controller.enqueue(encoder.encode(payload.slice(midpoint)));
+        controller.close();
+      }, delayMs);
+    },
+  });
+  return new Request("http://localhost/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+}
+
 describe("POST /api/chat", () => {
   beforeEach(() => {
     vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
@@ -106,6 +142,58 @@ describe("POST /api/chat", () => {
     await expect(response.json()).resolves.toEqual({ error: "AI_GUARD_UNAVAILABLE" });
     expect(unread.getReader).not.toHaveBeenCalled();
     expect(streamText).not.toHaveBeenCalled();
+  });
+
+  it("cancels a stalled body at the total route deadline and releases its lease", async () => {
+    vi.useFakeTimers();
+    const stalled = stalledRequest();
+    const pending = POST(stalled.request);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(90_000);
+    const response = await pending;
+
+    expect(response.status).toBe(408);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ error: "AI_REQUEST_TIMEOUT" });
+    expect(stalled.cancel).toHaveBeenCalledTimes(1);
+    expect(streamText).not.toHaveBeenCalled();
+
+    vi.mocked(streamText).mockReturnValue({ stream: new ReadableStream() } as never);
+    vi.mocked(toTextStream).mockImplementation(() => new ReadableStream());
+    vi.mocked(createTextStreamResponse).mockImplementation(({ stream, headers }) => new Response(stream, { headers }));
+    const body = JSON.stringify({
+      stage: "lower_primary",
+      courseId: "lower-bubble-sort",
+      messages: [{ role: "user", content: "help" }],
+    });
+    const first = await POST(request(body));
+    const second = await POST(request(body));
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    await first.body?.cancel();
+    await second.body?.cancel();
+  });
+
+  it("does not reset the deadline after a slow body finishes", async () => {
+    vi.useFakeTimers();
+    let providerSignal: AbortSignal | undefined;
+    vi.mocked(streamText).mockImplementation((options) => {
+      providerSignal = options.abortSignal;
+      return { stream: new ReadableStream() } as never;
+    });
+    vi.mocked(toTextStream).mockImplementation(() => new ReadableStream());
+    vi.mocked(createTextStreamResponse).mockImplementation(({ stream, headers }) => new Response(stream, { headers }));
+
+    const pending = POST(delayedChatRequest(30_000));
+    await vi.advanceTimersByTimeAsync(30_000);
+    const response = await pending;
+    expect(providerSignal?.aborted).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(providerSignal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(providerSignal?.aborted).toBe(true);
+    await response.body?.cancel();
   });
 
   it("charges invalid requests and stops reading bodies after the minute quota", async () => {

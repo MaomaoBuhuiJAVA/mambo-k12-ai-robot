@@ -3,19 +3,23 @@ import { createTextStreamResponse, streamText, toTextStream } from "ai";
 import { getCourseById } from "@/data/curriculum";
 import { chatRequestSchema, toModelMessages } from "@/lib/ai/chat-schema";
 import { getGoogleModel } from "@/lib/ai/provider";
-import { AI_PROVIDER_TIMEOUT_MS, createProviderAbort, type ProviderAbort } from "@/lib/ai/provider-abort";
 import { buildSystemPrompt } from "@/lib/ai/prompt";
 import {
   acquireRequestLease,
   leaseReadableStream,
   requestGuardRejectionResponse,
 } from "@/lib/ai/request-guard";
+import { AI_ROUTE_DEADLINE_MS, createRouteDeadline } from "@/lib/ai/route-deadline";
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 const MAX_CHAT_BODY_BYTES = 6 * 1024 * 1024;
 
-async function readJsonBody(request: Request): Promise<unknown> {
+async function readJsonBody(request: Request, signal: AbortSignal): Promise<unknown> {
   if (!request.body) throw new Error("Missing request body");
+  if (signal.aborted) {
+    await request.body.cancel(signal.reason).catch(() => undefined);
+    throw signal.reason;
+  }
 
   const contentLength = request.headers.get("content-length");
   if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_CHAT_BODY_BYTES) {
@@ -26,10 +30,20 @@ async function readJsonBody(request: Request): Promise<unknown> {
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let totalBytes = 0;
+  const cancelOnAbort = () => {
+    try {
+      void reader.cancel(signal.reason).catch(() => undefined);
+    } catch {
+      // The reader may already be closed.
+    }
+  };
+  signal.addEventListener("abort", cancelOnAbort, { once: true });
+  if (signal.aborted) cancelOnAbort();
 
   try {
     while (true) {
       const { done, value } = await reader.read();
+      if (signal.aborted) throw signal.reason;
       if (done) break;
 
       totalBytes += value.byteLength;
@@ -40,8 +54,11 @@ async function readJsonBody(request: Request): Promise<unknown> {
       chunks.push(value);
     }
   } finally {
+    signal.removeEventListener("abort", cancelOnAbort);
     reader.releaseLock();
   }
+
+  if (signal.aborted) throw signal.reason;
 
   const bytes = new Uint8Array(totalBytes);
   let offset = 0;
@@ -60,14 +77,17 @@ export async function POST(request: Request): Promise<Response> {
 
   const access = await acquireRequestLease(request, "chat");
   if (!access.ok) return requestGuardRejectionResponse(access);
+  const deadline = createRouteDeadline(request.signal, AI_ROUTE_DEADLINE_MS.chat);
   let streamOwnsLease = false;
-  let providerAbort: ProviderAbort | null = null;
   let body: unknown;
 
   try {
     try {
-      body = await readJsonBody(request);
+      body = await readJsonBody(request, deadline.signal);
     } catch {
+      if (deadline.signal.aborted) {
+        return Response.json({ error: "AI_REQUEST_TIMEOUT" }, { status: 408, headers: NO_STORE_HEADERS });
+      }
       return Response.json({ error: "INVALID_CHAT_REQUEST" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
@@ -82,17 +102,16 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     try {
-      providerAbort = createProviderAbort(request.signal, AI_PROVIDER_TIMEOUT_MS.chat);
       const result = streamText({
         model: getGoogleModel(),
         instructions: buildSystemPrompt({ stage: parsed.data.stage, course }),
         messages: toModelMessages(parsed.data),
-        abortSignal: providerAbort.signal,
+        abortSignal: deadline.signal,
       });
       const textStream = toTextStream({ stream: result.stream });
 
       const response = createTextStreamResponse({
-        stream: leaseReadableStream(textStream, access.lease, providerAbort.cleanup),
+        stream: leaseReadableStream(textStream, access.lease, deadline.cleanup),
         headers: NO_STORE_HEADERS,
       });
       streamOwnsLease = true;
@@ -102,7 +121,7 @@ export async function POST(request: Request): Promise<Response> {
     }
   } finally {
     if (!streamOwnsLease) {
-      providerAbort?.cleanup();
+      deadline.cleanup();
       await access.lease.release();
     }
   }

@@ -1,8 +1,8 @@
 import { generateText } from "ai";
 
 import { getGoogleModel } from "@/lib/ai/provider";
-import { AI_PROVIDER_TIMEOUT_MS, createProviderAbort } from "@/lib/ai/provider-abort";
 import { acquireRequestLease, requestGuardRejectionResponse } from "@/lib/ai/request-guard";
+import { AI_ROUTE_DEADLINE_MS, createRouteDeadline } from "@/lib/ai/route-deadline";
 
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 const MAX_MULTIPART_BYTES = 9 * 1024 * 1024;
@@ -24,20 +24,34 @@ async function cancelBody(request: Request): Promise<void> {
   }
 }
 
-async function readMultipartForm(request: Request): Promise<FormData> {
+async function readMultipartForm(request: Request, signal: AbortSignal): Promise<FormData> {
   const contentLength = request.headers.get("content-length");
   if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_MULTIPART_BYTES) {
     await cancelBody(request);
     throw new BodyTooLargeError();
   }
   if (!request.body) throw new Error("Missing multipart body");
+  if (signal.aborted) {
+    await request.body.cancel(signal.reason).catch(() => undefined);
+    throw signal.reason;
+  }
 
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let totalBytes = 0;
+  const cancelOnAbort = () => {
+    try {
+      void reader.cancel(signal.reason).catch(() => undefined);
+    } catch {
+      // The reader may already be closed.
+    }
+  };
+  signal.addEventListener("abort", cancelOnAbort, { once: true });
+  if (signal.aborted) cancelOnAbort();
   try {
     while (true) {
       const { done, value } = await reader.read();
+      if (signal.aborted) throw signal.reason;
       if (done) break;
       totalBytes += value.byteLength;
       if (totalBytes > MAX_MULTIPART_BYTES) {
@@ -47,8 +61,11 @@ async function readMultipartForm(request: Request): Promise<FormData> {
       chunks.push(value);
     }
   } finally {
+    signal.removeEventListener("abort", cancelOnAbort);
     reader.releaseLock();
   }
+
+  if (signal.aborted) throw signal.reason;
 
   const contentType = request.headers.get("content-type");
   if (!contentType) throw new Error("Missing multipart content type");
@@ -59,7 +76,9 @@ async function readMultipartForm(request: Request): Promise<FormData> {
     offset += chunk.byteLength;
   }
 
-  return new Response(bytes, { headers: { "Content-Type": contentType } }).formData();
+  const formData = await new Response(bytes, { headers: { "Content-Type": contentType } }).formData();
+  if (signal.aborted) throw signal.reason;
+  return formData;
 }
 
 function isAudioFile(value: FormDataEntryValue | null): value is File {
@@ -77,12 +96,16 @@ export async function POST(request: Request): Promise<Response> {
 
   const access = await acquireRequestLease(request, "transcribe");
   if (!access.ok) return requestGuardRejectionResponse(access);
+  const deadline = createRouteDeadline(request.signal, AI_ROUTE_DEADLINE_MS.transcribe);
 
   try {
     let formData: FormData;
     try {
-      formData = await readMultipartForm(request);
+      formData = await readMultipartForm(request, deadline.signal);
     } catch (error) {
+      if (deadline.signal.aborted) {
+        return Response.json({ error: "AI_REQUEST_TIMEOUT" }, { status: 408, headers: NO_STORE_HEADERS });
+      }
       if (error instanceof BodyTooLargeError) {
         return Response.json(
           { error: "TRANSCRIPTION_BODY_TOO_LARGE" },
@@ -98,21 +121,15 @@ export async function POST(request: Request): Promise<Response> {
       return invalidFileResponse();
     }
 
-    const providerAbort = createProviderAbort(request.signal, AI_PROVIDER_TIMEOUT_MS.transcribe);
-    let result: Awaited<ReturnType<typeof generateText>>;
-    try {
-      result = await generateText({
-        model: getGoogleModel(),
-        instructions: TRANSCRIPTION_INSTRUCTIONS,
-        messages: [{
-          role: "user",
-          content: [{ type: "file", mediaType, data: new Uint8Array(await audio.arrayBuffer()) }],
-        }],
-        abortSignal: providerAbort.signal,
-      });
-    } finally {
-      providerAbort.cleanup();
-    }
+    const result = await generateText({
+      model: getGoogleModel(),
+      instructions: TRANSCRIPTION_INSTRUCTIONS,
+      messages: [{
+        role: "user",
+        content: [{ type: "file", mediaType, data: new Uint8Array(await audio.arrayBuffer()) }],
+      }],
+      abortSignal: deadline.signal,
+    });
 
     const transcript = result.text.trim().slice(0, 4000);
     if (!transcript) throw new Error("Empty transcription");
@@ -121,6 +138,7 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return Response.json({ error: "TRANSCRIPTION_FAILED" }, { status: 502, headers: NO_STORE_HEADERS });
   } finally {
+    deadline.cleanup();
     await access.lease.release();
   }
 }

@@ -72,6 +72,17 @@ function unreadRequest() {
   };
 }
 
+function stalledRequest() {
+  const cancel = vi.fn();
+  const request = new Request("http://localhost/api/transcribe", {
+    method: "POST",
+    headers: { "content-type": "multipart/form-data; boundary=stalled" },
+    body: new ReadableStream<Uint8Array>({ cancel }),
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+  return { cancel, request };
+}
+
 describe("POST /api/transcribe", () => {
   beforeEach(() => {
     vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
@@ -142,6 +153,24 @@ describe("POST /api/transcribe", () => {
     await expect(response.json()).resolves.toEqual({ error: "AI_NOT_CONFIGURED" });
   });
 
+  it("cancels a stalled multipart body at the route deadline and releases its lease", async () => {
+    vi.useFakeTimers();
+    const stalled = stalledRequest();
+    const pending = POST(stalled.request);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(60_000);
+    const response = await pending;
+
+    expect(response.status).toBe(408);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ error: "AI_REQUEST_TIMEOUT" });
+    expect(stalled.cancel).toHaveBeenCalledTimes(1);
+    expect(generateText).not.toHaveBeenCalled();
+
+    vi.mocked(generateText).mockResolvedValueOnce({ text: "next" } as never);
+    expect((await POST(audioRequest(new File(["audio"], "clip.ogg", { type: "audio/ogg" })))).status).toBe(200);
+  });
+
   it("accepts audio MIME parameters and sends the base MIME as an AI SDK file part", async () => {
     vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
     vi.mocked(generateText).mockResolvedValue({ text: "  transcript  " } as never);
@@ -156,21 +185,18 @@ describe("POST /api/transcribe", () => {
     }));
   });
 
-  it("returns a stable failure when the client aborts provider work", async () => {
+  it("returns a stable timeout when the client aborts before body parsing", async () => {
     const controller = new AbortController();
     controller.abort(new DOMException("client left", "AbortError"));
-    vi.mocked(generateText).mockImplementation(async (options) => {
-      expect(options.abortSignal?.aborted).toBe(true);
-      throw new DOMException("client left", "AbortError");
-    });
 
     const response = await POST(audioRequest(
       new File(["audio"], "clip.ogg", { type: "audio/ogg" }),
       controller.signal,
     ));
 
-    expect(response.status).toBe(502);
-    await expect(response.json()).resolves.toEqual({ error: "TRANSCRIPTION_FAILED" });
+    expect(response.status).toBe(408);
+    await expect(response.json()).resolves.toEqual({ error: "AI_REQUEST_TIMEOUT" });
+    expect(generateText).not.toHaveBeenCalled();
   });
 
   it("returns a stable failure and releases the lease at the transcription deadline", async () => {

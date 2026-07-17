@@ -35,6 +35,17 @@ function unreadRequest() {
   };
 }
 
+function stalledRequest() {
+  const cancel = vi.fn();
+  const request = new Request("http://localhost/api/storybook", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: new ReadableStream<Uint8Array>({ cancel }),
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+  return { cancel, request };
+}
+
 const input = { courseId: "lower-bubble-sort", stage: "lower_primary" };
 
 afterEach(() => {
@@ -79,6 +90,27 @@ describe("POST /api/storybook", () => {
     expect(generateText).not.toHaveBeenCalled();
   });
 
+  it("cancels a stalled AI body at the route deadline and releases its lease", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    const stalled = stalledRequest();
+    const pending = POST(stalled.request);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(90_000);
+    const response = await pending;
+
+    expect(response.status).toBe(408);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ error: "AI_REQUEST_TIMEOUT" });
+    expect(stalled.cancel).toHaveBeenCalledTimes(1);
+    expect(generateText).not.toHaveBeenCalled();
+
+    const course = getCourseById(input.courseId);
+    if (!course) throw new Error("fixture course missing");
+    vi.mocked(generateText).mockResolvedValueOnce({ output: createSeedStorybook(course) } as never);
+    expect((await POST(request(input))).status).toBe(200);
+  });
+
   it("uses an original curriculum fallback when AI is not configured", async () => {
     vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "");
     const response = await POST(request(input));
@@ -113,21 +145,17 @@ describe("POST /api/storybook", () => {
     }));
   });
 
-  it("uses the seed fallback when the client aborts generation", async () => {
+  it("returns a stable timeout when the client aborts before body parsing", async () => {
     vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
     const controller = new AbortController();
     controller.abort(new DOMException("client left", "AbortError"));
-    vi.mocked(generateText).mockImplementation(async (options) => {
-      expect(options.abortSignal?.aborted).toBe(true);
-      throw new DOMException("client left", "AbortError");
-    });
 
     const response = await POST(request(input, controller.signal));
     const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.source).toBe("seed");
-    expect(storybookSchema.safeParse(body.storybook).success).toBe(true);
+    expect(response.status).toBe(408);
+    expect(body).toEqual({ error: "AI_REQUEST_TIMEOUT" });
+    expect(generateText).not.toHaveBeenCalled();
   });
 
   it("uses the seed fallback at the storybook generation deadline", async () => {
