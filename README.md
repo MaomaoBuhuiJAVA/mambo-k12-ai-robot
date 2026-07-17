@@ -21,6 +21,7 @@ server/app/             FastAPI 服务端
 server/migrations/      Alembic 数据库迁移
 docs/protocol.md        WebSocket 消息协议
 docs/architecture.md    架构边界与后续路线
+docs/product-technical-design.md  产品与完整技术设计
 deploy/                 OrangePi systemd 配置
 scripts/                服务端启动脚本
 ```
