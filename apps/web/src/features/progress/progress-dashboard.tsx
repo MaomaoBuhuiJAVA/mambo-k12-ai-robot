@@ -118,7 +118,7 @@ export function ProgressDashboard({ now }: { now?: Date }) {
           </section>
         </div>
 
-        <aside className={styles.sideColumn} aria-label="下一步学习">
+        <aside className={styles.sideColumn} id="works" aria-label="下一步学习">
           <fieldset className={styles.interests}>
             <legend>兴趣偏好</legend>
             <p>只在课程学习优先级相同时用于排序。</p>

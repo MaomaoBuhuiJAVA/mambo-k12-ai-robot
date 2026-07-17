@@ -37,6 +37,17 @@ describe("LearningWorkspace", () => {
     ).toBeInTheDocument();
   });
 
+  it("opens the course path when navigation passes a mobile view", () => {
+    render(
+      <LearningWorkspace
+        {...({ initialMobileView: "path" } as Record<string, unknown>)}
+      />,
+    );
+
+    const courseRail = screen.getByRole("complementary", { name: "课程路径" });
+    expect(courseRail.parentElement).toHaveAttribute("data-mobile-active", "true");
+  });
+
   it("updates the classroom and teaching canvas when a course is selected", async () => {
     const user = userEvent.setup();
 

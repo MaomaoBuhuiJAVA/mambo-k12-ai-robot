@@ -16,6 +16,7 @@ describe("ProgressDashboard", () => {
 
     expect(await screen.findByText("还没有练习记录")).toBeVisible();
     expect(screen.getByText("还没有保存的作品")).toBeVisible();
+    expect(screen.getByRole("complementary", { name: "下一步学习" })).toHaveAttribute("id", "works");
     expect(screen.getByText(/当前学段/)).toBeVisible();
     expect(screen.getByRole("link", { name: /去学习推荐课程/ })).toHaveAttribute("href", expect.stringContaining("course="));
   });

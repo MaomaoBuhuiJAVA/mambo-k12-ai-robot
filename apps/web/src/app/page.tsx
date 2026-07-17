@@ -17,6 +17,7 @@ export default async function Home({ searchParams }: HomeProps) {
         requestedCourseId={firstParam(query.course)}
         initialCanvasTab={firstParam(query.tab)}
         initialStorybookId={firstParam(query.work)}
+        initialMobileView={firstParam(query.view)}
       />
     </AppShell>
   );

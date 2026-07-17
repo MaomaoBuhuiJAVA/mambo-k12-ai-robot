@@ -22,6 +22,12 @@ import { TeachingCanvas } from "./teaching-canvas";
 
 const DEFAULT_STAGE: Stage = "lower_primary";
 
+function parseMobileView(value: string | undefined): MobileView {
+  return value === "path" || value === "content" || value === "conversation"
+    ? value
+    : "conversation";
+}
+
 function getDefaultCourseId(stage: Stage) {
   const defaultCourse =
     getFeaturedCourses(stage)[0] ?? getCoursesForStage(stage)[0];
@@ -48,12 +54,14 @@ interface LearningWorkspaceProps {
   requestedCourseId?: string;
   initialCanvasTab?: string;
   initialStorybookId?: string;
+  initialMobileView?: string;
 }
 
 export function LearningWorkspace({
   requestedCourseId,
   initialCanvasTab,
   initialStorybookId,
+  initialMobileView,
 }: LearningWorkspaceProps = {}) {
   const requestedCourse = requestedCourseId ? getCourseById(requestedCourseId) : undefined;
   const initialStage = requestedCourse?.stage ?? DEFAULT_STAGE;
@@ -62,10 +70,14 @@ export function LearningWorkspace({
     requestedCourse?.id ?? getDefaultCourseId(initialStage),
   );
   const [mobileView, setMobileView] =
-    useState<MobileView>("conversation");
+    useState<MobileView>(() => parseMobileView(initialMobileView));
   const courses = useMemo(() => getCoursesForStage(stage), [stage]);
   const course =
     courses.find((candidate) => candidate.id === selectedCourseId) ?? courses[0];
+
+  useEffect(() => {
+    setMobileView(parseMobileView(initialMobileView));
+  }, [initialMobileView]);
 
   useEffect(() => {
     let active = true;

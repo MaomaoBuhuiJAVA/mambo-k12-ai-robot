@@ -9,4 +9,22 @@ describe("AppShell lab navigation", () => {
 
     expect(screen.getByRole("link", { name: /编程实验/ })).toHaveAttribute("href", "/lab");
   });
+
+  it("opens the course path instead of pointing at an already-visible anchor", () => {
+    render(<AppShell><div>workspace</div></AppShell>);
+
+    expect(screen.getByRole("link", { name: "课程" })).toHaveAttribute(
+      "href",
+      "/?view=path#course-rail",
+    );
+  });
+
+  it("opens saved works from the progress page", () => {
+    render(<AppShell><div>workspace</div></AppShell>);
+
+    expect(screen.getByRole("link", { name: "作品" })).toHaveAttribute(
+      "href",
+      "/progress#works",
+    );
+  });
 });
