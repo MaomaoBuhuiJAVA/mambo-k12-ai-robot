@@ -1279,3 +1279,47 @@ a[href] {
 .message__speech { width: 25px; height: 25px; margin-top: 7px; }
 .retry-answer { align-self: flex-start; min-height: 28px; margin: 0 24px; padding: 0 8px; font-size: 12px; }
 .message-composer__stop { display: inline-flex !important; width: auto !important; gap: 5px; padding: 0 9px; font-size: 12px; background: var(--feedback) !important; }
+
+.teaching-animation { display: flex; flex-direction: column; gap: 14px; min-height: 460px; padding: 2px 0; }
+.teaching-animation__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; min-height: 51px; }
+.teaching-animation__eyebrow { color: var(--primary); font-size: 11px; font-weight: 750; }
+.teaching-animation__heading h3 { margin-top: 2px; font-size: 17px; line-height: 1.35; }
+.teaching-animation__status { flex: 0 0 auto; max-width: 128px; padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--foreground-muted); background: var(--background); font-size: 11px; font-weight: 650; text-align: center; }
+.bubble-stage { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; gap: 8px; min-height: 116px; padding: 14px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); }
+.bubble-stage__item { display: grid; min-height: 52px; place-items: center; border: 2px solid var(--border-strong); border-radius: 7px; color: var(--foreground); background: var(--surface-subtle); font-size: 21px; font-weight: 780; transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease; }
+.bubble-stage__item[data-compared] { border-color: var(--highlight); background: var(--highlight-soft); transform: translateY(-7px); }
+.bubble-stage__item[data-sorted] { border-color: var(--primary); color: var(--primary-strong); background: var(--primary-soft); }
+.teaching-animation__narration { min-height: 77px; padding: 10px 11px; border-left: 3px solid var(--primary); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--primary-soft); }
+.teaching-animation__narration strong { display: block; color: var(--primary-strong); font-size: 13px; }
+.teaching-animation__narration p, .teaching-animation__hint { margin-top: 3px; color: var(--foreground-muted); font-size: 12px; line-height: 1.55; }
+.teaching-animation__metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.teaching-animation__metrics div { min-height: 52px; padding: 6px 7px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--background); text-align: center; }
+.teaching-animation__metrics dt { color: var(--foreground-muted); font-size: 10px; font-weight: 650; }
+.teaching-animation__metrics dd { margin-top: 1px; color: var(--foreground); font-size: 17px; font-weight: 780; }
+.teaching-animation__hint { min-height: 38px; margin-top: -4px; }
+.teaching-animation__controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 38px; }
+.teaching-animation__controls > button, .teaching-animation__speed { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 5px; padding: 0 9px; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--foreground-muted); background: var(--background); font-size: 12px; font-weight: 650; }
+.teaching-animation__controls > button:hover { color: var(--primary-strong); border-color: var(--primary); background: var(--primary-soft); }
+.teaching-animation__speed { gap: 1px; padding: 2px; }
+.teaching-animation__speed button { min-height: 28px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--foreground-muted); background: transparent; font-size: 11px; font-weight: 700; }
+.teaching-animation__speed button[aria-pressed="true"] { color: #fff; background: var(--primary); }
+.network-stage { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr) 16px minmax(0, 1fr); align-items: center; min-height: 174px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); }
+.network-stage__arrow { color: var(--foreground-soft); font-size: 16px; font-weight: 750; text-align: center; }
+.network-column { min-width: 0; min-height: 143px; padding: 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-subtle); transition: border-color 180ms ease, background-color 180ms ease; }
+.network-column[data-active] { border-color: var(--highlight); background: var(--highlight-soft); }
+.network-column[data-lit] { border-color: rgba(8, 127, 109, 0.45); background: var(--primary-soft); }
+.network-column h4 { min-height: 31px; color: var(--foreground-muted); font-size: 10px; line-height: 1.35; }
+.network-column__nodes { display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 5px; min-height: 88px; }
+.pixel-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; width: 58px; margin: auto; }
+.pixel-grid span { display: block; aspect-ratio: 1; border-radius: 2px; background: var(--primary); }
+.feature-node, .probability-node { display: block; padding: 4px; border: 1px solid var(--border-strong); border-radius: 4px; color: var(--foreground-muted); background: var(--background); font-size: 10px; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
+.probability-node b { color: var(--primary-strong); }
+
+@media (max-width: 560px) {
+  .teaching-animation { min-height: 430px; }
+  .network-stage { grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr) 12px minmax(0, 1fr); padding: 7px; }
+  .network-column { padding: 5px; }
+  .network-column h4 { font-size: 9px; }
+  .feature-node, .probability-node { padding: 3px 2px; font-size: 9px; }
+  .teaching-animation__controls > button { padding-inline: 7px; }
+}
