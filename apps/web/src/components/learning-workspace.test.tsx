@@ -64,7 +64,8 @@ describe("LearningWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "发送消息" }));
 
     expect(screen.getByText("为什么要比较相邻数字？")).toBeVisible();
-    expect(screen.getByText(/我们继续围绕“冒泡排序”/)).toBeVisible();
+    expect(await screen.findByText(/AI 服务暂时不可用/)).toBeVisible();
+    expect(screen.getByText(/\[S1\]/)).toBeVisible();
     expect(input).toHaveValue("");
   });
 
