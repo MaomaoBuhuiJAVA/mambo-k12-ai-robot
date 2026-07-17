@@ -8,34 +8,18 @@ import type { CurriculumCourse } from "@/data/curriculum";
 
 import styles from "./storybook-player.module.css";
 import { selectStorybookIllustration } from "./storybook-illustrations";
-import { createSeedStorybook, storybookSchema, type Storybook } from "./storybook";
+import { createSeedStorybook, storybookSchema } from "./storybook";
+import {
+  readSavedStorybooks,
+  STORYBOOK_STORAGE_KEY,
+  type SavedStorybook,
+} from "./storybook-storage";
 
-const STORAGE_KEY = "mambo.storybooks.v1";
 const MAX_SAVED_VERSIONS = 10;
 const MAX_GLOBAL_VERSIONS = 30;
 
-interface SavedStorybook {
-  id: string;
-  courseId: string;
-  savedAt: string;
-  storybook: Storybook;
-}
-
 function readAllSaved(): SavedStorybook[] {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    if (!Array.isArray(value)) return [];
-    return value.flatMap((item) => {
-      if (!item || typeof item !== "object") return [];
-      const record = item as Partial<SavedStorybook>;
-      const parsed = storybookSchema.safeParse(record.storybook);
-      return typeof record.courseId === "string" && record.courseId.length <= 80 && typeof record.id === "string" && typeof record.savedAt === "string" && parsed.success
-        ? [{ id: record.id, courseId: record.courseId, savedAt: record.savedAt, storybook: parsed.data }]
-        : [];
-    }).slice(0, MAX_GLOBAL_VERSIONS);
-  } catch {
-    return [];
-  }
+  return readSavedStorybooks(localStorage);
 }
 
 function readSaved(courseId: string): SavedStorybook[] {
@@ -93,7 +77,7 @@ export function StorybookPlayer({ course }: { course: CurriculumCourse }) {
       .sort((left, right) => right.savedAt.localeCompare(left.savedAt))
       .slice(0, MAX_GLOBAL_VERSIONS);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextAll));
+      localStorage.setItem(STORYBOOK_STORAGE_KEY, JSON.stringify(nextAll));
       setSaved(nextAll.filter((item) => item.courseId === course.id));
       setNotice("绘本已保存在这台设备上，可以稍后回看。 ");
     } catch {

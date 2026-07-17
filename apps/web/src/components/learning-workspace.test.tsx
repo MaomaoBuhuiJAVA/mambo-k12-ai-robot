@@ -1,10 +1,15 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { LearningWorkspace } from "./learning-workspace";
 
 describe("LearningWorkspace", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    window.history.replaceState({}, "", "/");
+  });
+
   it("filters courses by stage and selects that stage's featured course", async () => {
     const user = userEvent.setup();
 

@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   getCoursesForStage,
+  getCourseById,
   getFeaturedCourses,
 } from "@/data/curriculum";
 import type { Stage } from "@/lib/domain";
+import { announceLearningStateChanged } from "@/lib/learning-events";
+import { loadLearningState, saveLearningState } from "@/lib/learning-store";
 
 import { ConversationClassroom } from "./conversation-classroom";
 import { CourseRail } from "./course-rail";
@@ -30,6 +33,17 @@ function getDefaultCourseId(stage: Stage) {
   return defaultCourse.id;
 }
 
+function persistLearningSelection(nextStage: Stage, courseId: string) {
+  const current = loadLearningState();
+  const updatedAt = new Date().toISOString();
+  if (saveLearningState({
+    ...current,
+    profile: { ...current.profile, stage: nextStage },
+    lastCourseId: courseId,
+    updatedAt,
+  })) announceLearningStateChanged();
+}
+
 export function LearningWorkspace() {
   const [stage, setStage] = useState<Stage>(DEFAULT_STAGE);
   const [selectedCourseId, setSelectedCourseId] = useState(() =>
@@ -41,9 +55,35 @@ export function LearningWorkspace() {
   const course =
     courses.find((candidate) => candidate.id === selectedCourseId) ?? courses[0];
 
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      const saved = loadLearningState();
+      const requestedId = new URLSearchParams(window.location.search).get("course");
+      const requested = requestedId ? getCourseById(requestedId) : undefined;
+      const savedCourse = saved.lastCourseId ? getCourseById(saved.lastCourseId) : undefined;
+      const initialCourse = requested ?? (savedCourse?.stage === saved.profile.stage ? savedCourse : undefined);
+      const initialStage = initialCourse?.stage ?? saved.profile.stage;
+      setStage(initialStage);
+      setSelectedCourseId(initialCourse?.id ?? getDefaultCourseId(initialStage));
+      if (requested) persistLearningSelection(requested.stage, requested.id);
+    });
+    return () => { active = false; };
+  }, []);
+
   function handleStageChange(nextStage: Stage) {
+    const nextCourseId = getDefaultCourseId(nextStage);
     setStage(nextStage);
-    setSelectedCourseId(getDefaultCourseId(nextStage));
+    setSelectedCourseId(nextCourseId);
+    persistLearningSelection(nextStage, nextCourseId);
+  }
+
+  function handleCourseSelect(courseId: string) {
+    const selected = courses.find((candidate) => candidate.id === courseId);
+    if (!selected) return;
+    setSelectedCourseId(courseId);
+    persistLearningSelection(stage, courseId);
   }
 
   if (course === undefined) {
@@ -68,7 +108,7 @@ export function LearningWorkspace() {
             stage={stage}
             courses={courses}
             selectedCourseId={course.id}
-            onCourseSelect={setSelectedCourseId}
+            onCourseSelect={handleCourseSelect}
           />
         </div>
 

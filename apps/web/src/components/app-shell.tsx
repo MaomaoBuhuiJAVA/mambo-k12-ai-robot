@@ -15,7 +15,7 @@ const PRIMARY_NAVIGATION = [
   { label: "作品", href: "#workspace", icon: FolderOpen },
   {
     label: "学习进度",
-    href: "#course-rail",
+    href: "/progress",
     icon: ChartNoAxesColumnIncreasing,
   },
 ] as const;
