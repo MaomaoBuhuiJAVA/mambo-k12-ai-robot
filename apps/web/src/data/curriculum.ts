@@ -3,19 +3,38 @@ import type { Stage } from "../lib/domain";
 export type ExerciseType = "single_choice" | "order" | "code_trace";
 export type AnimationControl = "play" | "pause" | "step" | "reset" | "speed";
 
-export interface CourseExercise {
+interface ExerciseBase {
   id: string;
-  type: ExerciseType;
   prompt: string;
-  options?: string[];
-  code?: string;
-  answer: string | string[];
   feedback: {
     correct: string;
     incorrect: string;
   };
   knowledgePointTags: string[];
 }
+
+export interface SingleChoiceExercise extends ExerciseBase {
+  type: "single_choice";
+  options: string[];
+  answer: string;
+}
+
+export interface OrderExercise extends ExerciseBase {
+  type: "order";
+  items: string[];
+  answer: string[];
+}
+
+export interface CodeTraceExercise extends ExerciseBase {
+  type: "code_trace";
+  code: string;
+  answer: string;
+}
+
+export type CourseExercise =
+  | SingleChoiceExercise
+  | OrderExercise
+  | CodeTraceExercise;
 
 export interface StorybookPage {
   title: string;
@@ -133,6 +152,27 @@ const CONTROLS: AnimationControl[] = [
   "speed",
 ];
 
+type DeepReadonly<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends readonly (infer Item)[]
+    ? readonly DeepReadonly<Item>[]
+    : T extends object
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T;
+
+function deepFreeze<T>(value: T): DeepReadonly<T> {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const nestedValue of Object.values(
+      value as object as Record<string, unknown>,
+    )) {
+      deepFreeze(nestedValue);
+    }
+    Object.freeze(value);
+  }
+
+  return value as DeepReadonly<T>;
+}
+
 function makeCourse(seed: CourseSeed): CurriculumCourse {
   const entityIds = seed.knowledgePointTags.map(
     (_, index) => `${seed.id}-entity-${index + 1}`,
@@ -197,7 +237,7 @@ function makeCourse(seed: CourseSeed): CurriculumCourse {
         id: `${seed.id}-order`,
         type: "order",
         prompt: seed.order.prompt,
-        options: [...seed.order.steps],
+        items: [...seed.order.steps],
         answer: [...seed.order.steps],
         feedback: {
           correct: "顺序正确，每一步都为下一步准备了所需状态。",
@@ -221,7 +261,7 @@ function makeCourse(seed: CourseSeed): CurriculumCourse {
   };
 }
 
-export const CURRICULUM: CurriculumCourse[] = [
+export const CURRICULUM: DeepReadonly<CurriculumCourse[]> = deepFreeze([
   makeCourse({
     id: "lower-bubble-sort",
     title: "冒泡排序",
@@ -510,18 +550,24 @@ export const CURRICULUM: CurriculumCourse[] = [
       answer: "0.5",
     },
   }),
-];
+]);
+
+function cloneCourse(course: DeepReadonly<CurriculumCourse>): CurriculumCourse {
+  return structuredClone(course) as CurriculumCourse;
+}
 
 export function getCoursesForStage(stage: Stage): CurriculumCourse[] {
-  return CURRICULUM.filter((course) => course.stage === stage);
+  return CURRICULUM.filter((course) => course.stage === stage).map(cloneCourse);
 }
 
 export function getCourseById(id: string): CurriculumCourse | undefined {
-  return CURRICULUM.find((course) => course.id === id);
+  const course = CURRICULUM.find((candidate) => candidate.id === id);
+
+  return course === undefined ? undefined : cloneCourse(course);
 }
 
 export function getFeaturedCourses(stage?: Stage): CurriculumCourse[] {
   return CURRICULUM.filter(
     (course) => course.featured && (stage === undefined || course.stage === stage),
-  );
+  ).map(cloneCourse);
 }

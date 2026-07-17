@@ -41,6 +41,17 @@ describe("curriculum", () => {
         expect(exercise.feedback.correct).toBeTruthy();
         expect(exercise.feedback.incorrect).toBeTruthy();
         expect(exercise.knowledgePointTags.length).toBeGreaterThan(0);
+
+        if (exercise.type === "single_choice") {
+          expect(exercise.options).toContain(exercise.answer);
+        }
+        if (exercise.type === "order") {
+          expect(exercise.items).toEqual(exercise.answer);
+        }
+        if (exercise.type === "code_trace") {
+          expect(exercise.code).toBeTruthy();
+          expect(typeof exercise.answer).toBe("string");
+        }
       }
       expect(course.storybook.length).toBeGreaterThanOrEqual(4);
       expect(course.storybook.length).toBeLessThanOrEqual(8);
@@ -51,6 +62,31 @@ describe("curriculum", () => {
           scene: expect.any(String),
           interaction: expect.any(String),
         });
+      }
+    }
+  });
+
+  it("keeps tags, animation references, and scoped IDs internally consistent", () => {
+    for (const course of CURRICULUM) {
+      const courseTags = new Set(course.knowledgePointTags);
+      const entityIds = new Set(course.animation.entities.map((entity) => entity.id));
+
+      expect(course.knowledgePointTags.every(Boolean)).toBe(true);
+      expect(new Set(course.exercises.map((exercise) => exercise.id)).size).toBe(
+        course.exercises.length,
+      );
+      expect(new Set(course.animation.steps.map((step) => step.id)).size).toBe(
+        course.animation.steps.length,
+      );
+
+      for (const exercise of course.exercises) {
+        expect(exercise.knowledgePointTags.every(Boolean)).toBe(true);
+        expect(
+          exercise.knowledgePointTags.every((tag) => courseTags.has(tag)),
+        ).toBe(true);
+      }
+      for (const step of course.animation.steps) {
+        expect(step.activeEntityIds.every((id) => entityIds.has(id))).toBe(true);
       }
     }
   });
@@ -96,7 +132,7 @@ describe("curriculum", () => {
 
   it("exposes deterministic lookup and featured-course helpers", () => {
     const first = CURRICULUM[0];
-    expect(getCourseById(first.id)).toBe(first);
+    expect(getCourseById(first.id)).toEqual(first);
     expect(getCourseById("missing-course")).toBeUndefined();
     expect(getFeaturedCourses()).toEqual(
       CURRICULUM.filter((course) => course.featured),
@@ -106,5 +142,24 @@ describe("curriculum", () => {
         (course) => course.featured && course.stage === "middle_school",
       ),
     );
+  });
+
+  it("does not let callers mutate the curriculum through lookup results", () => {
+    const courseId = CURRICULUM[0].id;
+    const original = structuredClone(getCourseById(courseId));
+    const byId = getCourseById(courseId);
+    const byStage = getCoursesForStage(CURRICULUM[0].stage);
+    const featured = getFeaturedCourses();
+
+    expect(original).toBeDefined();
+    expect(byId).toBeDefined();
+    byId!.title = "被污染的标题";
+    byId!.knowledgePointTags.push("外部标签");
+    byStage[0].storybook[0].title = "被污染的绘本页";
+    featured[0].animation.steps[0].narration = "被污染的动画步骤";
+
+    expect(getCourseById(courseId)).toEqual(original);
+    expect(getCoursesForStage(CURRICULUM[0].stage)[0]).toEqual(original);
+    expect(getFeaturedCourses()[0]).toEqual(original);
   });
 });
