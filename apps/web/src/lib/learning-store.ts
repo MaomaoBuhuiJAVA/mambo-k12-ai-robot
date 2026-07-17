@@ -338,30 +338,154 @@ function migrateLegacyState(value: Record<string, unknown>): LearningState | nul
 function migrateLegacyV1State(
   value: Record<string, unknown>,
 ): LearningState | null {
+  if (value.schemaVersion !== CURRENT_LEARNING_STATE_VERSION) return null;
+
+  const profileValue = isRecord(value.profile) ? value.profile : {};
+  const accessibilityValue = isRecord(profileValue.accessibility)
+    ? profileValue.accessibility
+    : {};
+  const stage =
+    typeof profileValue.stage === "string" &&
+    STAGES.has(profileValue.stage as Stage)
+      ? (profileValue.stage as Stage)
+      : DEFAULT_PROFILE.stage;
+  const preferredMode =
+    typeof profileValue.preferredMode === "string" &&
+    MODES.has(profileValue.preferredMode as LearningMode)
+      ? (profileValue.preferredMode as LearningMode)
+      : DEFAULT_PROFILE.preferredMode;
+  const grade =
+    typeof profileValue.grade === "number" &&
+    Number.isInteger(profileValue.grade) &&
+    profileValue.grade >= 1 &&
+    profileValue.grade <= 12
+      ? profileValue.grade
+      : null;
+  const profile: StudentProfile = {
+    ...DEFAULT_PROFILE,
+    stage,
+    grade,
+    preferredMode,
+    accessibility: {
+      captions:
+        typeof accessibilityValue.captions === "boolean"
+          ? accessibilityValue.captions
+          : DEFAULT_PROFILE.accessibility.captions,
+      highContrast:
+        typeof accessibilityValue.highContrast === "boolean"
+          ? accessibilityValue.highContrast
+          : DEFAULT_PROFILE.accessibility.highContrast,
+      reducedMotion:
+        typeof accessibilityValue.reducedMotion === "boolean"
+          ? accessibilityValue.reducedMotion
+          : DEFAULT_PROFILE.accessibility.reducedMotion,
+    },
+  };
+
+  const attempts = (Array.isArray(value.attempts) ? value.attempts : [])
+    .map(normalizeLegacyAttempt)
+    .filter((attempt): attempt is Attempt => attempt !== null);
+
+  return prepareLearningStateForStorage({
+    schemaVersion: CURRENT_LEARNING_STATE_VERSION,
+    profile,
+    masteryByKnowledgePoint: normalizeLegacyMasteryMap(
+      value.masteryByKnowledgePoint,
+    ),
+    attempts,
+    recentTopics: normalizeLegacyStringList(value.recentTopics),
+    interests: normalizeLegacyStringList(value.interests),
+    lastCourseId:
+      typeof value.lastCourseId === "string" ? value.lastCourseId : null,
+    updatedAt: isIsoDate(value.updatedAt) ? value.updatedAt : DEFAULT_UPDATED_AT,
+  });
+}
+
+function normalizeLegacyIdentifier(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().slice(0, MAX_PERSISTED_STRING_LENGTH);
+  return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeLegacyAttempt(value: unknown): Attempt | null {
+  if (!isRecord(value)) return null;
+
+  const attemptId = normalizeLegacyIdentifier(value.attemptId);
+  const knowledgePointId = normalizeLegacyIdentifier(value.knowledgePointId);
   if (
-    value.schemaVersion !== CURRENT_LEARNING_STATE_VERSION ||
-    !isStudentProfile(value.profile) ||
-    !isMasteryMap(value.masteryByKnowledgePoint) ||
-    !Array.isArray(value.attempts) ||
-    !value.attempts.every(isAttempt) ||
-    !isStringArray(value.recentTopics) ||
-    !isStringArray(value.interests) ||
-    (value.lastCourseId !== null && typeof value.lastCourseId !== "string") ||
-    !isIsoDate(value.updatedAt)
+    !attemptId ||
+    !knowledgePointId ||
+    typeof value.score !== "number" ||
+    !Number.isFinite(value.score) ||
+    typeof value.hints !== "number" ||
+    !Number.isFinite(value.hints) ||
+    typeof value.mode !== "string" ||
+    !MODES.has(value.mode as LearningMode) ||
+    !isIsoDate(value.completedAt)
   ) {
     return null;
   }
 
-  return prepareLearningStateForStorage({
-    schemaVersion: CURRENT_LEARNING_STATE_VERSION,
-    profile: value.profile,
-    masteryByKnowledgePoint: value.masteryByKnowledgePoint,
-    attempts: value.attempts,
-    recentTopics: value.recentTopics,
-    interests: value.interests,
-    lastCourseId: value.lastCourseId,
-    updatedAt: value.updatedAt,
-  });
+  return {
+    attemptId,
+    knowledgePointId,
+    score: clamp(value.score),
+    hints: Math.max(0, Math.floor(value.hints)),
+    mode: value.mode as LearningMode,
+    completedAt: value.completedAt,
+  };
+}
+
+function normalizeLegacyMasteryMap(
+  value: unknown,
+): Record<string, MasteryRecord> {
+  if (!isRecord(value)) return {};
+
+  const normalized: Record<string, MasteryRecord> = {};
+  for (const [rawKey, rawRecord] of Object.entries(value)) {
+    if (!isRecord(rawRecord)) continue;
+
+    const knowledgePointId = normalizeLegacyIdentifier(rawKey);
+    const recordKnowledgePointId = normalizeLegacyIdentifier(
+      rawRecord.knowledgePointId,
+    );
+    if (
+      !knowledgePointId ||
+      recordKnowledgePointId !== knowledgePointId ||
+      typeof rawRecord.mastery !== "number" ||
+      !Number.isFinite(rawRecord.mastery) ||
+      typeof rawRecord.confidence !== "number" ||
+      !Number.isFinite(rawRecord.confidence) ||
+      typeof rawRecord.evidenceCount !== "number" ||
+      !Number.isFinite(rawRecord.evidenceCount)
+    ) {
+      continue;
+    }
+
+    normalized[knowledgePointId] = {
+      knowledgePointId,
+      mastery: clamp(rawRecord.mastery),
+      confidence: clamp(rawRecord.confidence),
+      evidenceCount: Math.max(0, Math.floor(rawRecord.evidenceCount)),
+      lastPracticedAt: isIsoDate(rawRecord.lastPracticedAt)
+        ? rawRecord.lastPracticedAt
+        : null,
+      nextReviewAt: isIsoDate(rawRecord.nextReviewAt)
+        ? rawRecord.nextReviewAt
+        : null,
+      misconceptionTags: sanitizeStringArray(
+        normalizeLegacyStringList(rawRecord.misconceptionTags),
+        MAX_MISCONCEPTION_TAGS,
+      ),
+    };
+  }
+
+  return normalized;
+}
+
+function normalizeLegacyStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
 }
 
 function decodeLearningState(

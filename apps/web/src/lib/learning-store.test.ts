@@ -253,6 +253,84 @@ describe("learning state storage", () => {
     });
   });
 
+  it("normalizes legacy v1 records field by field instead of rejecting the state", () => {
+    const longAnswer = "a".repeat(20_001);
+    const legacyState = {
+      ...createDefaultLearningState(profile),
+      profile: {
+        ...profile,
+        goals: Array.from(
+          { length: 25 },
+          () => "g".repeat(MAX_PERSISTED_STRING_LENGTH + 20),
+        ),
+      },
+      masteryByKnowledgePoint: {
+        sorting: {
+          ...makeMastery(),
+          mastery: 1.4,
+          confidence: -0.2,
+        },
+        broken: {
+          ...makeMastery("broken"),
+          mastery: "not-a-number",
+        },
+      },
+      attempts: [
+        ...Array.from(
+          { length: MAX_PERSISTED_ATTEMPTS + 5 },
+          (_, index) => ({ ...makeAttempt(index), answer: longAnswer }),
+        ),
+        { ...makeAttempt(999), score: "not-a-number" },
+      ],
+      interests: Array.from(
+        { length: MAX_PERSISTED_INTERESTS + 5 },
+        () => "i".repeat(MAX_PERSISTED_STRING_LENGTH + 20),
+      ),
+      recentTopics: Array.from(
+        { length: MAX_PERSISTED_RECENT_TOPICS + 5 },
+        () => "t".repeat(MAX_PERSISTED_STRING_LENGTH + 20),
+      ),
+    };
+    localStorage.setItem(
+      LEGACY_LEARNING_STATE_STORAGE_KEY,
+      JSON.stringify(legacyState),
+    );
+
+    const migrated = loadLearningState(localStorage);
+
+    expect(migrated.profile).toMatchObject({
+      studentId: "local-student",
+      displayName: "Learner",
+      stage: profile.stage,
+      preferredMode: profile.preferredMode,
+      accessibility: profile.accessibility,
+      textbook: null,
+      goals: [],
+    });
+    expect(migrated.masteryByKnowledgePoint).toEqual({
+      sorting: {
+        ...makeMastery(),
+        mastery: 1,
+        confidence: 0,
+      },
+    });
+    expect(migrated.attempts).toHaveLength(MAX_PERSISTED_ATTEMPTS);
+    expect(migrated.attempts[0].attemptId).toBe("attempt-5");
+    expect(migrated.attempts.some((attempt) => attempt.attemptId === "attempt-999")).toBe(
+      false,
+    );
+    expect(migrated.attempts.every((attempt) => !("answer" in attempt))).toBe(
+      true,
+    );
+    expect(migrated.interests).toHaveLength(MAX_PERSISTED_INTERESTS);
+    expect(migrated.recentTopics).toHaveLength(MAX_PERSISTED_RECENT_TOPICS);
+    expect(
+      [...migrated.interests, ...migrated.recentTopics].every(
+        (item) => item.length <= MAX_PERSISTED_STRING_LENGTH,
+      ),
+    ).toBe(true);
+  });
+
   it("rejects future schemas instead of interpreting them as current", () => {
     const futureState = {
       ...createDefaultLearningState(profile),
