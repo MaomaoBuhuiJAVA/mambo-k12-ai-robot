@@ -14,7 +14,7 @@ Mambo 是面向 K12 人工智能通识教育的多模态学习原型。学生可
 - 4-8 页结构化互动绘本，包含项目内插图、旁白、页内问题、本机保存与回看；AI 不可用时回退原创种子内容。
 - Monaco + Pyodide Python 实验室，提供冒泡排序和图像特征分类两个确定性挑战。
 - 单选、排序、代码追踪三类确定性练习，即时反馈、知识点掌握度、间隔复习与可解释推荐。
-- OrangePi WebSocket 自动重连、心跳、状态上报、`ping`/`get_status` 白名单命令，以及网页只读设备状态。
+- OrangePi WebSocket 自动重连、心跳、状态上报、空闲离线、消息边界/连接内去重、`ping`/`get_status` 白名单命令，以及网页只读设备状态；代理按 `/dev` 节点声明摄像头、音频、屏幕和 NPU 能力。
 - FastAPI、SQLAlchemy、Alembic、SQLite/PostgreSQL、Dockerfile、systemd 和 OpenAPI 基础。
 
 ## 架构边界
@@ -64,7 +64,9 @@ python -m venv .venv
 python -m pip install -r server/requirements-dev.txt
 Copy-Item .env.example .env
 # 编辑 .env，为 DEVICE_AUTH_TOKEN 与 ADMIN_API_TOKEN 生成不同的随机值
-.\scripts\start-server.ps1
+$python = (Resolve-Path .\.venv\Scripts\python.exe).Path
+& $python -m dotenv -f .env run -- $python -m alembic upgrade head
+& $python -m dotenv -f .env run -- $python -m uvicorn server.app.main:app --host 0.0.0.0 --port 8000
 ```
 
 Linux：
@@ -75,10 +77,11 @@ source .venv/bin/activate
 python -m pip install -r server/requirements-dev.txt
 cp .env.example .env
 # 编辑 .env，为 DEVICE_AUTH_TOKEN 与 ADMIN_API_TOKEN 生成不同的随机值
-./scripts/start-server.sh
+.venv/bin/python -m dotenv -f .env run -- .venv/bin/python -m alembic upgrade head
+.venv/bin/python -m dotenv -f .env run -- .venv/bin/python -m uvicorn server.app.main:app --host 0.0.0.0 --port 8000
 ```
 
-启动脚本先执行 `python -m alembic upgrade head`，再监听 `0.0.0.0:8000`。
+以上命令让 Alembic 与 Uvicorn 从同一个 `.env` 读取 `DATABASE_URL`，先迁移再监听 `0.0.0.0:8000`。当前 `scripts/start-server.ps1` 和 `scripts/start-server.sh` 在 Alembic 之后才把 `.env` 交给 Uvicorn；只有使用默认 SQLite 或已经在父进程导出同一 `DATABASE_URL` 时才安全，修复脚本前不要用它们迁移自定义 PostgreSQL。
 
 - 健康检查：`http://127.0.0.1:8000/api/v1/health`
 - OpenAPI：`http://127.0.0.1:8000/docs`
@@ -118,7 +121,7 @@ export SERVER_WS_URL="ws://<Core API 局域网地址>:8000/ws/v1/devices"
 python -m device.agent
 ```
 
-正式公网环境必须把 `SERVER_WS_URL` 攓为 `wss://.../ws/v1/devices`。systemd 示例见 `deploy/mambo-device-agent.service`；安装 systemd 单元和写入 `/etc` 需要用户明确执行 `sudo`。
+正式公网环境必须把 `SERVER_WS_URL` 改为 `wss://.../ws/v1/devices`。systemd 示例见 `deploy/mambo-device-agent.service`；安装 systemd 单元和写入 `/etc` 需要用户明确执行 `sudo`。
 
 ## 数据与演示边界
 
@@ -162,6 +165,7 @@ GitHub Actions 在 push/PR 时使用 Node.js 22 执行 Web 测试、lint、typec
 - Vercel 上的 AI 路由在没有 Redis REST 限流存储时会返回 `AI_GUARD_UNAVAILABLE`，这是故障关闭设计。
 - 公网 Core API 必须使用 HTTPS/WSS；当前设备鉴权是环境级共享令牌，真实多设备部署前应升级为每设备独立凭证。
 - Python 实验是无主站同源权限的浏览器隔离练习，不是正式判题沙箱，结果只作为低权重形成性证据。
+- 完整文字对话会有界保存在当前浏览器且不会自动脱敏；演示不要输入真实姓名、学校、住址、联系方式或其他个人信息，清除站点数据可删除本机记录。
 - 公开试用前仍需补齐登录授权、未成年人监护/同意、数据删除、内容审核、审计、备份、监控与事件响应。
 
-本项目不进行医学、心理或自闭症诊断，也不允许大模型直接控制电机、执行 Shell 或运行任意服务端代码。
+产品边界禁止医学、心理或自闭症诊断，也禁止大模型直接控制电机、执行 Shell 或运行任意服务端代码。当前聊天提示已经限制真实姓名、住址、联系方式、密钥泄露和角色绕过，但尚未显式覆盖诊断与危险问答，也没有对抗评测；公开试用前必须补齐，不能把产品边界当作已验证防护。

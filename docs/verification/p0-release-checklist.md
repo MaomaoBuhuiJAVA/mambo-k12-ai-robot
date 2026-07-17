@@ -86,7 +86,9 @@ git grep -n -E "AIza[0-9A-Za-z_-]{20,}|sk-[0-9A-Za-z_-]{20,}|BEGIN (OPENSSH|RSA|
 终端 A 启动 Core：
 
 ```powershell
-.\scripts\start-server.ps1
+$python = (Resolve-Path .\.venv\Scripts\python.exe).Path
+& $python -m dotenv -f .env run -- $python -m alembic upgrade head
+& $python -m dotenv -f .env run -- $python -m uvicorn server.app.main:app --host 0.0.0.0 --port 8000
 ```
 
 终端 B 启动 Web：
@@ -95,7 +97,14 @@ git grep -n -E "AIza[0-9A-Za-z_-]{20,}|sk-[0-9A-Za-z_-]{20,}|BEGIN (OPENSSH|RSA|
 npm run start --workspace apps/web
 ```
 
-要求先完成 `npm run build`。Linux 分别使用 `./scripts/start-server.sh` 和相同 npm 命令。
+要求先完成 `npm run build`。Linux 的 Core 命令为：
+
+```bash
+.venv/bin/python -m dotenv -f .env run -- .venv/bin/python -m alembic upgrade head
+.venv/bin/python -m dotenv -f .env run -- .venv/bin/python -m uvicorn server.app.main:app --host 0.0.0.0 --port 8000
+```
+
+当前两个 `scripts/start-server.*` 在迁移前没有加载 `.env`；自定义 `DATABASE_URL` 时不要用它们，否则 Alembic 可能迁移默认 SQLite、Uvicorn 却连接另一数据库。容器环境变量由平台直接注入，不受这个本地 helper 限制。
 
 ### 5.2 固定接口
 
@@ -182,7 +191,9 @@ Invoke-RestMethod http://127.0.0.1:3000/api/device
 - `https://<core-host>/api/v1/health` 成功。
 - 带管理令牌读取设备列表成功，未带/错误令牌为 401。
 - OrangePi 使用 `wss://<core-host>/ws/v1/devices` 自动连接并持续心跳。
+- 代理声明与 `/dev` 节点相符的能力；能力出现只作为节点检测证据，麦克风/扬声器/摄像头/屏幕/NPU 仍分别做功能自检。
 - 页面显示正确目标设备；停止代理后进入离线/网页模式，恢复后自动上线。
+- 在隔离测试环境验证空闲连接收到 4008、重复状态不增长历史、终态命令不被重放改写，并确认每设备状态历史不超过 1000 条。
 - Core 保持单副本；数据库为 PostgreSQL；记录 Alembic current revision 和备份编号。
 
 ### Production
@@ -191,8 +202,8 @@ Invoke-RestMethod http://127.0.0.1:3000/api/device
 
 ## 8. 安全与隐私手工检查
 
-- 未登录公开页面不收集真实姓名、学校、住址、电话、账号密码。
-- Prompt 注入测试不会返回系统提示、密钥或执行危险指令。
+- 界面和助手不主动索取真实姓名、学校、住址、电话或账号密码；当前聊天提示只显式覆盖姓名/住址/联系方式，学校与账号密码规则仍需补齐。学生主动输入的文字会本机持久化，因此必须验证告知与删除边界。
+- 对提示注入、密钥/内部规则获取、诊断与危险问答分别运行正常/应拒绝用例并记录真实结果。当前只有提示字符串与注入边界单元测试，没有完整对抗评测；未补齐前不能标记安全验收通过。
 - 图片与录音二进制不进入 localStorage；完成的学生/助手文字轮次会按课程有界保存。验证欢迎语、图片、未完成半轮不会保存，并检查输入个人信息的风险提示/删除边界。
 - 答题原文在学习状态持久化前被移除。
 - 清除站点数据后，本机学习状态与绘本确实删除。

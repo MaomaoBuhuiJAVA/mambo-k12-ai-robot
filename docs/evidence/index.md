@@ -11,24 +11,24 @@
 
 ## R01-R16
 
-| ID | 当前结论 | 状态 | code_ref | api_ref | test_ref | visual/demo_ref |
+| requirement_id | claim | owner/status | code_ref | api_ref | test_ref | visual_ref / demo_timestamp |
 |---|---|---|---|---|---|---|
-| R01 学段/教材选择 | 四学段策略与 8 门原创种子课可切换；没有教材选择/版本管理 | 部分；自动化覆盖 | `apps/web/src/lib/stage-policy.ts`；`apps/web/src/data/curriculum.ts`；`apps/web/src/components/stage-switcher.tsx` | 无 | `stage-policy.test.ts`；`curriculum.test.ts`；`stage-switcher.test.tsx` | 四学段同主题对比截图待采集 |
-| R02 对话问答 | Gemini 流式文本、单图、录音转写、浏览器朗读；按课程有界恢复文字；锚点主题用版本化事实/来源 grounding | 部分；自动化覆盖 | `conversation-classroom.tsx`；`conversation-store.ts`；`data/knowledge-sources*`；`media-input.tsx`；`lib/ai/*` | `POST /api/chat`；`POST /api/transcribe` | conversation store/classroom、knowledge sources/prompt、chat/transcribe route tests | 真实 Gemini 文本/图片/录音、刷新恢复与 `[S#]` 录屏待采集 |
-| R03 主动教学 | 种子欢迎、快捷问题、目标和练习反馈；无可恢复状态机 | 部分；自动化覆盖 | `conversation-classroom.tsx`；`teaching-canvas.tsx`；`quiz-player.tsx` | 无 | 对话、画布和 Quiz 组件测试 | 新课开场与答错反馈录屏待采集 |
-| R04 教学材料 | 真实生成 DOCX 和 PPTX；锚点课编入参考来源标签/URL，其他课明确项目种子/无正式教材；没有上传、PDF/视频库 | 部分；自动化覆盖 | `resource-library.tsx`；`lib/materials.ts`；`data/knowledge-sources*` | `POST /api/materials/docx`；`POST /api/materials/pptx` | `materials-route.test.ts`；`resource-library.test.tsx`；knowledge source tests | Word/PowerPoint 实际打开与来源页截图待采集 |
-| R05 动画 | 冒泡排序和神经网络可播放、暂停、单步、重置、调速 | 代码存在；自动化覆盖 | `features/animation/*` | 无 | 两个 machine tests；`teaching-animations.test.tsx` | 两个动画操作录屏待采集 |
-| R06 绘本 | 4-8 页结构化绘本、项目插图、朗读、问题、本机保存回看、种子降级 | 代码存在；自动化覆盖 | `features/storybook/*`；`public/storybook/*` | `POST /api/storybook` | storybook schema/player/storage/route/illustration tests | AI 与种子两种来源、保存回看录屏待采集 |
-| R07 编程 | Monaco + 隔离 Pyodide、2 个模板、确定性挑战、停止/重置/错误反馈 | 代码存在；自动化覆盖；手工待采集 | `features/lab/*`；`public/lab-runtime*` | 浏览器内执行，无服务端判题 API | lab protocol/controller/runtime/transport/UI tests；`smoke:lab` | 真实 Pyodide 成功/错误/停止录屏待采集 |
-| R08 游戏化练习 | 3 种题型、确定性评分、即时反馈、提示、错题记录 | 代码存在；自动化覆盖 | `features/quiz/*`；课程 `exercises` | 无 | quiz engine/player/progress tests | 故意答错到反馈/掌握度变化录屏待采集 |
-| R09 个性化路径 | 本机掌握度、连续正确、间隔复习、兴趣和当前学段内解释推荐；先修图缺失 | 部分；自动化覆盖 | `learning-store.ts`；`features/progress/*` | 无 | learning-store/recommendation/progress tests | `/progress` 前后对比截图待采集 |
-| R10 学习历史 | 本机保存答题、掌握度、兴趣、最近课程、绘本和每课最多 20 条完整文字对话；媒体/代码未保存，未接 Core | 部分；自动化覆盖 | `learning-store.ts`；`storybook-storage.ts`；`conversation-store.ts` | Core 有学习 API，但 Web 未调用 | learning/storybook/conversation store tests；Core learning tests | 刷新恢复文字与清站点数据边界录屏待采集 |
-| R11 知识准确 | 两个锚点主题有 schema v1 事实/来源目录、页面引用、提示 grounding 和 Office 来源；无教材上传/动态检索/引用强校验/准确性评测集 | 部分；自动化覆盖 | `data/knowledge-sources.v1.json`；`knowledge-sources.ts`；`knowledge-evidence.tsx`；`lib/ai/prompt.ts`；`lib/materials.ts` | 无 RAG API | knowledge sources/prompt/teaching canvas/resource/material route tests | 事实依据、外链、回答 `[S#]` 和 Office 来源手工证据待采集 |
-| R12 软硬件集成 | OrangePi WSS 与网页只读设备状态；无共享会话/作品/语音视觉同步 | 部分；自动化覆盖；实机待采集 | `device/agent.py`；`server/app/routes/devices.py`；`features/device/*` | `WS /ws/v1/devices/{id}`；`GET /api/device`；Core devices API | Core/device Python tests；core-api/device-status tests | 在线/离线网页模式和 WSS 心跳录屏待采集 |
-| R13 部署集成 | Vercel 配置、Docker、Alembic、systemd、OpenAPI 与部署文档存在；未证明云部署 | 部分；手工待采集 | `vercel.json`；`server/Dockerfile`；`deploy/*` | `GET /api/v1/health`；`/docs`；WSS | build/Python tests 与云 smoke 待发布执行 | Preview/Production URL、Core 域名、WSS 证据待采集 |
-| R14 项目报告 | 架构、模型、多模态、知识边界、难题、安全、部署、差距和演示文档已建立 | 文档存在；需随发布补证据 | `docs/report/*`；`docs/evidence/*` | 同各项 | 同各项 | 截图、录屏时间戳、最终测试日志待补 |
-| R15 未成年人安全 | 提示词限制个人信息/诊断；浏览器持久化匿名化；API 限界；无登录/RBAC/监护/审计 | 部分；自动化覆盖 | `lib/ai/prompt.ts`；`learning-store.ts`；`core-api.ts` | AI routes no-store；Core Bearer auth | prompt/store/request guard/core adapter tests | 隐私说明与删除流程尚未形成产品证据 |
-| R16 稳定性 | 请求大小、Schema、超时、Redis 限流/故障关闭、种子降级、设备网页模式 | 部分；自动化覆盖；生产待采集 | `bounded-json.ts`；`request-guard.ts`；`route-deadline.ts`；device adapter | AI/Device routes；Core health/WSS | guard/deadline/routes/runtime/device tests | Redis 故障、Gemini 故障、设备离线演练待采集 |
+| R01 学段/教材选择 | 四学段策略与 8 门原创种子课可切换；没有教材选择/版本管理 | 项目负责人 / 部分；自动化覆盖 | `apps/web/src/lib/stage-policy.ts`；`apps/web/src/data/curriculum.ts`；`apps/web/src/components/stage-switcher.tsx` | 无 | `stage-policy.test.ts`；`curriculum.test.ts`；`stage-switcher.test.tsx` | 四学段同主题对比截图待采集 |
+| R02 对话问答 | Gemini 流式文本、单图、录音转写、浏览器朗读；按课程有界恢复文字；锚点主题用版本化事实/来源 grounding | 项目负责人 / 部分；自动化覆盖 | `conversation-classroom.tsx`；`conversation-store.ts`；`data/knowledge-sources*`；`media-input.tsx`；`lib/ai/*` | `POST /api/chat`；`POST /api/transcribe` | conversation store/classroom、knowledge sources/prompt、chat/transcribe route tests | 真实 Gemini 文本/图片/录音、刷新恢复与 `[S#]` 录屏待采集 |
+| R03 主动教学 | 种子欢迎、快捷问题、目标和练习反馈；无可恢复状态机 | 项目负责人 / 部分；自动化覆盖 | `conversation-classroom.tsx`；`teaching-canvas.tsx`；`quiz-player.tsx` | 无 | 对话、画布和 Quiz 组件测试 | 新课开场与答错反馈录屏待采集 |
+| R04 教学材料 | 真实生成 DOCX 和 PPTX；锚点课编入参考来源标签/URL，其他课明确项目种子/无正式教材；没有上传、PDF/视频库 | 项目负责人 / 部分；自动化覆盖 | `resource-library.tsx`；`lib/materials.ts`；`data/knowledge-sources*` | `POST /api/materials/docx`；`POST /api/materials/pptx` | `materials-route.test.ts`；`resource-library.test.tsx`；knowledge source tests | Word/PowerPoint 实际打开与来源页截图待采集 |
+| R05 动画 | 冒泡排序和神经网络可播放、暂停、单步、重置、调速 | 项目负责人 / 代码存在；自动化覆盖 | `features/animation/*` | 无 | 两个 machine tests；`teaching-animations.test.tsx` | 两个动画操作录屏待采集 |
+| R06 绘本 | 4-8 页结构化绘本、项目插图、朗读、问题、本机保存回看、种子降级 | 项目负责人 / 代码存在；自动化覆盖 | `features/storybook/*`；`public/storybook/*` | `POST /api/storybook` | storybook schema/player/storage/route/illustration tests | AI 与种子两种来源、保存回看录屏待采集 |
+| R07 编程 | Monaco + 隔离 Pyodide、2 个模板、确定性挑战、停止/重置/错误反馈 | 项目负责人 / 代码存在；自动化覆盖；手工待采集 | `features/lab/*`；`public/lab-runtime*` | 浏览器内执行，无服务端判题 API | lab protocol/controller/runtime/transport/UI tests；`smoke:lab` | 真实 Pyodide 成功/错误/停止录屏待采集 |
+| R08 游戏化练习 | 3 种题型、确定性评分、即时反馈、提示、错题记录 | 项目负责人 / 代码存在；自动化覆盖 | `features/quiz/*`；课程 `exercises` | 无 | quiz engine/player/progress tests | 故意答错到反馈/掌握度变化录屏待采集 |
+| R09 个性化路径 | 本机掌握度、连续正确、间隔复习、兴趣和当前学段内解释推荐；先修图缺失 | 项目负责人 / 部分；自动化覆盖 | `learning-store.ts`；`features/progress/*` | 无 | learning-store/recommendation/progress tests | `/progress` 前后对比截图待采集 |
+| R10 学习历史 | 本机保存答题、掌握度、兴趣、最近课程、绘本和每课最多 20 条完整文字对话；媒体/代码未保存，未接 Core | 项目负责人 / 部分；自动化覆盖 | `learning-store.ts`；`storybook-storage.ts`；`conversation-store.ts` | Core 有学习 API，但 Web 未调用 | learning/storybook/conversation store tests；Core learning tests | 刷新恢复文字与清站点数据边界录屏待采集 |
+| R11 知识准确 | 两个锚点主题有 schema v1 事实/来源目录、页面引用、提示 grounding 和 Office 来源；无教材上传/动态检索/引用强校验/准确性评测集 | 项目负责人 / 部分；自动化覆盖 | `data/knowledge-sources.v1.json`；`knowledge-sources.ts`；`knowledge-evidence.tsx`；`lib/ai/prompt.ts`；`lib/materials.ts` | 无 RAG API | knowledge sources/prompt/teaching canvas/resource/material route tests | 事实依据、外链、回答 `[S#]` 和 Office 来源手工证据待采集 |
+| R12 软硬件集成 | OrangePi WSS、节点能力探测与网页只读状态；网关有空闲离线、连接内去重、协议边界和历史上限；无共享会话/作品/语音视觉同步 | 项目负责人 / 部分；自动化覆盖；实机待采集 | `device/agent.py`；`server/app/protocol.py`；`server/app/routes/devices.py`；`features/device/*` | `WS /ws/v1/devices/{id}`；`GET /api/device`；Core devices API | Core protocol/gateway/device status tests；core-api/device-status tests | 在线/离线、能力声明、网页模式和 WSS 心跳录屏待采集 |
+| R13 部署集成 | Vercel 配置、Docker、Alembic、systemd、OpenAPI 与部署文档存在；未证明云部署 | 项目负责人 / 部分；手工待采集 | `vercel.json`；`server/Dockerfile`；`deploy/*` | `GET /api/v1/health`；`/docs`；WSS | build/Python tests 与云 smoke 待发布执行 | Preview/Production URL、Core 域名、WSS 证据待采集 |
+| R14 项目报告 | 架构、模型、多模态、知识边界、难题、安全、部署、差距和演示文档已建立 | 项目负责人 / 文档存在；需随发布补证据 | `docs/report/*`；`docs/evidence/*` | 同各项 | 同各项 | 截图、录屏时间戳、最终测试日志待补 |
+| R15 未成年人安全 | 聊天提示限制姓名/住址/联系方式、密钥与角色绕过；绘本提示限制医疗/心理诊断；学习状态匿名化/去答案；文字对话未脱敏；无登录/RBAC/监护/审计，聊天诊断/危险问答防护未补齐 | 项目负责人 / 部分；自动化覆盖有限 | `lib/ai/prompt.ts`；`app/api/storybook/route.ts`；`learning-store.ts`；`conversation-store.ts`；`core-api.ts` | AI routes no-store；Core Bearer auth | prompt/store/request guard/core adapter tests；对抗评测待建 | 隐私说明、删除流程、诊断/危险问答评测尚无产品证据 |
+| R16 稳定性 | 请求大小、Schema、超时、Redis 限流/故障关闭、种子降级、设备空闲超时/重放与终态保护/历史上限、网页模式 | 项目负责人 / 部分；自动化覆盖；生产待采集 | `bounded-json.ts`；`request-guard.ts`；`route-deadline.ts`；`server/app/protocol.py`；device adapter | AI/Device routes；Core health/WSS | guard/deadline/routes/runtime/protocol/gateway/device tests | Redis/Gemini 故障、重复消息与设备离线演练待采集 |
 
 `demo_timestamp` 暂为空：尚未生成正式演示录像，不能虚构时间点。录屏完成后把每一行补成 `demo-v1.mp4 00:00-00:00`，并固定对应 commit SHA。
 
