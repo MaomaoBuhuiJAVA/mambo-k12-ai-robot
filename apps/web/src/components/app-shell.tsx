@@ -8,6 +8,8 @@ import {
   House,
 } from "lucide-react";
 
+import { DeviceStatus } from "@/features/device/device-status";
+
 const PRIMARY_NAVIGATION = [
   { label: "今日学习", href: "#workspace", icon: House, current: true },
   { label: "课程", href: "#course-rail", icon: BookOpen },
@@ -48,6 +50,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+
+        <DeviceStatus />
       </header>
 
       <div className="app-shell__body">{children}</div>

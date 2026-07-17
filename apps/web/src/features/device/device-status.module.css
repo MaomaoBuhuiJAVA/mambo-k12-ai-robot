@@ -1,0 +1,149 @@
+.root {
+  position: relative;
+  display: grid;
+  flex: 0 0 210px;
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
+  width: 210px;
+  height: 46px;
+  align-items: center;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--foreground-muted);
+  background: var(--surface-subtle);
+}
+
+.root[data-state="loading"] {
+  grid-template-columns: 30px minmax(0, 1fr);
+}
+
+.root[data-state="online"] {
+  border-color: rgba(8, 127, 109, 0.35);
+  color: var(--primary-strong);
+  background: var(--primary-soft);
+}
+
+.summary {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
+  width: 100%;
+  height: 44px;
+  align-items: center;
+  padding: 0 9px;
+  list-style: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 6px;
+  color: inherit;
+  background: var(--background);
+}
+
+.root[data-state="loading"] > .icon,
+.root[data-state="loading"] > .copy {
+  margin-left: 9px;
+}
+
+.copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.copy strong,
+.copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy strong {
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.root[data-state="online"] .copy strong {
+  color: var(--primary-strong);
+}
+
+.copy span {
+  margin-top: 3px;
+  font-size: 10px;
+}
+
+.chevron {
+  transition: transform 160ms ease;
+}
+
+.root[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 250px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--foreground-muted);
+  background: var(--background);
+  box-shadow: var(--shadow-soft);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.deviceName,
+.webModeNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.deviceName {
+  margin-bottom: 4px;
+  color: var(--foreground);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.deviceName svg,
+.webModeNote svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+@media (max-width: 900px) {
+  .root {
+    flex-basis: 174px;
+    width: 174px;
+  }
+}
+
+@media (max-width: 430px) {
+  .root {
+    flex-basis: 158px;
+    width: 158px;
+  }
+
+  .summary {
+    padding-inline: 7px;
+  }
+
+  .popover {
+    width: min(250px, calc(100vw - 24px));
+  }
+}

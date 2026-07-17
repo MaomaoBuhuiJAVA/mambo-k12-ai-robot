@@ -142,6 +142,7 @@ a[href] {
 
 .primary-navigation {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: 4px;
   min-width: 0;
