@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("ai", () => ({
   generateText: vi.fn(),
@@ -60,7 +60,22 @@ function oversizedStreamRequest(contentLength?: string) {
   return { request, cancel };
 }
 
+function unreadRequest() {
+  const getReader = vi.fn();
+  return {
+    getReader,
+    request: {
+      headers: new Headers({ "content-type": "multipart/form-data; boundary=unread" }),
+      body: { getReader },
+    } as unknown as Request,
+  };
+}
+
 describe("POST /api/transcribe", () => {
+  beforeEach(() => {
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.clearAllMocks();
@@ -168,5 +183,22 @@ describe("POST /api/transcribe", () => {
     expect((await firstPromise).status).toBe(200);
     vi.mocked(generateText).mockResolvedValueOnce({ text: "second" } as never);
     expect((await POST(audioRequest(file))).status).toBe(200);
+  });
+
+  it("does not read multipart data when concurrency is already exhausted", async () => {
+    let resolveGeneration: ((value: { text: string }) => void) | undefined;
+    vi.mocked(generateText).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveGeneration = resolve as (value: { text: string }) => void;
+    }) as never);
+    const firstPromise = POST(audioRequest(new File(["audio"], "clip.ogg", { type: "audio/ogg" })));
+    await vi.waitFor(() => expect(generateText).toHaveBeenCalledTimes(1));
+    const unread = unreadRequest();
+
+    const blocked = await POST(unread.request);
+
+    expect(blocked.status).toBe(429);
+    expect(unread.getReader).not.toHaveBeenCalled();
+    resolveGeneration?.({ text: "done" });
+    await firstPromise;
   });
 });

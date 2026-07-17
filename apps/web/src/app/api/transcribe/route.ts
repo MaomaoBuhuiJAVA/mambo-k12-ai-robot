@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 
 import { getGoogleModel } from "@/lib/ai/provider";
-import { acquireRequestLease, requestLimitResponse } from "@/lib/ai/request-guard";
+import { acquireRequestLease, requestGuardRejectionResponse } from "@/lib/ai/request-guard";
 
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 const MAX_MULTIPART_BYTES = 9 * 1024 * 1024;
@@ -70,34 +70,33 @@ function isAudioFile(value: FormDataEntryValue | null): value is File {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  let formData: FormData;
-
-  try {
-    formData = await readMultipartForm(request);
-  } catch (error) {
-    if (error instanceof BodyTooLargeError) {
-      return Response.json(
-        { error: "TRANSCRIPTION_BODY_TOO_LARGE" },
-        { status: 413, headers: NO_STORE_HEADERS },
-      );
-    }
-    return invalidFileResponse();
-  }
-
-  const audio = formData.get("audio");
-  const mediaType = isAudioFile(audio) ? audio.type.split(";", 1)[0].trim().toLowerCase() : "";
-  if (!isAudioFile(audio) || !AUDIO_MIME_TYPES.has(mediaType) || audio.size < 1 || audio.size > MAX_AUDIO_BYTES) {
-    return invalidFileResponse();
-  }
-
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return Response.json({ error: "AI_NOT_CONFIGURED" }, { status: 503, headers: NO_STORE_HEADERS });
   }
 
-  const access = acquireRequestLease(request, "transcribe");
-  if (!access.ok) return requestLimitResponse(access.retryAfter);
+  const access = await acquireRequestLease(request, "transcribe");
+  if (!access.ok) return requestGuardRejectionResponse(access);
 
   try {
+    let formData: FormData;
+    try {
+      formData = await readMultipartForm(request);
+    } catch (error) {
+      if (error instanceof BodyTooLargeError) {
+        return Response.json(
+          { error: "TRANSCRIPTION_BODY_TOO_LARGE" },
+          { status: 413, headers: NO_STORE_HEADERS },
+        );
+      }
+      return invalidFileResponse();
+    }
+
+    const audio = formData.get("audio");
+    const mediaType = isAudioFile(audio) ? audio.type.split(";", 1)[0].trim().toLowerCase() : "";
+    if (!isAudioFile(audio) || !AUDIO_MIME_TYPES.has(mediaType) || audio.size < 1 || audio.size > MAX_AUDIO_BYTES) {
+      return invalidFileResponse();
+    }
+
     const result = await generateText({
       model: getGoogleModel(),
       instructions: TRANSCRIPTION_INSTRUCTIONS,
@@ -114,6 +113,6 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return Response.json({ error: "TRANSCRIPTION_FAILED" }, { status: 502, headers: NO_STORE_HEADERS });
   } finally {
-    access.lease.release();
+    await access.lease.release();
   }
 }

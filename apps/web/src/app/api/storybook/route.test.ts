@@ -9,6 +9,7 @@ vi.mock("@/lib/ai/provider", () => ({ getGoogleModel: vi.fn() }));
 
 import { generateText, Output } from "ai";
 import { getGoogleModel } from "@/lib/ai/provider";
+import { resetRequestGuardForTests } from "@/lib/ai/request-guard";
 import { createSeedStorybook, storybookSchema } from "@/features/storybook/storybook";
 import { getCourseById } from "@/data/curriculum";
 
@@ -22,11 +23,23 @@ function request(body: unknown) {
   });
 }
 
+function unreadRequest() {
+  const getReader = vi.fn();
+  return {
+    getReader,
+    request: {
+      headers: new Headers({ "content-type": "application/json" }),
+      body: { getReader },
+    } as unknown as Request,
+  };
+}
+
 const input = { courseId: "lower-bubble-sort", stage: "lower_primary" };
 
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.clearAllMocks();
+  resetRequestGuardForTests();
 });
 
 describe("POST /api/storybook", () => {
@@ -43,9 +56,24 @@ describe("POST /api/storybook", () => {
   });
 
   it("rejects oversized request bodies without contacting the model", async () => {
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
     const response = await POST(request({ ...input, padding: "x".repeat(9 * 1024) }));
     expect(response.status).toBe(400);
     expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(generateText).not.toHaveBeenCalled();
+  });
+
+  it("fails closed before parsing when durable protection is unavailable", async () => {
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("VERCEL", "1");
+    const unread = unreadRequest();
+
+    const response = await POST(unread.request);
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ error: "AI_GUARD_UNAVAILABLE" });
+    expect(unread.getReader).not.toHaveBeenCalled();
     expect(generateText).not.toHaveBeenCalled();
   });
 
@@ -93,5 +121,26 @@ describe("POST /api/storybook", () => {
       expect(body.source).toBe("seed");
       expect(storybookSchema.safeParse(body.storybook).success).toBe(true);
     }
+  });
+
+  it("keeps the AI lease until storybook generation settles", async () => {
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    const course = getCourseById(input.courseId);
+    if (!course) throw new Error("fixture course missing");
+    const generated = createSeedStorybook(course);
+    let resolveGeneration: ((value: { output: typeof generated }) => void) | undefined;
+    vi.mocked(generateText).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveGeneration = resolve as (value: { output: typeof generated }) => void;
+    }) as never);
+    const firstPromise = POST(request(input));
+    await vi.waitFor(() => expect(generateText).toHaveBeenCalledTimes(1));
+    const unread = unreadRequest();
+
+    const blocked = await POST(unread.request);
+
+    expect(blocked.status).toBe(429);
+    expect(unread.getReader).not.toHaveBeenCalled();
+    resolveGeneration?.({ output: generated });
+    expect((await firstPromise).status).toBe(200);
   });
 });

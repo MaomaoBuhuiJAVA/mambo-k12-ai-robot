@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("ai", () => ({
   streamText: vi.fn(),
@@ -44,7 +44,22 @@ function oversizedRequest(contentLength?: string) {
   };
 }
 
+function unreadRequest() {
+  const getReader = vi.fn();
+  return {
+    getReader,
+    request: {
+      headers: new Headers({ "content-type": "application/json" }),
+      body: { getReader },
+    } as unknown as Request,
+  };
+}
+
 describe("POST /api/chat", () => {
+  beforeEach(() => {
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.clearAllMocks();
@@ -78,6 +93,33 @@ describe("POST /api/chat", () => {
     await expect(response.json()).resolves.toEqual({ error: "AI_NOT_CONFIGURED" });
   });
 
+  it("fails closed before reading the body when Vercel Redis is unavailable", async () => {
+    vi.stubEnv("VERCEL", "1");
+    const unread = unreadRequest();
+
+    const response = await POST(unread.request);
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Retry-After")).toBe("30");
+    await expect(response.json()).resolves.toEqual({ error: "AI_GUARD_UNAVAILABLE" });
+    expect(unread.getReader).not.toHaveBeenCalled();
+    expect(streamText).not.toHaveBeenCalled();
+  });
+
+  it("charges invalid requests and stops reading bodies after the minute quota", async () => {
+    for (let index = 0; index < 12; index += 1) {
+      expect((await POST(request("{"))).status).toBe(400);
+    }
+    const unread = unreadRequest();
+
+    const blocked = await POST(unread.request);
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("Cache-Control")).toBe("no-store");
+    expect(unread.getReader).not.toHaveBeenCalled();
+  });
+
   it("rejects request bodies larger than six MiB before parsing JSON", async () => {
     const response = await POST(request(`{"padding":"${"a".repeat(6 * 1024 * 1024)}"}`));
 
@@ -98,7 +140,6 @@ describe("POST /api/chat", () => {
   });
 
   it("streams a valid request with AI SDK 7 adapters and no-store headers", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
     vi.mocked(getGoogleModel).mockReturnValue("google-model" as never);
     const providerStream = new ReadableStream();
     const textStream = new ReadableStream();
@@ -124,7 +165,6 @@ describe("POST /api/chat", () => {
   });
 
   it("holds concurrency until a chat response stream is cancelled", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
     vi.mocked(getGoogleModel).mockReturnValue("google-model" as never);
     vi.mocked(streamText).mockReturnValue({ stream: new ReadableStream() } as never);
     vi.mocked(toTextStream).mockImplementation(() => new ReadableStream());
