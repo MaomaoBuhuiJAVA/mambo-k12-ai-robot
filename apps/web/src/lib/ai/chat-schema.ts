@@ -39,6 +39,25 @@ export const chatRequestSchema = z.object({
     context.addIssue({ code: "custom", path: ["messages"], message: "Total message content exceeds 20000 characters" });
   }
 
+  const lastMessageIndex = request.messages.length - 1;
+  request.messages.forEach((message, index) => {
+    const expectedRole = index % 2 === 0 ? "user" : "assistant";
+    if (message.role !== expectedRole) {
+      context.addIssue({ code: "custom", path: ["messages", index, "role"], message: "Messages must alternate between user and assistant" });
+    }
+    if (message.image && (message.role !== "user" || index !== lastMessageIndex)) {
+      context.addIssue({ code: "custom", path: ["messages", index, "image"], message: "An image is only allowed on the final user message" });
+    }
+  });
+
+  if (request.messages[lastMessageIndex]?.role !== "user") {
+    context.addIssue({ code: "custom", path: ["messages", lastMessageIndex, "role"], message: "The final message must be from the user" });
+  }
+
+  if (request.messages.filter((message) => message.image).length > 1) {
+    context.addIssue({ code: "custom", path: ["messages"], message: "Only one image is allowed" });
+  }
+
   const course = getCourseById(request.courseId);
   if (!course) {
     context.addIssue({ code: "custom", path: ["courseId"], message: "Course does not exist" });

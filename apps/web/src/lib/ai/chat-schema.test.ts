@@ -38,4 +38,18 @@ describe("chatRequestSchema", () => {
     expect(chatRequestSchema.safeParse({ ...validRequest, messages: [{ role: "user", content: "x", image: "data:image/png;base64,%%%" }] }).success).toBe(false);
     expect(chatRequestSchema.safeParse({ ...validRequest, messages: [{ role: "user", content: "x", image: `data:image/jpeg;base64,${"A".repeat(4 * 1024 * 1024 * 2)}` }] }).success).toBe(false);
   });
+
+  it("requires a user-led, alternating conversation that ends with a user", () => {
+    expect(chatRequestSchema.safeParse({ ...validRequest, messages: [{ role: "assistant", content: "hello" }, { role: "user", content: "help" }] }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ ...validRequest, messages: [{ role: "user", content: "one" }, { role: "user", content: "two" }] }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ ...validRequest, messages: [{ role: "user", content: "one" }, { role: "assistant", content: "two" }] }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ ...validRequest, messages: [{ role: "user", content: "one" }, { role: "assistant", content: "two" }, { role: "user", content: "three" }] }).success).toBe(true);
+  });
+
+  it("permits only one image on the final user message", () => {
+    const image = "data:image/png;base64,aGVsbG8=";
+    expect(chatRequestSchema.safeParse({ ...validRequest, messages: [{ role: "user", content: "one", image }, { role: "assistant", content: "two" }, { role: "user", content: "three" }] }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ ...validRequest, messages: [{ role: "user", content: "one" }, { role: "assistant", content: "two", image }, { role: "user", content: "three" }] }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ ...validRequest, messages: [{ role: "user", content: "one" }, { role: "assistant", content: "two" }, { role: "user", content: "three", image }, { role: "assistant", content: "four" }, { role: "user", content: "five", image }] }).success).toBe(false);
+  });
 });
