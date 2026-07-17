@@ -16,8 +16,30 @@ from uuid import uuid4
 from websockets.asyncio.client import ClientConnection, connect
 
 
-AGENT_VERSION = "0.1.0"
+AGENT_VERSION = "0.2.0"
 ALLOWED_COMMANDS = {"ping", "get_status"}
+
+
+def detect_capabilities(device_root: Path = Path("/dev")) -> list[str]:
+    capabilities = set(ALLOWED_COMMANDS)
+    if any(device_root.glob("video*")):
+        capabilities.add("camera")
+
+    sound_root = device_root / "snd"
+    has_capture = any(sound_root.glob("pcm*C*c"))
+    has_playback = any(sound_root.glob("pcm*C*p"))
+    if has_capture or has_playback:
+        capabilities.add("audio")
+    if has_capture:
+        capabilities.add("microphone")
+    if has_playback:
+        capabilities.add("speaker")
+
+    if (device_root / "dri").is_dir() or (device_root / "fb0").exists():
+        capabilities.add("display")
+    if (device_root / "vipcore").exists() or (device_root / "galcore").exists():
+        capabilities.add("npu")
+    return sorted(capabilities)
 
 
 def utc_timestamp() -> str:
@@ -182,7 +204,7 @@ async def run_connection(settings: Settings) -> None:
                 {
                     "agent_version": AGENT_VERSION,
                     "platform": platform.platform(),
-                    "capabilities": sorted(ALLOWED_COMMANDS),
+                    "capabilities": detect_capabilities(),
                 },
             )
         )
