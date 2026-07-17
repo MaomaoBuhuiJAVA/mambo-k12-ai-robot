@@ -84,4 +84,22 @@ describe("ProgressDashboard", () => {
     expect(screen.getByText(/保存于/)).toBeVisible();
     expect(screen.queryByText(/功能启用后/)).not.toBeInTheDocument();
   });
+
+  it("labels lower-weight code evidence as formative completion instead of failure", async () => {
+    const state = createDefaultLearningState();
+    state.attempts = [{
+      attemptId: "lab-1",
+      knowledgePointId: "algorithm.bubble-sort",
+      score: 0.65,
+      hints: 1,
+      mode: "code",
+      completedAt: "2026-07-18T07:00:00.000Z",
+    }];
+    state.updatedAt = "2026-07-18T07:00:00.000Z";
+    saveLearningState(state);
+
+    render(<ProgressDashboard now={new Date("2026-07-18T08:00:00.000Z")} />);
+    expect(await screen.findByText(/形成性完成/)).toBeVisible();
+    expect(screen.queryByText(/未通过/)).not.toBeInTheDocument();
+  });
 });

@@ -15,7 +15,7 @@ import { resetRequestGuardForTests } from "@/lib/ai/request-guard";
 
 import { POST } from "./route";
 
-function audioRequest(file?: File) {
+function audioRequest(file?: File, signal?: AbortSignal) {
   const boundary = "vitest-audio-boundary";
   const encoder = new TextEncoder();
   const prefix = file
@@ -32,6 +32,7 @@ function audioRequest(file?: File) {
     method: "POST",
     headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
     body,
+    signal,
   });
 }
 
@@ -77,6 +78,7 @@ describe("POST /api/transcribe", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.clearAllMocks();
     resetRequestGuardForTests();
@@ -149,8 +151,41 @@ describe("POST /api/transcribe", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual({ transcript: "transcript" });
     expect(generateText).toHaveBeenCalledWith(expect.objectContaining({
+      abortSignal: expect.any(AbortSignal),
       messages: [{ role: "user", content: [expect.objectContaining({ type: "file", mediaType: "audio/webm", data: expect.any(Uint8Array) })] }],
     }));
+  });
+
+  it("returns a stable failure when the client aborts provider work", async () => {
+    const controller = new AbortController();
+    controller.abort(new DOMException("client left", "AbortError"));
+    vi.mocked(generateText).mockImplementation(async (options) => {
+      expect(options.abortSignal?.aborted).toBe(true);
+      throw new DOMException("client left", "AbortError");
+    });
+
+    const response = await POST(audioRequest(
+      new File(["audio"], "clip.ogg", { type: "audio/ogg" }),
+      controller.signal,
+    ));
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: "TRANSCRIPTION_FAILED" });
+  });
+
+  it("returns a stable failure and releases the lease at the transcription deadline", async () => {
+    vi.useFakeTimers();
+    vi.mocked(generateText).mockImplementation((options) => new Promise((_resolve, reject) => {
+      options.abortSignal?.addEventListener("abort", () => reject(options.abortSignal?.reason), { once: true });
+    }) as never);
+
+    const pending = POST(audioRequest(new File(["audio"], "clip.ogg", { type: "audio/ogg" })));
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(60_000);
+    const response = await pending;
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: "TRANSCRIPTION_FAILED" });
   });
 
   it("fails closed when the provider returns only whitespace", async () => {

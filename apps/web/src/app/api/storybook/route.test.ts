@@ -15,11 +15,12 @@ import { getCourseById } from "@/data/curriculum";
 
 import { POST } from "./route";
 
-function request(body: unknown) {
+function request(body: unknown, signal?: AbortSignal) {
   return new Request("http://localhost/api/storybook", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal,
   });
 }
 
@@ -37,6 +38,7 @@ function unreadRequest() {
 const input = { courseId: "lower-bubble-sort", stage: "lower_primary" };
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.clearAllMocks();
   resetRequestGuardForTests();
@@ -103,11 +105,47 @@ describe("POST /api/storybook", () => {
     expect(body).toEqual({ source: "ai", storybook: generated });
     expect(Output.object).toHaveBeenCalledWith({ schema: storybookSchema });
     expect(generateText).toHaveBeenCalledWith(expect.objectContaining({
+      abortSignal: expect.any(AbortSignal),
       model: "model",
       output: expect.anything(),
       instructions: expect.stringContaining("不可信"),
       prompt: expect.stringContaining(course.objectives[0]),
     }));
+  });
+
+  it("uses the seed fallback when the client aborts generation", async () => {
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    const controller = new AbortController();
+    controller.abort(new DOMException("client left", "AbortError"));
+    vi.mocked(generateText).mockImplementation(async (options) => {
+      expect(options.abortSignal?.aborted).toBe(true);
+      throw new DOMException("client left", "AbortError");
+    });
+
+    const response = await POST(request(input, controller.signal));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.source).toBe("seed");
+    expect(storybookSchema.safeParse(body.storybook).success).toBe(true);
+  });
+
+  it("uses the seed fallback at the storybook generation deadline", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.mocked(generateText).mockImplementation((options) => new Promise((_resolve, reject) => {
+      options.abortSignal?.addEventListener("abort", () => reject(options.abortSignal?.reason), { once: true });
+    }) as never);
+
+    const pending = POST(request(input));
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(90_000);
+    const response = await pending;
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.source).toBe("seed");
+    expect(storybookSchema.safeParse(body.storybook).success).toBe(true);
   });
 
   it("falls back when generation fails or returns invalid output", async () => {

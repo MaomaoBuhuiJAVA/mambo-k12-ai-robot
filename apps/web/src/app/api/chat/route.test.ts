@@ -61,6 +61,7 @@ describe("POST /api/chat", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.clearAllMocks();
     resetRequestGuardForTests();
@@ -159,9 +160,61 @@ describe("POST /api/chat", () => {
       model: "google-model",
       instructions: expect.stringContaining("Mambo"),
       messages: [{ role: "user", content: "help" }],
+      abortSignal: expect.any(AbortSignal),
     }));
     expect(toTextStream).toHaveBeenCalledWith({ stream: providerStream });
     expect(createTextStreamResponse).toHaveBeenCalledWith({ stream: expect.any(ReadableStream), headers: { "Cache-Control": "no-store" } });
+  });
+
+  it("passes request cancellation through to the streaming provider", async () => {
+    const controller = new AbortController();
+    let providerSignal: AbortSignal | undefined;
+    vi.mocked(streamText).mockImplementation((options) => {
+      providerSignal = options.abortSignal;
+      return { stream: new ReadableStream() } as never;
+    });
+    vi.mocked(toTextStream).mockImplementation(({ stream }) => stream as unknown as ReadableStream<string>);
+    vi.mocked(createTextStreamResponse).mockImplementation(({ stream, headers }) => new Response(stream, { headers }));
+    const chatRequest = new Request("http://localhost/api/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        stage: "lower_primary",
+        courseId: "lower-bubble-sort",
+        messages: [{ role: "user", content: "help" }],
+      }),
+      signal: controller.signal,
+    });
+    const response = await POST(chatRequest);
+
+    controller.abort(new DOMException("client left", "AbortError"));
+
+    expect(providerSignal?.aborted).toBe(true);
+    await response.body?.cancel();
+  });
+
+  it("aborts a stalled chat stream at the server deadline", async () => {
+    vi.useFakeTimers();
+    vi.mocked(streamText).mockImplementation((options) => ({
+      stream: new ReadableStream<Uint8Array>({
+        start(controller) {
+          options.abortSignal?.addEventListener("abort", () => controller.error(options.abortSignal?.reason), { once: true });
+        },
+      }),
+    }) as never);
+    vi.mocked(toTextStream).mockImplementation(({ stream }) => stream as never);
+    vi.mocked(createTextStreamResponse).mockImplementation(({ stream, headers }) => new Response(stream as unknown as ReadableStream<Uint8Array>, { headers }));
+
+    const response = await POST(request(JSON.stringify({
+      stage: "lower_primary",
+      courseId: "lower-bubble-sort",
+      messages: [{ role: "user", content: "help" }],
+    })));
+    const read = response.body?.getReader().read();
+    const rejection = expect(read).rejects.toMatchObject({ name: "TimeoutError" });
+    await vi.advanceTimersByTimeAsync(90_000);
+
+    await rejection;
   });
 
   it("holds concurrency until a chat response stream is cancelled", async () => {

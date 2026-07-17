@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 
 import { getGoogleModel } from "@/lib/ai/provider";
+import { AI_PROVIDER_TIMEOUT_MS, createProviderAbort } from "@/lib/ai/provider-abort";
 import { acquireRequestLease, requestGuardRejectionResponse } from "@/lib/ai/request-guard";
 
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
@@ -97,14 +98,21 @@ export async function POST(request: Request): Promise<Response> {
       return invalidFileResponse();
     }
 
-    const result = await generateText({
-      model: getGoogleModel(),
-      instructions: TRANSCRIPTION_INSTRUCTIONS,
-      messages: [{
-        role: "user",
-        content: [{ type: "file", mediaType, data: new Uint8Array(await audio.arrayBuffer()) }],
-      }],
-    });
+    const providerAbort = createProviderAbort(request.signal, AI_PROVIDER_TIMEOUT_MS.transcribe);
+    let result: Awaited<ReturnType<typeof generateText>>;
+    try {
+      result = await generateText({
+        model: getGoogleModel(),
+        instructions: TRANSCRIPTION_INSTRUCTIONS,
+        messages: [{
+          role: "user",
+          content: [{ type: "file", mediaType, data: new Uint8Array(await audio.arrayBuffer()) }],
+        }],
+        abortSignal: providerAbort.signal,
+      });
+    } finally {
+      providerAbort.cleanup();
+    }
 
     const transcript = result.text.trim().slice(0, 4000);
     if (!transcript) throw new Error("Empty transcription");

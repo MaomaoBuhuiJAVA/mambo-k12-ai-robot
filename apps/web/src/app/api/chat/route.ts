@@ -3,6 +3,7 @@ import { createTextStreamResponse, streamText, toTextStream } from "ai";
 import { getCourseById } from "@/data/curriculum";
 import { chatRequestSchema, toModelMessages } from "@/lib/ai/chat-schema";
 import { getGoogleModel } from "@/lib/ai/provider";
+import { AI_PROVIDER_TIMEOUT_MS, createProviderAbort, type ProviderAbort } from "@/lib/ai/provider-abort";
 import { buildSystemPrompt } from "@/lib/ai/prompt";
 import {
   acquireRequestLease,
@@ -60,6 +61,7 @@ export async function POST(request: Request): Promise<Response> {
   const access = await acquireRequestLease(request, "chat");
   if (!access.ok) return requestGuardRejectionResponse(access);
   let streamOwnsLease = false;
+  let providerAbort: ProviderAbort | null = null;
   let body: unknown;
 
   try {
@@ -80,15 +82,17 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     try {
+      providerAbort = createProviderAbort(request.signal, AI_PROVIDER_TIMEOUT_MS.chat);
       const result = streamText({
         model: getGoogleModel(),
         instructions: buildSystemPrompt({ stage: parsed.data.stage, course }),
         messages: toModelMessages(parsed.data),
+        abortSignal: providerAbort.signal,
       });
       const textStream = toTextStream({ stream: result.stream });
 
       const response = createTextStreamResponse({
-        stream: leaseReadableStream(textStream, access.lease),
+        stream: leaseReadableStream(textStream, access.lease, providerAbort.cleanup),
         headers: NO_STORE_HEADERS,
       });
       streamOwnsLease = true;
@@ -97,6 +101,9 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: "CHAT_FAILED" }, { status: 502, headers: NO_STORE_HEADERS });
     }
   } finally {
-    if (!streamOwnsLease) await access.lease.release();
+    if (!streamOwnsLease) {
+      providerAbort?.cleanup();
+      await access.lease.release();
+    }
   }
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, BookOpenCheck, CalendarClock, ClipboardList } from "lucide-react";
 
-import type { LearningState, MasteryRecord } from "@/lib/domain";
+import type { Attempt, LearningState, MasteryRecord } from "@/lib/domain";
 import { createDefaultLearningState, loadLearningState } from "@/lib/learning-store";
 import { LEARNING_STATE_CHANGED_EVENT } from "@/lib/learning-events";
 import { readSavedStorybooks, type SavedStorybook } from "@/features/storybook/storybook-storage";
@@ -89,7 +89,7 @@ export function ProgressDashboard({ now }: { now?: Date }) {
                 {recentAttempts.map((attempt) => (
                   <li key={attempt.attemptId}>
                     <div><strong>{knowledgeLabel(attempt.knowledgePointId)}</strong><span>{attempt.mode === "code" ? "编程实验" : "课程练习"}</span></div>
-                    <span data-passed={attempt.score === 1 || undefined}>{attempt.score === 1 ? "通过" : "未通过"} · {formatDate(attempt.completedAt)}</span>
+                    <span data-passed={attemptPassed(attempt) || undefined}>{attemptStatus(attempt)} · {formatDate(attempt.completedAt)}</span>
                   </li>
                 ))}
               </ul>
@@ -150,4 +150,13 @@ function knowledgeLabel(id: string): string {
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(new Date(value));
+}
+
+function attemptPassed(attempt: Attempt): boolean {
+  return attempt.mode === "code" ? attempt.score >= 0.6 : attempt.score === 1;
+}
+
+function attemptStatus(attempt: Attempt): string {
+  if (attempt.mode === "code") return attemptPassed(attempt) ? "形成性完成" : "继续改进";
+  return attempt.score === 1 ? "通过" : "未通过";
 }

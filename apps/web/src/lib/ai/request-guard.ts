@@ -50,40 +50,40 @@ const DEFAULT_LIMITS: Record<GuardRoute, RequestLimits> = {
   storybook: { minute: 4, day: 30, clientConcurrency: 1, routeConcurrency: 4 },
 };
 const OVERALL_CONCURRENCY = 20;
-const CONCURRENCY_LEASE_SECONDS = 10 * 60;
+const CONCURRENCY_LEASE_MS = 180_000;
+const CONCURRENCY_KEY_TTL_SECONDS = Math.ceil(CONCURRENCY_LEASE_MS / 1000) + 60;
 const GUARD_UNAVAILABLE_RETRY_SECONDS = 30;
 const REDIS_TIMEOUT_MS = 2_500;
-const REDIS_PREFIX = "mambo:ai-guard:v2";
+const REDIS_PREFIX = "mambo:ai-guard:{mambo-ai}:v3";
 
 const ACQUIRE_SCRIPT = `
 local minute = redis.call('INCR', KEYS[1])
-if minute == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+if minute == 1 then redis.call('EXPIRE', KEYS[1], ARGV[3]) end
 local day = redis.call('INCR', KEYS[2])
-if day == 1 then redis.call('EXPIRE', KEYS[2], ARGV[2]) end
-if minute > tonumber(ARGV[4]) then return {'minute', redis.call('TTL', KEYS[1])} end
-if day > tonumber(ARGV[5]) then return {'day', redis.call('TTL', KEYS[2])} end
-local client_concurrency = tonumber(redis.call('GET', KEYS[3]) or '0')
-local route_concurrency = tonumber(redis.call('GET', KEYS[4]) or '0')
-local overall_concurrency = tonumber(redis.call('GET', KEYS[5]) or '0')
-if client_concurrency >= tonumber(ARGV[6]) then return {'client_concurrency', 1} end
-if route_concurrency >= tonumber(ARGV[7]) then return {'route_concurrency', 1} end
-if overall_concurrency >= tonumber(ARGV[8]) then return {'overall_concurrency', 1} end
-redis.call('INCR', KEYS[3])
-redis.call('EXPIRE', KEYS[3], ARGV[3])
-redis.call('INCR', KEYS[4])
-redis.call('EXPIRE', KEYS[4], ARGV[3])
-redis.call('INCR', KEYS[5])
-redis.call('EXPIRE', KEYS[5], ARGV[3])
+if day == 1 then redis.call('EXPIRE', KEYS[2], ARGV[4]) end
+for index = 3, 5 do
+  redis.call('ZREMRANGEBYSCORE', KEYS[index], '-inf', ARGV[1])
+end
+if minute > tonumber(ARGV[6]) then return {'minute', redis.call('TTL', KEYS[1])} end
+if day > tonumber(ARGV[7]) then return {'day', redis.call('TTL', KEYS[2])} end
+local client_concurrency = redis.call('ZCARD', KEYS[3])
+local route_concurrency = redis.call('ZCARD', KEYS[4])
+local overall_concurrency = redis.call('ZCARD', KEYS[5])
+if client_concurrency >= tonumber(ARGV[8]) then return {'client_concurrency', 1} end
+if route_concurrency >= tonumber(ARGV[9]) then return {'route_concurrency', 1} end
+if overall_concurrency >= tonumber(ARGV[10]) then return {'overall_concurrency', 1} end
+for index = 3, 5 do
+  redis.call('ZADD', KEYS[index], ARGV[2], ARGV[11])
+  redis.call('EXPIRE', KEYS[index], ARGV[5])
+end
 return {'ok', 1}
 `.trim();
 
 const RELEASE_SCRIPT = `
 for index = 1, #KEYS do
-  local current = tonumber(redis.call('GET', KEYS[index]) or '0')
-  if current <= 1 then
+  redis.call('ZREM', KEYS[index], ARGV[1])
+  if redis.call('ZCARD', KEYS[index]) == 0 then
     redis.call('DEL', KEYS[index])
-  else
-    redis.call('DECR', KEYS[index])
   end
 end
 return 1
@@ -262,6 +262,8 @@ async function acquireDurableLease(
   config: RedisConfig,
 ): Promise<AcquireResult> {
   const timestamp = Date.now();
+  const leaseToken = crypto.randomUUID();
+  const leaseExpiry = timestamp + CONCURRENCY_LEASE_MS;
   const minuteBucket = Math.floor(timestamp / 60_000);
   const dayBucket = Math.floor(timestamp / 86_400_000);
   const client = clientKey(request, ["x-vercel-forwarded-for", "x-forwarded-for"]);
@@ -282,14 +284,17 @@ async function acquireDurableLease(
     ACQUIRE_SCRIPT,
     "5",
     ...keys,
+    timestamp,
+    leaseExpiry,
     120,
     dayTtl,
-    CONCURRENCY_LEASE_SECONDS,
+    CONCURRENCY_KEY_TTL_SECONDS,
     limits.minute,
     limits.day,
     limits.clientConcurrency,
     limits.routeConcurrency,
     OVERALL_CONCURRENCY,
+    leaseToken,
   ]);
   if (!Array.isArray(result) || typeof result[0] !== "string") {
     throw new Error("Invalid Redis guard response");
@@ -316,7 +321,7 @@ async function acquireDurableLease(
         if (released) return;
         released = true;
         try {
-          await redisCommand(config, ["EVAL", RELEASE_SCRIPT, "3", ...concurrentKeys]);
+          await redisCommand(config, ["EVAL", RELEASE_SCRIPT, "3", ...concurrentKeys, leaseToken]);
         } catch {
           // The bounded concurrency-key TTL fails safe if release cannot reach Redis.
         }
@@ -355,13 +360,21 @@ export function resetRequestGuardForTests(): void {
   memoryRequestGuard.reset();
 }
 
-export function leaseReadableStream<T>(stream: ReadableStream<T>, lease: RequestLease): ReadableStream<T> {
+export function leaseReadableStream<T>(
+  stream: ReadableStream<T>,
+  lease: RequestLease,
+  onFinalize?: () => void,
+): ReadableStream<T> {
   const reader = stream.getReader();
   let released = false;
   const release = async () => {
     if (released) return;
     released = true;
-    await lease.release();
+    try {
+      onFinalize?.();
+    } finally {
+      await lease.release();
+    }
   };
 
   return new ReadableStream<T>({
@@ -380,11 +393,7 @@ export function leaseReadableStream<T>(stream: ReadableStream<T>, lease: Request
       }
     },
     async cancel(reason) {
-      try {
-        await reader.cancel(reason);
-      } finally {
-        await release();
-      }
+      await Promise.all([reader.cancel(reason), release()]);
     },
   });
 }
