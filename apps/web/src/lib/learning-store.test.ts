@@ -207,6 +207,52 @@ describe("learning state storage", () => {
     expect(localStorage.getItem(LEGACY_LEARNING_STATE_STORAGE_KEY)).toBeNull();
   });
 
+  it("loosely migrates oversized legacy v1 data without losing progress", () => {
+    const legacyState: LearningState = {
+      ...createDefaultLearningState(profile),
+      masteryByKnowledgePoint: { sorting: makeMastery() },
+      attempts: Array.from(
+        { length: MAX_PERSISTED_ATTEMPTS + 5 },
+        (_, index) => makeAttempt(index),
+      ),
+      interests: Array.from(
+        { length: MAX_PERSISTED_INTERESTS + 5 },
+        (_, index) => `${index}-${"i".repeat(MAX_PERSISTED_STRING_LENGTH + 20)}`,
+      ),
+      recentTopics: Array.from(
+        { length: MAX_PERSISTED_RECENT_TOPICS + 5 },
+        (_, index) => `${index}-${"t".repeat(MAX_PERSISTED_STRING_LENGTH + 20)}`,
+      ),
+    };
+    localStorage.setItem(
+      LEGACY_LEARNING_STATE_STORAGE_KEY,
+      JSON.stringify(legacyState),
+    );
+
+    const migrated = loadLearningState(localStorage);
+
+    expect(migrated.masteryByKnowledgePoint.sorting).toEqual(makeMastery());
+    expect(migrated.attempts).toHaveLength(MAX_PERSISTED_ATTEMPTS);
+    expect(migrated.attempts[0].attemptId).toBe("attempt-5");
+    expect(migrated.attempts.every((attempt) => !("answer" in attempt))).toBe(
+      true,
+    );
+    expect(migrated.interests).toHaveLength(MAX_PERSISTED_INTERESTS);
+    expect(migrated.recentTopics).toHaveLength(MAX_PERSISTED_RECENT_TOPICS);
+    expect(
+      [...migrated.interests, ...migrated.recentTopics].every(
+        (item) => item.length <= MAX_PERSISTED_STRING_LENGTH,
+      ),
+    ).toBe(true);
+    expect(migrated.profile).toMatchObject({
+      studentId: "local-student",
+      displayName: "Learner",
+      textbook: null,
+      goals: [],
+      stage: "upper_primary",
+    });
+  });
+
   it("rejects future schemas instead of interpreting them as current", () => {
     const futureState = {
       ...createDefaultLearningState(profile),

@@ -335,11 +335,49 @@ function migrateLegacyState(value: Record<string, unknown>): LearningState | nul
   });
 }
 
-function decodeLearningState(raw: string): LearningState | null {
+function migrateLegacyV1State(
+  value: Record<string, unknown>,
+): LearningState | null {
+  if (
+    value.schemaVersion !== CURRENT_LEARNING_STATE_VERSION ||
+    !isStudentProfile(value.profile) ||
+    !isMasteryMap(value.masteryByKnowledgePoint) ||
+    !Array.isArray(value.attempts) ||
+    !value.attempts.every(isAttempt) ||
+    !isStringArray(value.recentTopics) ||
+    !isStringArray(value.interests) ||
+    (value.lastCourseId !== null && typeof value.lastCourseId !== "string") ||
+    !isIsoDate(value.updatedAt)
+  ) {
+    return null;
+  }
+
+  return prepareLearningStateForStorage({
+    schemaVersion: CURRENT_LEARNING_STATE_VERSION,
+    profile: value.profile,
+    masteryByKnowledgePoint: value.masteryByKnowledgePoint,
+    attempts: value.attempts,
+    recentTopics: value.recentTopics,
+    interests: value.interests,
+    lastCourseId: value.lastCourseId,
+    updatedAt: value.updatedAt,
+  });
+}
+
+function decodeLearningState(
+  raw: string,
+  allowLegacyV1 = false,
+): LearningState | null {
   try {
     const value: unknown = JSON.parse(raw);
     if (isLearningState(value)) return prepareLearningStateForStorage(value);
-    if (isRecord(value)) return migrateLegacyState(value);
+    if (isRecord(value)) {
+      if (allowLegacyV1) {
+        const migratedV1 = migrateLegacyV1State(value);
+        if (migratedV1) return migratedV1;
+      }
+      return migrateLegacyState(value);
+    }
   } catch {
     return null;
   }
@@ -376,7 +414,7 @@ export function loadLearningState(
     const legacyRaw = storage.getItem(LEGACY_LEARNING_STATE_STORAGE_KEY);
     if (legacyRaw === null) return createDefaultLearningState();
 
-    const migrated = decodeLearningState(legacyRaw);
+    const migrated = decodeLearningState(legacyRaw, true);
     if (!migrated) return createDefaultLearningState();
 
     if (saveLearningState(migrated, storage)) {
