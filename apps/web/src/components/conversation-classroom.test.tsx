@@ -71,6 +71,58 @@ describe("ConversationClassroom", () => {
     expect(signal?.aborted).toBe(true);
   });
 
+  it("removes an empty aborted answer and keeps the next request history valid", async () => {
+    const user = userEvent.setup();
+    let call = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((_url, init) => {
+      call += 1;
+      if (call === 1) {
+        return new Promise<Response>((_resolve, reject) => {
+          (init as RequestInit).signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+        });
+      }
+      return Promise.resolve(streamResponse(["Second answer"]));
+    });
+
+    render(<ConversationClassroom course={course} stage="lower_primary" />);
+    const input = screen.getByRole("textbox", { name: "给 Mambo 发消息" });
+    await user.type(input, "First question");
+    await user.click(screen.getByRole("button", { name: "发送消息" }));
+    await user.click(screen.getByRole("button", { name: "停止回答" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "停止回答" })).not.toBeInTheDocument());
+
+    await user.type(input, "Second question");
+    await user.click(screen.getByRole("button", { name: "发送消息" }));
+    await screen.findByText("Second answer");
+
+    const secondRequest = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(secondRequest.messages).toEqual([{ role: "user", content: "Second question" }]);
+    expect(screen.queryByText("First question")).toBeVisible();
+    expect(screen.queryAllByText("", { selector: ".message__body p" })).toHaveLength(0);
+  });
+
+  it("does not resend an image from an earlier learner turn", async () => {
+    const user = userEvent.setup({ applyAccept: false });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(streamResponse(["answered"]));
+    render(<ConversationClassroom course={course} stage="lower_primary" />);
+
+    await user.upload(screen.getByLabelText("添加图片"), new File([new Uint8Array([137, 80, 78, 71])], "work.png", { type: "image/png" }));
+    await user.type(screen.getByRole("textbox", { name: "给 Mambo 发消息" }), "First image question");
+    await user.click(screen.getByRole("button", { name: "发送消息" }));
+    await screen.findByText("answered");
+
+    await user.type(screen.getByRole("textbox", { name: "给 Mambo 发消息" }), "Follow up");
+    await user.click(screen.getByRole("button", { name: "发送消息" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const secondRequest = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(secondRequest.messages).toEqual([
+      { role: "user", content: "First image question" },
+      { role: "assistant", content: "answered" },
+      { role: "user", content: "Follow up" },
+    ]);
+  });
+
   it("rejects an unsupported image before sending", async () => {
     const user = userEvent.setup({ applyAccept: false });
     render(<ConversationClassroom course={course} stage="lower_primary" />);
@@ -131,6 +183,29 @@ describe("ConversationClassroom", () => {
     await waitFor(() => expect(screen.getByRole("textbox", { name: "给 Mambo 发消息" })).toHaveValue("语音转写内容"));
     expect(fetchMock).toHaveBeenCalledWith("/api/transcribe", expect.objectContaining({ method: "POST" }));
     expect(fetchMock).not.toHaveBeenCalledWith("/api/chat", expect.anything());
+  });
+
+  it("stops media resources on unmount without uploading a transcription", async () => {
+    const user = userEvent.setup();
+    const track = { stop: vi.fn() };
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [track] }) } });
+    class FakeMediaRecorder {
+      onstop: (() => void) | null = null;
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      mimeType = "audio/webm";
+      start = vi.fn();
+      stop = vi.fn(() => this.onstop?.());
+    }
+    Object.defineProperty(window, "MediaRecorder", { configurable: true, value: FakeMediaRecorder });
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { unmount } = render(<ConversationClassroom course={course} stage="lower_primary" />);
+
+    await user.click(screen.getByRole("button", { name: "录音" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "停止录音" })).toBeVisible());
+    unmount();
+
+    expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/transcribe", expect.anything());
   });
 
   it("uses child-friendly Chinese speech settings and can stop reading", async () => {
