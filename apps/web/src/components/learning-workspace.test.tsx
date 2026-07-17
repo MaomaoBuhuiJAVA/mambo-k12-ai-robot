@@ -2,7 +2,11 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { getCourseById } from "@/data/curriculum";
+import { loadLearningState } from "@/lib/learning-store";
 import { LearningWorkspace } from "./learning-workspace";
+
+const lowerCourse = getCourseById("lower-bubble-sort")!;
 
 describe("LearningWorkspace", () => {
   beforeEach(() => {
@@ -78,6 +82,11 @@ describe("LearningWorkspace", () => {
     expect(
       screen.getByText("比较 4 和 2 时，为了从小到大排列应该怎样做？"),
     ).toBeVisible();
+    const choice = lowerCourse.exercises[0];
+    if (choice.type !== "single_choice") throw new Error("expected choice");
+    await user.click(screen.getByLabelText(choice.answer));
+    await user.click(screen.getByRole("button", { name: "提交答案" }));
+    expect(loadLearningState().attempts).toHaveLength(1);
   });
 
   it("reaches the real animation, storybook, and material download tools", async () => {

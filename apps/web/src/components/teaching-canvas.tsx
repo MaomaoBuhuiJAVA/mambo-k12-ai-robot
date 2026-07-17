@@ -3,7 +3,6 @@ import {
   BookOpenCheck,
   Boxes,
   CirclePlay,
-  Dumbbell,
   Lightbulb,
   PackageOpen,
   Target,
@@ -14,6 +13,7 @@ import { ResourceLibrary } from "@/features/courses/resource-library";
 import { BubbleSortAnimation } from "@/features/animation/bubble-sort-animation";
 import { NeuralNetworkAnimation } from "@/features/animation/neural-network-animation";
 import { StorybookPlayer } from "@/features/storybook/storybook-player";
+import { QuizPlayer } from "@/features/quiz/quiz-player";
 
 type CanvasTab = "course" | "animation" | "storybook" | "resources" | "exercise";
 
@@ -100,7 +100,7 @@ function CanvasContent({ tab, course }: { tab: CanvasTab; course: CurriculumCour
   if (tab === "animation") return <AnimationView course={course} />;
   if (tab === "storybook") return <StorybookPlayer course={course} />;
   if (tab === "resources") return <ResourceLibrary course={course} />;
-  return <ExerciseView course={course} />;
+  return <QuizPlayer course={course} />;
 }
 
 function CourseView({ course }: { course: CurriculumCourse }) {
@@ -159,37 +159,6 @@ function AnimationView({ course }: { course: CurriculumCourse }) {
           <li key={step.id}>
             <span aria-hidden="true">{index + 1}</span>
             <p>{step.narration}</p>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-function ExerciseView({ course }: { course: CurriculumCourse }) {
-  return (
-    <div className="exercise-view">
-      <div className="exercise-view__title">
-        <Dumbbell size={20} aria-hidden="true" />
-        <div>
-          <h3>课堂练习</h3>
-          <p>按顺序完成三个小任务</p>
-        </div>
-      </div>
-      <ol className="exercise-list">
-        {course.exercises.map((exercise, index) => (
-          <li key={exercise.id}>
-            <span className="exercise-list__number">{index + 1}</span>
-            <div>
-              <span className="exercise-list__type">
-                {exercise.type === "single_choice"
-                  ? "选择"
-                  : exercise.type === "order"
-                    ? "排序"
-                    : "追踪"}
-              </span>
-              <p>{exercise.prompt}</p>
-            </div>
           </li>
         ))}
       </ol>

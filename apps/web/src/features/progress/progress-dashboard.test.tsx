@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createDefaultLearningState, saveLearningState } from "@/lib/learning-store";
+import { createDefaultLearningState, loadLearningState, saveLearningState } from "@/lib/learning-store";
 import { getCourseById } from "@/data/curriculum";
 import { createSeedStorybook } from "@/features/storybook/storybook";
 import { STORYBOOK_STORAGE_KEY } from "@/features/storybook/storybook-storage";
@@ -82,6 +83,10 @@ describe("ProgressDashboard", () => {
     render(<ProgressDashboard now={new Date("2026-07-18T08:00:00.000Z")} />);
     expect(await screen.findByText("冒泡排序探险记")).toBeVisible();
     expect(screen.getByText(/保存于/)).toBeVisible();
+    expect(screen.getByRole("link", { name: /冒泡排序探险记/ })).toHaveAttribute(
+      "href",
+      "/?course=lower-bubble-sort#workspace",
+    );
     expect(screen.queryByText(/功能启用后/)).not.toBeInTheDocument();
   });
 
@@ -101,5 +106,16 @@ describe("ProgressDashboard", () => {
     render(<ProgressDashboard now={new Date("2026-07-18T08:00:00.000Z")} />);
     expect(await screen.findByText(/形成性完成/)).toBeVisible();
     expect(screen.queryByText(/未通过/)).not.toBeInTheDocument();
+  });
+
+  it("persists restrained interest choices and immediately updates the same-stage recommendation", async () => {
+    const user = userEvent.setup();
+    render(<ProgressDashboard now={new Date("2026-07-18T08:00:00.000Z")} />);
+    expect(await screen.findByRole("heading", { name: "冒泡排序" })).toBeVisible();
+
+    await user.click(screen.getByRole("checkbox", { name: "图像识别" }));
+
+    expect(await screen.findByRole("heading", { name: "图片标签小侦探" })).toBeVisible();
+    expect(loadLearningState().interests).toEqual(["image"]);
   });
 });

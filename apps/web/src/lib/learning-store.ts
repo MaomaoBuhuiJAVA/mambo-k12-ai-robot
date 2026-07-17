@@ -6,12 +6,14 @@ import type {
   Stage,
   StudentProfile,
 } from "./domain";
+import { isKnownKnowledgePointId } from "./knowledge-points";
 
 export const CURRENT_LEARNING_STATE_VERSION = 1;
 export const LEARNING_STATE_STORAGE_KEY = "mambo.learning-state";
 export const LEGACY_LEARNING_STATE_STORAGE_KEY = "mambo.learning-state.v1";
 export const MAX_PERSISTED_ATTEMPTS = 100;
 export const MAX_PERSISTED_INTERESTS = 20;
+export const MAX_PERSISTED_MASTERY_RECORDS = 200;
 export const MAX_PERSISTED_RECENT_TOPICS = 20;
 export const MAX_PERSISTED_STRING_LENGTH = 160;
 
@@ -168,13 +170,54 @@ function isMasteryRecord(value: unknown): value is MasteryRecord {
 function isMasteryMap(
   value: unknown,
 ): value is Record<string, MasteryRecord> {
-  return (
-    isRecord(value) &&
-    Object.entries(value).every(
-      ([knowledgePointId, record]) =>
-        isMasteryRecord(record) && record.knowledgePointId === knowledgePointId,
-    )
-  );
+  if (!isRecord(value)) return false;
+  let entries = 0;
+  for (const knowledgePointId in value) {
+    entries += 1;
+    if (entries > MAX_PERSISTED_MASTERY_RECORDS) return false;
+    const record = value[knowledgePointId];
+    if (
+      !isKnownKnowledgePointId(knowledgePointId)
+      || !isMasteryRecord(record)
+      || record.knowledgePointId !== knowledgePointId
+    ) return false;
+  }
+  return true;
+}
+
+function sanitizeCurrentLearningStateCandidate(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  if (value.schemaVersion !== CURRENT_LEARNING_STATE_VERSION) return value;
+
+  let sanitizedMastery: unknown = value.masteryByKnowledgePoint;
+  if (isRecord(value.masteryByKnowledgePoint)) {
+    const masteryByKnowledgePoint: Record<string, unknown> = {};
+    let inspected = 0;
+    for (const knowledgePointId in value.masteryByKnowledgePoint) {
+      inspected += 1;
+      if (inspected > MAX_PERSISTED_MASTERY_RECORDS * 4) break;
+      if (!isKnownKnowledgePointId(knowledgePointId)) continue;
+      masteryByKnowledgePoint[knowledgePointId] = value.masteryByKnowledgePoint[knowledgePointId];
+      if (Object.keys(masteryByKnowledgePoint).length >= MAX_PERSISTED_MASTERY_RECORDS) break;
+    }
+    sanitizedMastery = masteryByKnowledgePoint;
+  }
+
+  const attempts = Array.isArray(value.attempts)
+    ? value.attempts.filter((attempt) =>
+        !isRecord(attempt)
+        || typeof attempt.knowledgePointId !== "string"
+        || isKnownKnowledgePointId(attempt.knowledgePointId),
+      )
+    : value.attempts;
+  const recentTopics = Array.isArray(value.recentTopics)
+    ? value.recentTopics.filter((topic) =>
+        typeof topic !== "string" || isKnownKnowledgePointId(topic),
+      )
+    : value.recentTopics;
+
+  return { ...value, masteryByKnowledgePoint: sanitizedMastery, attempts, recentTopics };
 }
 
 function isLearningState(value: unknown): value is LearningState {
@@ -252,6 +295,10 @@ function sanitizeStringArray(values: string[], maxItems: number): string[] {
     .slice(-maxItems);
 }
 
+function sanitizeKnowledgePointList(values: string[], maxItems: number): string[] {
+  return sanitizeStringArray(values, maxItems).filter(isKnownKnowledgePointId);
+}
+
 function stripAttemptAnswer(attempt: Attempt): Attempt {
   return {
     attemptId: attempt.attemptId,
@@ -266,27 +313,33 @@ function stripAttemptAnswer(attempt: Attempt): Attempt {
 export function prepareLearningStateForStorage(
   state: LearningState,
 ): LearningState {
-  const masteryByKnowledgePoint = Object.fromEntries(
-    Object.entries(state.masteryByKnowledgePoint)
-      .filter(
-        ([knowledgePointId, record]) =>
-          isMasteryRecord(record) && record.knowledgePointId === knowledgePointId,
-      )
-      .map(([knowledgePointId, record]) => [
-        knowledgePointId,
-        { ...record, misconceptionTags: [...record.misconceptionTags] },
-      ]),
-  );
+  const masteryByKnowledgePoint: Record<string, MasteryRecord> = {};
+  let inspectedMasteryEntries = 0;
+  for (const knowledgePointId in state.masteryByKnowledgePoint) {
+    inspectedMasteryEntries += 1;
+    if (inspectedMasteryEntries > MAX_PERSISTED_MASTERY_RECORDS * 4) break;
+    const record = state.masteryByKnowledgePoint[knowledgePointId];
+    if (
+      !isKnownKnowledgePointId(knowledgePointId)
+      || !isMasteryRecord(record)
+      || record.knowledgePointId !== knowledgePointId
+    ) continue;
+    masteryByKnowledgePoint[knowledgePointId] = {
+      ...record,
+      misconceptionTags: [...record.misconceptionTags],
+    };
+    if (Object.keys(masteryByKnowledgePoint).length >= MAX_PERSISTED_MASTERY_RECORDS) break;
+  }
 
   return {
     schemaVersion: CURRENT_LEARNING_STATE_VERSION,
     profile: anonymizeProfile(state.profile),
     masteryByKnowledgePoint,
     attempts: state.attempts
-      .filter(isAttempt)
+      .filter((attempt) => isAttempt(attempt) && isKnownKnowledgePointId(attempt.knowledgePointId))
       .slice(-MAX_PERSISTED_ATTEMPTS)
       .map(stripAttemptAnswer),
-    recentTopics: sanitizeStringArray(
+    recentTopics: sanitizeKnowledgePointList(
       state.recentTopics,
       MAX_PERSISTED_RECENT_TOPICS,
     ),
@@ -303,8 +356,12 @@ function migrateLegacyState(value: Record<string, unknown>): LearningState | nul
 
   const masteryByKnowledgePoint: Record<string, MasteryRecord> = {};
   if (isRecord(value.mastery)) {
-    for (const [knowledgePointId, mastery] of Object.entries(value.mastery)) {
-      if (!isBoundedString(knowledgePointId) || !isUnitInterval(mastery)) continue;
+    let inspected = 0;
+    for (const knowledgePointId in value.mastery) {
+      inspected += 1;
+      if (inspected > MAX_PERSISTED_MASTERY_RECORDS * 4) break;
+      const mastery = value.mastery[knowledgePointId];
+      if (!isKnownKnowledgePointId(knowledgePointId) || !isUnitInterval(mastery)) continue;
       masteryByKnowledgePoint[knowledgePointId] = {
         knowledgePointId,
         mastery,
@@ -314,6 +371,7 @@ function migrateLegacyState(value: Record<string, unknown>): LearningState | nul
         nextReviewAt: null,
         misconceptionTags: [],
       };
+      if (Object.keys(masteryByKnowledgePoint).length >= MAX_PERSISTED_MASTERY_RECORDS) break;
     }
   }
 
@@ -415,6 +473,7 @@ function normalizeLegacyAttempt(value: unknown): Attempt | null {
   if (
     !attemptId ||
     !knowledgePointId ||
+    !isKnownKnowledgePointId(knowledgePointId) ||
     typeof value.score !== "number" ||
     !Number.isFinite(value.score) ||
     typeof value.hints !== "number" ||
@@ -442,7 +501,11 @@ function normalizeLegacyMasteryMap(
   if (!isRecord(value)) return {};
 
   const normalized: Record<string, MasteryRecord> = {};
-  for (const [rawKey, rawRecord] of Object.entries(value)) {
+  let inspected = 0;
+  for (const rawKey in value) {
+    inspected += 1;
+    if (inspected > MAX_PERSISTED_MASTERY_RECORDS * 4) break;
+    const rawRecord = value[rawKey];
     if (!isRecord(rawRecord)) continue;
 
     const knowledgePointId = normalizeLegacyIdentifier(rawKey);
@@ -451,6 +514,7 @@ function normalizeLegacyMasteryMap(
     );
     if (
       !knowledgePointId ||
+      !isKnownKnowledgePointId(knowledgePointId) ||
       recordKnowledgePointId !== knowledgePointId ||
       typeof rawRecord.mastery !== "number" ||
       !Number.isFinite(rawRecord.mastery) ||
@@ -478,6 +542,7 @@ function normalizeLegacyMasteryMap(
         MAX_MISCONCEPTION_TAGS,
       ),
     };
+    if (Object.keys(normalized).length >= MAX_PERSISTED_MASTERY_RECORDS) break;
   }
 
   return normalized;
@@ -494,7 +559,10 @@ function decodeLearningState(
 ): LearningState | null {
   try {
     const value: unknown = JSON.parse(raw);
-    if (isLearningState(value)) return prepareLearningStateForStorage(value);
+    if (isRecord(value)) {
+      const sanitized = sanitizeCurrentLearningStateCandidate(value);
+      if (isLearningState(sanitized)) return prepareLearningStateForStorage(sanitized);
+    }
     if (isRecord(value)) {
       if (allowLegacyV1) {
         const migratedV1 = migrateLegacyV1State(value);

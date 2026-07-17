@@ -32,14 +32,20 @@
 .emptyState { min-height: 116px; padding: 24px 14px; border: 1px dashed var(--border-strong); border-radius: 6px; text-align: center; }
 .emptyState strong { font-size: 14px; }
 .emptyState p { max-width: 440px; margin: 5px auto 0; color: var(--foreground-muted); font-size: 12px; line-height: 1.55; }
-.recommendation, .works { padding: 17px; border: 1px solid var(--border); border-radius: 7px; background: var(--background); }
+.interests, .recommendation, .works { padding: 17px; border: 1px solid var(--border); border-radius: 7px; background: var(--background); }
+.interests legend { padding: 0 4px; color: var(--foreground); font-size: 13px; font-weight: 800; }
+.interests > p { color: var(--foreground-muted); font-size: 11px; line-height: 1.5; }
+.interests > div { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+.interests label { display: flex; min-height: 34px; align-items: center; gap: 7px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-subtle); font-size: 11px; font-weight: 650; }
+.interests input { width: 15px; height: 15px; accent-color: var(--primary); }
 .recommendation { border-top: 3px solid var(--primary); }
 .recommendation p, .works p { margin-top: 8px; color: var(--foreground-muted); font-size: 12px; line-height: 1.6; }
 .recommendation a { display: inline-flex; min-height: 38px; align-items: center; gap: 7px; margin-top: 14px; color: var(--primary-strong); font-weight: 750; }
 .works .emptyWork { margin-top: 14px; color: var(--foreground); font-weight: 750; }
 .workList { display: grid; gap: 8px; margin-top: 12px; list-style: none; }
 .workList li { padding: 8px 0; border-top: 1px solid var(--border); }
-.workList strong, .workList span { display: block; overflow-wrap: anywhere; }
+.workList a, .workList strong, .workList span { display: block; overflow-wrap: anywhere; }
+.workList a { color: inherit; }
 .workList strong { font-size: 12px; }
 .workList span { margin-top: 3px; color: var(--foreground-muted); font-size: 11px; }
 

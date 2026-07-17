@@ -60,6 +60,7 @@ describe("recommendNextCourse", () => {
     const recommendation = recommendNextCourse(state("middle_school"), now);
     expect(recommendation.course.id).toBe("middle-neural-signals");
     expect(recommendation.reason).toContain("当前学段");
+    expect(recommendation.reason).not.toContain("兴趣");
   });
 
   it("keeps same-stage courses ahead of tempting cross-stage interest matches", () => {
@@ -73,6 +74,23 @@ describe("recommendNextCourse", () => {
     value.masteryByKnowledgePoint["high-bubble-analysis:循环不变量"] =
       mastery("high-bubble-analysis:循环不变量", 0.05, "2026-07-01T08:00:00.000Z");
     expect(recommendNextCourse(value, now).course.stage).toBe("lower_primary");
+  });
+
+  it("never crosses into an adjacent stage even when its evidence is very weak and overdue", () => {
+    const value = state("lower_primary");
+    for (const tag of ["顺序", "循环", "条件"]) {
+      const id = `upper-loop-mission:${tag}`;
+      value.masteryByKnowledgePoint[id] = mastery(id, 0, "2025-01-01T00:00:00.000Z");
+    }
+    expect(recommendNextCourse(value, now).course.stage).toBe("lower_primary");
+  });
+
+  it("ignores forged prefixed knowledge records that are not real course tags", () => {
+    const value = state();
+    value.interests = ["图片"];
+    value.masteryByKnowledgePoint["lower-bubble-sort:forged-tag"] =
+      mastery("lower-bubble-sort:forged-tag", 0, "2025-01-01T00:00:00.000Z");
+    expect(recommendNextCourse(value, now).course.id).toBe("lower-picture-labels");
   });
 
   it("does not defer a course when only one of its knowledge points is mastered", () => {

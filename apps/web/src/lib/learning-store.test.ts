@@ -12,15 +12,21 @@ import {
   LEGACY_LEARNING_STATE_STORAGE_KEY,
   MAX_PERSISTED_ATTEMPTS,
   MAX_PERSISTED_INTERESTS,
+  MAX_PERSISTED_MASTERY_RECORDS,
   MAX_PERSISTED_RECENT_TOPICS,
   MAX_PERSISTED_STRING_LENGTH,
   clearLearningState,
   createDefaultLearningState,
   loadLearningState,
   parseLearningState,
+  prepareLearningStateForStorage,
   saveLearningState,
   updateMastery,
 } from "./learning-store";
+import {
+  isKnownKnowledgePointId,
+  registerKnowledgePointExtensions,
+} from "./knowledge-points";
 
 const profile: StudentProfile = {
   studentId: "student-1",
@@ -37,10 +43,12 @@ const profile: StudentProfile = {
   goals: ["learn sorting"],
 };
 
+const TEST_KNOWLEDGE_POINT_ID = "lower-bubble-sort:相邻比较";
+
 function makeAttempt(index: number): Attempt {
   return {
     attemptId: `attempt-${index}`,
-    knowledgePointId: "sorting",
+    knowledgePointId: TEST_KNOWLEDGE_POINT_ID,
     score: 0.75,
     hints: 1,
     mode: "quiz",
@@ -49,7 +57,7 @@ function makeAttempt(index: number): Attempt {
   };
 }
 
-function makeMastery(knowledgePointId = "sorting"): MasteryRecord {
+function makeMastery(knowledgePointId = TEST_KNOWLEDGE_POINT_ID): MasteryRecord {
   return {
     knowledgePointId,
     mastery: 0.7,
@@ -94,7 +102,7 @@ describe("learning state storage", () => {
       ),
       recentTopics: Array.from(
         { length: MAX_PERSISTED_RECENT_TOPICS + 5 },
-        (_, index) => `${index}-${"t".repeat(MAX_PERSISTED_STRING_LENGTH + 20)}`,
+        (_, index) => index % 2 === 0 ? TEST_KNOWLEDGE_POINT_ID : "algorithm.bubble-sort",
       ),
       lastCourseId: "sorting-101",
     };
@@ -166,9 +174,9 @@ describe("learning state storage", () => {
       JSON.stringify({
         schemaVersion: 0,
         profile,
-        mastery: { sorting: 0.7 },
+        mastery: { [TEST_KNOWLEDGE_POINT_ID]: 0.7 },
         attempts: [],
-        recentTopics: ["sorting"],
+        recentTopics: [TEST_KNOWLEDGE_POINT_ID],
         interests: ["robots"],
         lastCourseId: "legacy-course",
         updatedAt: "2026-07-17T00:00:00.000Z",
@@ -183,12 +191,12 @@ describe("learning state storage", () => {
       goals: [],
       stage: profile.stage,
     });
-    expect(migrated.masteryByKnowledgePoint.sorting).toMatchObject({
-      knowledgePointId: "sorting",
+    expect(migrated.masteryByKnowledgePoint[TEST_KNOWLEDGE_POINT_ID]).toMatchObject({
+      knowledgePointId: TEST_KNOWLEDGE_POINT_ID,
       mastery: 0.7,
       evidenceCount: 0,
     });
-    expect(migrated.recentTopics).toEqual(["sorting"]);
+    expect(migrated.recentTopics).toEqual([TEST_KNOWLEDGE_POINT_ID]);
     expect(migrated.lastCourseId).toBe("legacy-course");
   });
 
@@ -210,7 +218,7 @@ describe("learning state storage", () => {
   it("loosely migrates oversized legacy v1 data without losing progress", () => {
     const legacyState: LearningState = {
       ...createDefaultLearningState(profile),
-      masteryByKnowledgePoint: { sorting: makeMastery() },
+      masteryByKnowledgePoint: { [TEST_KNOWLEDGE_POINT_ID]: makeMastery() },
       attempts: Array.from(
         { length: MAX_PERSISTED_ATTEMPTS + 5 },
         (_, index) => makeAttempt(index),
@@ -221,7 +229,7 @@ describe("learning state storage", () => {
       ),
       recentTopics: Array.from(
         { length: MAX_PERSISTED_RECENT_TOPICS + 5 },
-        (_, index) => `${index}-${"t".repeat(MAX_PERSISTED_STRING_LENGTH + 20)}`,
+        (_, index) => index % 2 === 0 ? TEST_KNOWLEDGE_POINT_ID : "algorithm.bubble-sort",
       ),
     };
     localStorage.setItem(
@@ -231,7 +239,7 @@ describe("learning state storage", () => {
 
     const migrated = loadLearningState(localStorage);
 
-    expect(migrated.masteryByKnowledgePoint.sorting).toEqual(makeMastery());
+    expect(migrated.masteryByKnowledgePoint[TEST_KNOWLEDGE_POINT_ID]).toEqual(makeMastery());
     expect(migrated.attempts).toHaveLength(MAX_PERSISTED_ATTEMPTS);
     expect(migrated.attempts[0].attemptId).toBe("attempt-5");
     expect(migrated.attempts.every((attempt) => !("answer" in attempt))).toBe(
@@ -265,7 +273,7 @@ describe("learning state storage", () => {
         ),
       },
       masteryByKnowledgePoint: {
-        sorting: {
+        [TEST_KNOWLEDGE_POINT_ID]: {
           ...makeMastery(),
           mastery: 1.4,
           confidence: -0.2,
@@ -288,7 +296,7 @@ describe("learning state storage", () => {
       ),
       recentTopics: Array.from(
         { length: MAX_PERSISTED_RECENT_TOPICS + 5 },
-        () => "t".repeat(MAX_PERSISTED_STRING_LENGTH + 20),
+        (_, index) => index % 2 === 0 ? TEST_KNOWLEDGE_POINT_ID : "algorithm.bubble-sort",
       ),
     };
     localStorage.setItem(
@@ -308,7 +316,7 @@ describe("learning state storage", () => {
       goals: [],
     });
     expect(migrated.masteryByKnowledgePoint).toEqual({
-      sorting: {
+      [TEST_KNOWLEDGE_POINT_ID]: {
         ...makeMastery(),
         mastery: 1,
         confidence: 0,
@@ -356,25 +364,25 @@ describe("learning state storage", () => {
     negativeHints.attempts = [{ ...makeAttempt(1), hints: -1 }];
 
     const invalidMastery = createDefaultLearningState();
-    invalidMastery.masteryByKnowledgePoint.sorting = {
+    invalidMastery.masteryByKnowledgePoint[TEST_KNOWLEDGE_POINT_ID] = {
       ...makeMastery(),
       confidence: -0.1,
     };
 
     const outOfRangeMastery = createDefaultLearningState();
-    outOfRangeMastery.masteryByKnowledgePoint.sorting = {
+    outOfRangeMastery.masteryByKnowledgePoint[TEST_KNOWLEDGE_POINT_ID] = {
       ...makeMastery(),
       mastery: 1.1,
     };
 
     const fractionalEvidence = createDefaultLearningState();
-    fractionalEvidence.masteryByKnowledgePoint.sorting = {
+    fractionalEvidence.masteryByKnowledgePoint[TEST_KNOWLEDGE_POINT_ID] = {
       ...makeMastery(),
       evidenceCount: 1.5,
     };
 
     const mismatchedMasteryKey = createDefaultLearningState();
-    mismatchedMasteryKey.masteryByKnowledgePoint.wrong = makeMastery("sorting");
+    mismatchedMasteryKey.masteryByKnowledgePoint.wrong = makeMastery(TEST_KNOWLEDGE_POINT_ID);
 
     const invalidDate = createDefaultLearningState();
     invalidDate.updatedAt = "not-a-date";
@@ -435,5 +443,72 @@ describe("updateMastery", () => {
   it("always clamps malformed or extreme inputs to zero through one", () => {
     expect(updateMastery(-10, { score: 0, hints: 100 })).toBe(0);
     expect(updateMastery(10, { score: 10, hints: -4 })).toBe(1);
+  });
+});
+
+describe("bounded known knowledge records", () => {
+  const courseKnowledgeId = "lower-bubble-sort:相邻比较";
+  const labKnowledgeId = "algorithm.bubble-sort";
+
+  it("recognizes curriculum and lab ids while rejecting unknown ids", () => {
+    expect(isKnownKnowledgePointId(courseKnowledgeId)).toBe(true);
+    expect(isKnownKnowledgePointId(labKnowledgeId)).toBe(true);
+    expect(isKnownKnowledgePointId("lower-bubble-sort:forged-tag")).toBe(false);
+  });
+
+  it("drops unknown mastery, attempts, and recent topics during preparation and parsing", () => {
+    const state = createDefaultLearningState();
+    state.masteryByKnowledgePoint = {
+      [courseKnowledgeId]: makeMastery(courseKnowledgeId),
+      [labKnowledgeId]: makeMastery(labKnowledgeId),
+      "unknown:forged": makeMastery("unknown:forged"),
+    };
+    state.attempts = [
+      { ...makeAttempt(1), knowledgePointId: courseKnowledgeId },
+      { ...makeAttempt(2), knowledgePointId: "unknown:forged" },
+    ];
+    state.recentTopics = [courseKnowledgeId, "unknown:forged"];
+
+    const prepared = prepareLearningStateForStorage(state);
+    expect(Object.keys(prepared.masteryByKnowledgePoint)).toEqual([
+      courseKnowledgeId,
+      labKnowledgeId,
+    ]);
+    expect(prepared.attempts.map((attempt) => attempt.knowledgePointId)).toEqual([courseKnowledgeId]);
+    expect(prepared.recentTopics).toEqual([courseKnowledgeId]);
+    expect(parseLearningState(JSON.stringify(state))).toEqual(prepared);
+  });
+
+  it("caps registered extension records in prepare and legacy migration", () => {
+    const extensions = Array.from(
+      { length: MAX_PERSISTED_MASTERY_RECORDS + 5 },
+      (_, index) => `extension.test:${index}`,
+    );
+    const unregister = registerKnowledgePointExtensions(extensions);
+    try {
+      const state = createDefaultLearningState();
+      state.masteryByKnowledgePoint = Object.fromEntries(
+        extensions.map((id) => [id, makeMastery(id)]),
+      );
+      expect(Object.keys(prepareLearningStateForStorage(state).masteryByKnowledgePoint))
+        .toHaveLength(MAX_PERSISTED_MASTERY_RECORDS);
+      expect(Object.keys(parseLearningState(JSON.stringify(state)).masteryByKnowledgePoint))
+        .toHaveLength(MAX_PERSISTED_MASTERY_RECORDS);
+
+      const migrated = parseLearningState(JSON.stringify({
+        schemaVersion: 0,
+        profile,
+        mastery: Object.fromEntries(extensions.map((id) => [id, 0.5])),
+        attempts: [],
+        recentTopics: [],
+        interests: [],
+        lastCourseId: null,
+        updatedAt: "2026-07-18T00:00:00.000Z",
+      }));
+      expect(Object.keys(migrated.masteryByKnowledgePoint))
+        .toHaveLength(MAX_PERSISTED_MASTERY_RECORDS);
+    } finally {
+      unregister();
+    }
   });
 });

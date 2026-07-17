@@ -1,14 +1,17 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { getCourseById } from "@/data/curriculum";
+import { loadLearningState } from "@/lib/learning-store";
 
 import { TeachingCanvas } from "./teaching-canvas";
 
 const course = getCourseById("lower-bubble-sort")!;
 
 describe("TeachingCanvas", () => {
+  beforeEach(() => localStorage.clear());
+
   it("exposes course, animation, storybook, resources, and practice as real tabs", async () => {
     const user = userEvent.setup();
     render(<TeachingCanvas course={course} />);
@@ -39,5 +42,19 @@ describe("TeachingCanvas", () => {
     expect(courseTab).toHaveFocus();
     await user.keyboard("{ArrowLeft}");
     expect(screen.getByRole("tab", { name: "练习" })).toHaveFocus();
+  });
+
+  it("renders the real quiz player and persists a submitted answer", async () => {
+    const user = userEvent.setup();
+    const choice = course.exercises[0];
+    if (choice.type !== "single_choice") throw new Error("expected choice");
+    render(<TeachingCanvas course={course} />);
+
+    await user.click(screen.getByRole("tab", { name: "练习" }));
+    await user.click(screen.getByLabelText(choice.answer));
+    await user.click(screen.getByRole("button", { name: "提交答案" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(choice.feedback.correct);
+    await waitFor(() => expect(loadLearningState().attempts).toHaveLength(1));
   });
 });

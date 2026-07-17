@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 import { ArrowRight, BookOpenCheck, CalendarClock, ClipboardList } from "lucide-react";
 
 import type { Attempt, LearningState, MasteryRecord } from "@/lib/domain";
-import { createDefaultLearningState, loadLearningState } from "@/lib/learning-store";
-import { LEARNING_STATE_CHANGED_EVENT } from "@/lib/learning-events";
+import { createDefaultLearningState, loadLearningState, saveLearningState } from "@/lib/learning-store";
+import { announceLearningStateChanged, LEARNING_STATE_CHANGED_EVENT } from "@/lib/learning-events";
 import { readSavedStorybooks, type SavedStorybook } from "@/features/storybook/storybook-storage";
 import { recommendNextCourse } from "./recommendation";
+import { INTEREST_OPTIONS } from "./interest-options";
 import styles from "./progress-dashboard.module.css";
 
 const STAGE_LABELS = {
@@ -45,7 +46,22 @@ export function ProgressDashboard({ now }: { now?: Date }) {
   const recommendation = recommendNextCourse(state, new Date(nowMs));
   const recentAttempts = [...state.attempts]
     .sort((left, right) => right.completedAt.localeCompare(left.completedAt))
+    .filter((attempt, index, attempts) =>
+      attempts.findIndex((candidate) => submissionAttemptId(candidate) === submissionAttemptId(attempt)) === index,
+    )
     .slice(0, 8);
+  const submissionCount = new Set(state.attempts.map(submissionAttemptId)).size;
+
+  function toggleInterest(interestId: string, selected: boolean) {
+    const current = loadLearningState();
+    const interests = selected
+      ? [...new Set([...current.interests, interestId])]
+      : current.interests.filter((interest) => interest !== interestId);
+    const next = { ...current, interests, updatedAt: new Date().toISOString() };
+    if (!saveLearningState(next)) return;
+    setState(loadLearningState());
+    announceLearningStateChanged();
+  }
 
   return (
     <section className={styles.dashboard} aria-labelledby="progress-title">
@@ -61,7 +77,7 @@ export function ProgressDashboard({ now }: { now?: Date }) {
       <div className={styles.summaryBand}>
         <SummaryItem icon={BookOpenCheck} value={`${masteryRecords.length}`} label="已练知识点" />
         <SummaryItem icon={CalendarClock} value={`${dueRecords.length}`} label="到期复习" />
-        <SummaryItem icon={ClipboardList} value={`${state.attempts.length}`} label="已记录作答" />
+        <SummaryItem icon={ClipboardList} value={`${submissionCount}`} label="已记录作答" />
       </div>
 
       <div className={styles.layout}>
@@ -98,6 +114,22 @@ export function ProgressDashboard({ now }: { now?: Date }) {
         </div>
 
         <aside className={styles.sideColumn} aria-label="下一步学习">
+          <fieldset className={styles.interests}>
+            <legend>兴趣偏好</legend>
+            <p>只在课程学习优先级相同时用于排序。</p>
+            <div>
+              {INTEREST_OPTIONS.map((interest) => (
+                <label key={interest.id}>
+                  <input
+                    type="checkbox"
+                    checked={state.interests.includes(interest.id)}
+                    onChange={(event) => toggleInterest(interest.id, event.target.checked)}
+                  />
+                  <span>{interest.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <section className={styles.recommendation}>
             <span>推荐下一课</span>
             <h2>{recommendation.course.title}</h2>
@@ -112,7 +144,12 @@ export function ProgressDashboard({ now }: { now?: Date }) {
             {savedWorks.length === 0 ? <p className={styles.emptyWork}>还没有保存的作品</p> : (
               <ul className={styles.workList}>
                 {savedWorks.slice(0, 5).map((work) => (
-                  <li key={work.id}><strong>{work.storybook.title}</strong><span>保存于 {formatDate(work.savedAt)}</span></li>
+                  <li key={work.id}>
+                    <Link href={`/?course=${encodeURIComponent(work.courseId)}#workspace`}>
+                      <strong>{work.storybook.title}</strong>
+                      <span>保存于 {formatDate(work.savedAt)}</span>
+                    </Link>
+                  </li>
                 ))}
               </ul>
             )}
@@ -159,4 +196,8 @@ function attemptPassed(attempt: Attempt): boolean {
 function attemptStatus(attempt: Attempt): string {
   if (attempt.mode === "code") return attemptPassed(attempt) ? "形成性完成" : "继续改进";
   return attempt.score === 1 ? "通过" : "未通过";
+}
+
+function submissionAttemptId(attempt: Attempt): string {
+  return attempt.mode === "quiz" ? attempt.attemptId.replace(/~e\d+$/, "") : attempt.attemptId;
 }

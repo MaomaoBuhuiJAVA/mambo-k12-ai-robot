@@ -58,7 +58,7 @@ describe("QuizPlayer", () => {
 
     await waitFor(() => {
       const persisted = JSON.parse(window.localStorage.getItem(LEARNING_STATE_STORAGE_KEY)!);
-      expect(persisted.attempts).toHaveLength(3);
+      expect(persisted.attempts).toHaveLength(5);
       expect(persisted.attempts.every((attempt: Record<string, unknown>) => !("answer" in attempt))).toBe(true);
     });
     window.removeEventListener("mambo:learning-state-changed", changed);

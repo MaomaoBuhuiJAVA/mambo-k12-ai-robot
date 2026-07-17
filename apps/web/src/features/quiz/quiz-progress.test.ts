@@ -33,7 +33,7 @@ describe("recordQuizAttempt", () => {
       .toBe(Date.parse(now) + 6 * 60 * 60 * 1000);
   });
 
-  it("records one submitted answer while updating every tagged knowledge point", () => {
+  it("records evidence for every tagged knowledge point", () => {
     const orderExercise = course.exercises[1];
     const next = recordQuizAttempt(createDefaultLearningState(), {
       course,
@@ -44,7 +44,10 @@ describe("recordQuizAttempt", () => {
       attemptId: "order-attempt",
     });
 
-    expect(next.attempts).toHaveLength(1);
+    expect(next.attempts).toHaveLength(orderExercise.knowledgePointTags.length);
+    expect(next.attempts.map((attempt) => attempt.knowledgePointId)).toEqual(
+      orderExercise.knowledgePointTags.map((tag) => `${course.id}:${tag}`),
+    );
     expect(Object.keys(next.masteryByKnowledgePoint)).toEqual(
       orderExercise.knowledgePointTags.map((tag) => `${course.id}:${tag}`),
     );
@@ -124,5 +127,81 @@ describe("recordQuizAttempt", () => {
     const record = state.masteryByKnowledgePoint[`${course.id}:${exercise.knowledgePointTags[0]}`];
     expect(Date.parse(record.nextReviewAt!) - Date.parse(record.lastPracticedAt!))
       .toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("calculates review streaks independently for every tagged knowledge point", () => {
+    const orderExercise = course.exercises[1];
+    const ids = orderExercise.knowledgePointTags.map((tag) => `${course.id}:${tag}`);
+    const state = createDefaultLearningState();
+    state.attempts = [
+      ...Array.from({ length: 3 }, (_, index) => ({
+        attemptId: `primary-${index}`,
+        knowledgePointId: ids[0],
+        score: 1,
+        hints: 0,
+        mode: "quiz" as const,
+        completedAt: new Date(Date.parse(now) - (index + 1) * 1000).toISOString(),
+      })),
+      {
+        attemptId: "secondary-1",
+        knowledgePointId: ids[1],
+        score: 1,
+        hints: 0,
+        mode: "quiz",
+        completedAt: new Date(Date.parse(now) - 500).toISOString(),
+      },
+    ];
+
+    const next = recordQuizAttempt(state, {
+      course, exercise: orderExercise, score: 1, hints: 0,
+      completedAt: now, attemptId: "independent-streaks",
+    });
+    const delay = (id: string) => Date.parse(next.masteryByKnowledgePoint[id].nextReviewAt!) - Date.parse(now);
+    expect(delay(ids[0])).toBe(14 * 24 * 60 * 60 * 1000);
+    expect(delay(ids[1])).toBe(3 * 24 * 60 * 60 * 1000);
+    expect(delay(ids[2])).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("carries each tagged knowledge streak into the next submission", () => {
+    const orderExercise = course.exercises[1];
+    const first = recordQuizAttempt(createDefaultLearningState(), {
+      course, exercise: orderExercise, score: 1, hints: 0,
+      completedAt: now, attemptId: "order-first",
+    });
+    const secondAt = "2026-07-19T08:00:00.000Z";
+    const second = recordQuizAttempt(first, {
+      course, exercise: orderExercise, score: 1, hints: 0,
+      completedAt: secondAt, attemptId: "order-second",
+    });
+    for (const tag of orderExercise.knowledgePointTags) {
+      const record = second.masteryByKnowledgePoint[`${course.id}:${tag}`];
+      expect(Date.parse(record.nextReviewAt!) - Date.parse(secondAt))
+        .toBe(3 * 24 * 60 * 60 * 1000);
+    }
+  });
+
+  it("is idempotent for an existing bounded attempt id", () => {
+    const first = recordQuizAttempt(createDefaultLearningState(), {
+      course, exercise, score: 1, hints: 0, completedAt: now,
+      attemptId: `same-${"x".repeat(300)}`,
+    });
+    const repeated = recordQuizAttempt(first, {
+      course, exercise, score: 0, hints: 4,
+      completedAt: "2026-07-19T08:00:00.000Z",
+      attemptId: `same-${"x".repeat(300)}`,
+    });
+    expect(repeated).toBe(first);
+    expect(repeated.attempts).toHaveLength(1);
+    expect(Object.values(repeated.masteryByKnowledgePoint)[0].evidenceCount).toBe(1);
+  });
+
+  it("safely rejects empty identifiers and invalid completion dates", () => {
+    const state = createDefaultLearningState();
+    expect(recordQuizAttempt(state, {
+      course, exercise, score: 1, hints: 0, completedAt: now, attemptId: "   ",
+    })).toBe(state);
+    expect(recordQuizAttempt(state, {
+      course, exercise, score: 1, hints: 0, completedAt: "2026-02-30T00:00:00.000Z", attemptId: "bad-date",
+    })).toBe(state);
   });
 });
