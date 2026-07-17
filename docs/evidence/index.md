@@ -28,7 +28,7 @@
 | R13 部署集成 | Vercel 配置、Docker、Alembic、systemd、OpenAPI 与部署文档存在；未证明云部署 | 项目负责人 / 部分；手工待采集 | `vercel.json`；`server/Dockerfile`；`deploy/*` | `GET /api/v1/health`；`/docs`；WSS | build/Python tests 与云 smoke 待发布执行 | Preview/Production URL、Core 域名、WSS 证据待采集 |
 | R14 项目报告 | 架构、模型、多模态、知识边界、难题、安全、部署、差距和演示文档已建立 | 项目负责人 / 文档存在；需随发布补证据 | `docs/report/*`；`docs/evidence/*` | 同各项 | 同各项 | 截图、录屏时间戳、最终测试日志待补 |
 | R15 未成年人安全 | 聊天提示限制姓名/住址/联系方式、密钥与角色绕过；绘本提示限制医疗/心理诊断；学习状态匿名化/去答案；文字对话未脱敏；无登录/RBAC/监护/审计，聊天诊断/危险问答防护未补齐 | 项目负责人 / 部分；自动化覆盖有限 | `lib/ai/prompt.ts`；`app/api/storybook/route.ts`；`learning-store.ts`；`conversation-store.ts`；`core-api.ts` | AI routes no-store；Core Bearer auth | prompt/store/request guard/core adapter tests；对抗评测待建 | 隐私说明、删除流程、诊断/危险问答评测尚无产品证据 |
-| R16 稳定性 | 请求大小、Schema、超时、Redis 限流/故障关闭、种子降级、设备空闲超时/重放与终态保护/历史上限、网页模式 | 项目负责人 / 部分；自动化覆盖；生产待采集 | `bounded-json.ts`；`request-guard.ts`；`route-deadline.ts`；`server/app/protocol.py`；device adapter | AI/Device routes；Core health/WSS | guard/deadline/routes/runtime/protocol/gateway/device tests | Redis/Gemini 故障、重复消息与设备离线演练待采集 |
+| R16 稳定性 | 请求大小、Schema、超时、AI 空流/中断课程降级、Redis 限流/故障关闭、绘本种子降级、设备空闲超时/重放与终态保护/历史上限、网页模式 | 项目负责人 / 部分；自动化覆盖；生产待采集 | `bounded-json.ts`；`request-guard.ts`；`route-deadline.ts`；`text-stream-fallback.ts`；`server/app/protocol.py`；device adapter | AI/Device routes；Core health/WSS | guard/deadline/fallback/routes/runtime/protocol/gateway/device tests | Redis/Gemini 故障、重复消息与设备离线演练待采集 |
 
 `demo_timestamp` 暂为空：尚未生成正式演示录像，不能虚构时间点。录屏完成后把每一行补成 `demo-v1.mp4 00:00-00:00`，并固定对应 commit SHA。
 
