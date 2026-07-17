@@ -1266,3 +1266,16 @@ a[href] {
     animation-iteration-count: 1 !important;
   }
 }
+
+.media-input { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; }
+.media-input__button, .message__speech, .retry-answer { display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: 5px; color: var(--foreground-muted); background: var(--background); }
+.media-input__button { width: 30px; height: 30px; }
+.media-input__preview { position: relative; display: inline-flex; width: 30px; height: 30px; overflow: hidden; border-radius: 4px; }
+.media-input__preview img, .message__image { max-width: 100%; object-fit: cover; }
+.media-input__preview button { position: absolute; top: 0; right: 0; display: grid; width: 15px; height: 15px; place-items: center; color: #fff; background: var(--feedback); }
+.media-input__status { position: absolute; bottom: calc(100% + 5px); left: 0; max-width: 260px; padding: 4px 7px; border-radius: 4px; color: var(--foreground); background: var(--highlight-soft); font-size: 11px; }
+.message-composer { position: relative; }
+.message__image { display: block; width: 140px; max-height: 120px; margin-bottom: 7px; border-radius: 4px; }
+.message__speech { width: 25px; height: 25px; margin-top: 7px; }
+.retry-answer { align-self: flex-start; min-height: 28px; margin: 0 24px; padding: 0 8px; font-size: 12px; }
+.message-composer__stop { display: inline-flex !important; width: auto !important; gap: 5px; padding: 0 9px; font-size: 12px; background: var(--feedback) !important; }

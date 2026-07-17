@@ -76,7 +76,7 @@ export function LearningWorkspace() {
           className="workspace-panel workspace-panel--conversation"
           data-mobile-active={mobileView === "conversation"}
         >
-          <ConversationClassroom course={course} key={course.id} />
+          <ConversationClassroom course={course} stage={stage} key={course.id} />
         </div>
 
         <div
