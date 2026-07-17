@@ -8,9 +8,19 @@ import type {
 } from "./domain";
 
 export const CURRENT_LEARNING_STATE_VERSION = 1;
-export const LEARNING_STATE_STORAGE_KEY = "mambo.learning-state.v1";
+export const LEARNING_STATE_STORAGE_KEY = "mambo.learning-state";
+export const LEGACY_LEARNING_STATE_STORAGE_KEY = "mambo.learning-state.v1";
+export const MAX_PERSISTED_ATTEMPTS = 100;
+export const MAX_PERSISTED_INTERESTS = 20;
+export const MAX_PERSISTED_RECENT_TOPICS = 20;
+export const MAX_PERSISTED_STRING_LENGTH = 160;
 
-type StorageAdapter = Pick<Storage, "getItem" | "setItem">;
+const MAX_PROFILE_GOALS = 20;
+const MAX_MISCONCEPTION_TAGS = 20;
+const MAX_ANSWER_LENGTH = 20_000;
+const DEFAULT_UPDATED_AT = "1970-01-01T00:00:00.000Z";
+
+type StorageAdapter = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 const DEFAULT_PROFILE: StudentProfile = {
   studentId: "local-student",
@@ -42,66 +52,129 @@ const MODES = new Set<LearningMode>([
   "code",
   "project",
 ]);
+const ISO_DATE_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2})$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isUnitInterval(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= 1
+  );
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isBoundedString(
+  value: unknown,
+  maxLength = MAX_PERSISTED_STRING_LENGTH,
+  allowEmpty = false,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= maxLength &&
+    (allowEmpty || value.length > 0)
+  );
 }
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function isBoundedStringArray(
+  value: unknown,
+  maxItems: number,
+): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= maxItems &&
+    value.every((item) => isBoundedString(item))
+  );
+}
+
+function isIsoDate(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+
+  const match = ISO_DATE_PATTERN.exec(value);
+  if (!match || Number.isNaN(Date.parse(value))) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1) return false;
+
+  const lastDayOfMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return day <= lastDayOfMonth;
+}
+
 function isStudentProfile(value: unknown): value is StudentProfile {
   if (!isRecord(value) || !isRecord(value.accessibility)) return false;
 
   return (
-    typeof value.studentId === "string" &&
-    typeof value.displayName === "string" &&
+    isBoundedString(value.studentId) &&
+    isBoundedString(value.displayName, 80) &&
     typeof value.stage === "string" &&
     STAGES.has(value.stage as Stage) &&
-    (value.grade === null || typeof value.grade === "number") &&
-    (value.textbook === null || typeof value.textbook === "string") &&
+    (value.grade === null ||
+      (typeof value.grade === "number" &&
+        Number.isInteger(value.grade) &&
+        value.grade >= 1 &&
+        value.grade <= 12)) &&
+    (value.textbook === null || isBoundedString(value.textbook)) &&
     typeof value.preferredMode === "string" &&
     MODES.has(value.preferredMode as LearningMode) &&
     typeof value.accessibility.captions === "boolean" &&
     typeof value.accessibility.highContrast === "boolean" &&
     typeof value.accessibility.reducedMotion === "boolean" &&
-    isStringArray(value.goals)
+    isBoundedStringArray(value.goals, MAX_PROFILE_GOALS)
   );
 }
 
 function isAttempt(value: unknown): value is Attempt {
   return (
     isRecord(value) &&
-    typeof value.attemptId === "string" &&
-    typeof value.knowledgePointId === "string" &&
-    typeof value.score === "number" &&
-    typeof value.hints === "number" &&
+    isBoundedString(value.attemptId) &&
+    isBoundedString(value.knowledgePointId) &&
+    isUnitInterval(value.score) &&
+    isNonNegativeInteger(value.hints) &&
     typeof value.mode === "string" &&
     MODES.has(value.mode as LearningMode) &&
-    typeof value.answer === "string" &&
-    typeof value.completedAt === "string"
+    (value.answer === undefined ||
+      isBoundedString(value.answer, MAX_ANSWER_LENGTH, true)) &&
+    isIsoDate(value.completedAt)
   );
 }
 
 function isMasteryRecord(value: unknown): value is MasteryRecord {
   return (
     isRecord(value) &&
-    typeof value.knowledgePointId === "string" &&
-    typeof value.mastery === "number" &&
-    typeof value.confidence === "number" &&
-    typeof value.evidenceCount === "number" &&
-    (value.lastPracticedAt === null ||
-      typeof value.lastPracticedAt === "string") &&
-    (value.nextReviewAt === null || typeof value.nextReviewAt === "string") &&
-    isStringArray(value.misconceptionTags)
+    isBoundedString(value.knowledgePointId) &&
+    isUnitInterval(value.mastery) &&
+    isUnitInterval(value.confidence) &&
+    isNonNegativeInteger(value.evidenceCount) &&
+    (value.lastPracticedAt === null || isIsoDate(value.lastPracticedAt)) &&
+    (value.nextReviewAt === null || isIsoDate(value.nextReviewAt)) &&
+    isBoundedStringArray(value.misconceptionTags, MAX_MISCONCEPTION_TAGS)
   );
 }
 
 function isMasteryMap(
   value: unknown,
 ): value is Record<string, MasteryRecord> {
-  return isRecord(value) && Object.values(value).every(isMasteryRecord);
+  return (
+    isRecord(value) &&
+    Object.entries(value).every(
+      ([knowledgePointId, record]) =>
+        isMasteryRecord(record) && record.knowledgePointId === knowledgePointId,
+    )
+  );
 }
 
 function isLearningState(value: unknown): value is LearningState {
@@ -111,11 +184,12 @@ function isLearningState(value: unknown): value is LearningState {
     isStudentProfile(value.profile) &&
     isMasteryMap(value.masteryByKnowledgePoint) &&
     Array.isArray(value.attempts) &&
+    value.attempts.length <= MAX_PERSISTED_ATTEMPTS &&
     value.attempts.every(isAttempt) &&
-    isStringArray(value.recentTopics) &&
-    isStringArray(value.interests) &&
-    (value.lastCourseId === null || typeof value.lastCourseId === "string") &&
-    typeof value.updatedAt === "string"
+    isBoundedStringArray(value.recentTopics, MAX_PERSISTED_RECENT_TOPICS) &&
+    isBoundedStringArray(value.interests, MAX_PERSISTED_INTERESTS) &&
+    (value.lastCourseId === null || isBoundedString(value.lastCourseId)) &&
+    isIsoDate(value.updatedAt)
   );
 }
 
@@ -130,60 +204,152 @@ export function createDefaultLearningState(
     recentTopics: [],
     interests: [],
     lastCourseId: null,
-    updatedAt: "1970-01-01T00:00:00.000Z",
+    updatedAt: DEFAULT_UPDATED_AT,
+  };
+}
+
+function anonymizeProfile(profile: StudentProfile): StudentProfile {
+  const accessibility = profile.accessibility;
+
+  return {
+    studentId: DEFAULT_PROFILE.studentId,
+    displayName: DEFAULT_PROFILE.displayName,
+    stage: STAGES.has(profile.stage) ? profile.stage : DEFAULT_PROFILE.stage,
+    grade:
+      Number.isInteger(profile.grade) &&
+      profile.grade !== null &&
+      profile.grade >= 1 &&
+      profile.grade <= 12
+        ? profile.grade
+        : null,
+    textbook: null,
+    preferredMode: MODES.has(profile.preferredMode)
+      ? profile.preferredMode
+      : DEFAULT_PROFILE.preferredMode,
+    accessibility: {
+      captions:
+        typeof accessibility?.captions === "boolean"
+          ? accessibility.captions
+          : DEFAULT_PROFILE.accessibility.captions,
+      highContrast:
+        typeof accessibility?.highContrast === "boolean"
+          ? accessibility.highContrast
+          : DEFAULT_PROFILE.accessibility.highContrast,
+      reducedMotion:
+        typeof accessibility?.reducedMotion === "boolean"
+          ? accessibility.reducedMotion
+          : DEFAULT_PROFILE.accessibility.reducedMotion,
+    },
+    goals: [],
+  };
+}
+
+function sanitizeStringArray(values: string[], maxItems: number): string[] {
+  return values
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().slice(0, MAX_PERSISTED_STRING_LENGTH))
+    .filter(Boolean)
+    .slice(-maxItems);
+}
+
+function stripAttemptAnswer(attempt: Attempt): Attempt {
+  return {
+    attemptId: attempt.attemptId,
+    knowledgePointId: attempt.knowledgePointId,
+    score: attempt.score,
+    hints: attempt.hints,
+    mode: attempt.mode,
+    completedAt: attempt.completedAt,
+  };
+}
+
+export function prepareLearningStateForStorage(
+  state: LearningState,
+): LearningState {
+  const masteryByKnowledgePoint = Object.fromEntries(
+    Object.entries(state.masteryByKnowledgePoint)
+      .filter(
+        ([knowledgePointId, record]) =>
+          isMasteryRecord(record) && record.knowledgePointId === knowledgePointId,
+      )
+      .map(([knowledgePointId, record]) => [
+        knowledgePointId,
+        { ...record, misconceptionTags: [...record.misconceptionTags] },
+      ]),
+  );
+
+  return {
+    schemaVersion: CURRENT_LEARNING_STATE_VERSION,
+    profile: anonymizeProfile(state.profile),
+    masteryByKnowledgePoint,
+    attempts: state.attempts
+      .filter(isAttempt)
+      .slice(-MAX_PERSISTED_ATTEMPTS)
+      .map(stripAttemptAnswer),
+    recentTopics: sanitizeStringArray(
+      state.recentTopics,
+      MAX_PERSISTED_RECENT_TOPICS,
+    ),
+    interests: sanitizeStringArray(state.interests, MAX_PERSISTED_INTERESTS),
+    lastCourseId: isBoundedString(state.lastCourseId)
+      ? state.lastCourseId
+      : null,
+    updatedAt: isIsoDate(state.updatedAt) ? state.updatedAt : DEFAULT_UPDATED_AT,
   };
 }
 
 function migrateLegacyState(value: Record<string, unknown>): LearningState | null {
   if (value.schemaVersion !== 0 || !isStudentProfile(value.profile)) return null;
 
-  const migrated = createDefaultLearningState(value.profile);
-  const legacyMastery = isRecord(value.mastery) ? value.mastery : {};
-
-  migrated.masteryByKnowledgePoint = Object.fromEntries(
-    Object.entries(legacyMastery)
-      .filter((entry): entry is [string, number] => typeof entry[1] === "number")
-      .map(([knowledgePointId, mastery]) => [
+  const masteryByKnowledgePoint: Record<string, MasteryRecord> = {};
+  if (isRecord(value.mastery)) {
+    for (const [knowledgePointId, mastery] of Object.entries(value.mastery)) {
+      if (!isBoundedString(knowledgePointId) || !isUnitInterval(mastery)) continue;
+      masteryByKnowledgePoint[knowledgePointId] = {
         knowledgePointId,
-        {
-          knowledgePointId,
-          mastery: clamp(mastery),
-          confidence: 0,
-          evidenceCount: 0,
-          lastPracticedAt: null,
-          nextReviewAt: null,
-          misconceptionTags: [],
-        },
-      ]),
-  );
-  migrated.attempts =
+        mastery,
+        confidence: 0,
+        evidenceCount: 0,
+        lastPracticedAt: null,
+        nextReviewAt: null,
+        misconceptionTags: [],
+      };
+    }
+  }
+
+  const attempts =
     Array.isArray(value.attempts) && value.attempts.every(isAttempt)
       ? value.attempts
       : [];
-  migrated.recentTopics = isStringArray(value.recentTopics)
-    ? value.recentTopics
-    : [];
-  migrated.interests = isStringArray(value.interests) ? value.interests : [];
-  migrated.lastCourseId =
-    typeof value.lastCourseId === "string" ? value.lastCourseId : null;
-  migrated.updatedAt =
-    typeof value.updatedAt === "string" ? value.updatedAt : migrated.updatedAt;
 
-  return migrated;
+  return prepareLearningStateForStorage({
+    schemaVersion: CURRENT_LEARNING_STATE_VERSION,
+    profile: value.profile,
+    masteryByKnowledgePoint,
+    attempts,
+    recentTopics: isStringArray(value.recentTopics) ? value.recentTopics : [],
+    interests: isStringArray(value.interests) ? value.interests : [],
+    lastCourseId:
+      typeof value.lastCourseId === "string" ? value.lastCourseId : null,
+    updatedAt: isIsoDate(value.updatedAt) ? value.updatedAt : DEFAULT_UPDATED_AT,
+  });
+}
+
+function decodeLearningState(raw: string): LearningState | null {
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (isLearningState(value)) return prepareLearningStateForStorage(value);
+    if (isRecord(value)) return migrateLegacyState(value);
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 export function parseLearningState(raw: string | null | undefined): LearningState {
   if (!raw) return createDefaultLearningState();
-
-  try {
-    const value: unknown = JSON.parse(raw);
-    if (isLearningState(value)) return value;
-    if (isRecord(value)) return migrateLegacyState(value) ?? createDefaultLearningState();
-  } catch {
-    // A corrupt local value should never prevent the application from starting.
-  }
-
-  return createDefaultLearningState();
+  return decodeLearningState(raw) ?? createDefaultLearningState();
 }
 
 function browserStorage(): StorageAdapter | null {
@@ -202,7 +368,25 @@ export function loadLearningState(
   if (!storage) return createDefaultLearningState();
 
   try {
-    return parseLearningState(storage.getItem(LEARNING_STATE_STORAGE_KEY));
+    const currentRaw = storage.getItem(LEARNING_STATE_STORAGE_KEY);
+    if (currentRaw !== null) {
+      return decodeLearningState(currentRaw) ?? createDefaultLearningState();
+    }
+
+    const legacyRaw = storage.getItem(LEGACY_LEARNING_STATE_STORAGE_KEY);
+    if (legacyRaw === null) return createDefaultLearningState();
+
+    const migrated = decodeLearningState(legacyRaw);
+    if (!migrated) return createDefaultLearningState();
+
+    if (saveLearningState(migrated, storage)) {
+      try {
+        storage.removeItem(LEGACY_LEARNING_STATE_STORAGE_KEY);
+      } catch {
+        // The stable copy is already persisted; stale cleanup can be retried later.
+      }
+    }
+    return migrated;
   } catch {
     return createDefaultLearningState();
   }
@@ -211,13 +395,29 @@ export function loadLearningState(
 export function saveLearningState(
   state: LearningState,
   storage: StorageAdapter | null = browserStorage(),
-): void {
-  if (!storage) return;
+): boolean {
+  if (!storage) return false;
 
   try {
-    storage.setItem(LEARNING_STATE_STORAGE_KEY, JSON.stringify(state));
+    const prepared = prepareLearningStateForStorage(state);
+    storage.setItem(LEARNING_STATE_STORAGE_KEY, JSON.stringify(prepared));
+    return true;
   } catch {
-    // Persistence is best effort when storage is unavailable or full.
+    return false;
+  }
+}
+
+export function clearLearningState(
+  storage: StorageAdapter | null = browserStorage(),
+): boolean {
+  if (!storage) return false;
+
+  try {
+    storage.removeItem(LEARNING_STATE_STORAGE_KEY);
+    storage.removeItem(LEGACY_LEARNING_STATE_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -232,9 +432,15 @@ export function updateMastery(
 ): number {
   const current = clamp(currentMastery);
   const score = clamp(evidence.score);
-  const hints = Math.max(0, evidence.hints);
-  const reliability = 1 / (1 + hints * 0.25);
-  const updated = clamp(current + 0.25 * reliability * (score - current));
+  const hints = Number.isFinite(evidence.hints)
+    ? Math.max(0, Math.floor(evidence.hints))
+    : 0;
+  const difference = score - current;
+  const hintFactor =
+    difference >= 0
+      ? 1 / (1 + hints * 0.25)
+      : 1 + Math.min(hints, 10) * 0.1;
+  const updated = clamp(current + 0.25 * hintFactor * difference);
 
   return updated > 0.99 ? 1 : updated;
 }

@@ -53,7 +53,7 @@ export interface Attempt {
   score: number;
   hints: number;
   mode: LearningMode;
-  answer: string;
+  answer?: string;
   completedAt: string;
 }
 
