@@ -10,6 +10,7 @@ import {
 
 import type { CurriculumCourse } from "@/data/curriculum";
 import { ResourceLibrary } from "@/features/courses/resource-library";
+import { KnowledgeEvidence } from "@/features/courses/knowledge-evidence";
 import { BubbleSortAnimation } from "@/features/animation/bubble-sort-animation";
 import { NeuralNetworkAnimation } from "@/features/animation/neural-network-animation";
 import { StorybookPlayer } from "@/features/storybook/storybook-player";
@@ -142,6 +143,8 @@ function CourseView({ course }: { course: CurriculumCourse }) {
           ))}
         </ul>
       </CanvasSection>
+
+      <KnowledgeEvidence courseId={course.id} variant="facts" />
 
       <CanvasSection title="课堂材料" icon={PackageOpen} tone="coral">
         <ul className="material-list">

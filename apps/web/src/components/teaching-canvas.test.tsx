@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -49,6 +49,19 @@ describe("TeachingCanvas", () => {
     expect(courseTab).toHaveFocus();
     await user.keyboard("{ArrowLeft}");
     expect(screen.getByRole("tab", { name: "练习" })).toHaveFocus();
+  });
+
+  it("shows source-backed facts in the course view", () => {
+    render(<TeachingCanvas course={course} />);
+
+    expect(screen.getByRole("heading", { name: "事实依据" })).toBeVisible();
+    const fact = screen.getByText(/相邻元素/).closest("li");
+    expect(fact).not.toBeNull();
+    expect(within(fact!).getByText("[1]")).toBeVisible();
+    expect(screen.getByRole("link", { name: /NIST/ })).toHaveAttribute(
+      "href",
+      "https://www.nist.gov/dads/HTML/bubblesort.html",
+    );
   });
 
   it("renders the real quiz player and persists a submitted answer", async () => {

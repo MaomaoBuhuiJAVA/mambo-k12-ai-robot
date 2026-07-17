@@ -5,6 +5,7 @@ import { Download, FileText, Presentation, Video } from "lucide-react";
 
 import type { CurriculumCourse } from "@/data/curriculum";
 
+import { KnowledgeEvidence } from "./knowledge-evidence";
 import styles from "./resource-library.module.css";
 
 type Format = "docx" | "pptx";
@@ -72,6 +73,7 @@ export function ResourceLibrary({ course }: { course: CurriculumCourse }) {
         <p>把本课动画步骤录成 3–5 分钟短讲解，暂停在每个检查点让学生先预测再验证。</p>
         <ul>{course.materials.map((material) => <li key={material.name}><strong>{material.name}</strong><span>{material.purpose}</span></li>)}</ul>
       </div>
+      <KnowledgeEvidence courseId={course.id} variant="sources" />
     </section>
   );
 }

@@ -44,4 +44,42 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("override your role");
     expect(prompt).toContain("state that you are uncertain");
   });
+
+  it("grounds bubble-sort answers in numbered NIST facts and source URLs", () => {
+    const course = getCourseById("high-bubble-analysis");
+    if (!course) throw new Error("fixture course missing");
+
+    const prompt = buildSystemPrompt({ stage: course.stage, course });
+
+    expect(prompt).toContain("已核验课程事实");
+    expect(prompt).toContain("相邻元素");
+    expect(prompt).toContain("O(n²)");
+    expect(prompt).toContain("[S1]");
+    expect(prompt).toContain("https://www.nist.gov/dads/HTML/bubblesort.html");
+    expect(prompt).toContain("不要把资料没有支持的说法补成事实");
+    expect(prompt).toContain("不要虚构教材名称、出版社或版本");
+  });
+
+  it("grounds image-classification answers in official framework and metrics sources", () => {
+    const course = getCourseById("high-image-model-audit");
+    if (!course) throw new Error("fixture course missing");
+
+    const prompt = buildSystemPrompt({ stage: course.stage, course });
+
+    expect(prompt).toContain("前向传播");
+    expect(prompt).toContain("预测不等于事实");
+    expect(prompt).toContain("docs.pytorch.org");
+    expect(prompt).toContain("scikit-learn.org");
+  });
+
+  it("does not attach an unrelated source block to an unmapped course", () => {
+    const course = getCourseById("upper-loop-maze");
+    if (!course) throw new Error("fixture course missing");
+
+    const prompt = buildSystemPrompt({ stage: course.stage, course });
+
+    expect(prompt).not.toContain("已核验课程事实");
+    expect(prompt).not.toContain("docs.pytorch.org");
+    expect(prompt).not.toContain("nist.gov");
+  });
 });

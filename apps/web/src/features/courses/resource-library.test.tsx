@@ -39,4 +39,15 @@ describe("ResourceLibrary", () => {
     expect(schedule.mock.calls.some(([, delay]) => delay === 0)).toBe(true);
     expect(screen.getByText(course.materials[0].name)).toBeVisible();
   });
+
+  it("links the selected course to concise authoritative references", () => {
+    render(<ResourceLibrary course={course} />);
+
+    expect(screen.getByRole("heading", { name: "权威参考" })).toBeVisible();
+    const source = screen.getByRole("link", { name: /NIST/ });
+    expect(source).toHaveTextContent("[1]");
+    expect(source).toHaveAttribute("href", "https://www.nist.gov/dads/HTML/bubblesort.html");
+    expect(source).toHaveAttribute("target", "_blank");
+    expect(source).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
+  });
 });
