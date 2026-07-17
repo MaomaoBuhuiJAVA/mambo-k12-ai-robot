@@ -60,7 +60,16 @@ export async function POST(request: Request): Promise<Response> {
     const summary = pptx.addSlide();
     addTitle(summary, "总结与回顾", "04 · 说出依据");
     addBullets(summary, [...lesson.learningObjectives, lesson.summary]);
-    summary.addText("内容来源：Mambo 项目原创课程数据", { x: 0.9, y: 6.75, w: 6, h: 0.25, fontSize: 9, color: COLORS.muted });
+    summary.addText(
+      lesson.sources.length > 0 ? "权威参考见下一页" : "内容说明：Mambo 项目原创种子课程，尚未绑定正式教材",
+      { x: 0.9, y: 6.75, w: 8.5, h: 0.25, fontSize: 9, color: COLORS.muted },
+    );
+
+    if (lesson.sources.length > 0) {
+      const references = pptx.addSlide();
+      addTitle(references, "参考来源", "05 · 可追溯依据");
+      addBullets(references, lesson.sources.map((source) => `${source.label}\n${source.url}`), 1.9);
+    }
 
     const output = await pptx.write({ outputType: "uint8array", compression: true });
     const bytes = output instanceof Uint8Array ? output : new Uint8Array(output as ArrayBuffer);

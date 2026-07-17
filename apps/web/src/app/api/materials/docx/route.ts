@@ -1,6 +1,7 @@
 import {
   AlignmentType,
   Document,
+  ExternalHyperlink,
   HeadingLevel,
   Packer,
   Paragraph,
@@ -55,7 +56,21 @@ export async function POST(request: Request): Promise<Response> {
           ),
           heading("五、学习总结"),
           new Paragraph({ text: lesson.summary }),
-          new Paragraph({ text: "内容来源：Mambo 项目原创课程数据", spacing: { before: 260 }, style: "Caption" }),
+          ...(lesson.sources.length > 0 ? [
+            heading("六、参考来源"),
+            ...lesson.sources.map((source) => new Paragraph({
+              spacing: { after: 100 },
+              children: [
+                new TextRun({ text: `${source.label} ` }),
+                new ExternalHyperlink({
+                  link: source.url,
+                  children: [new TextRun({ text: source.url, color: "087F6D", underline: {} })],
+                }),
+              ],
+            })),
+          ] : [
+            new Paragraph({ text: "内容说明：本讲义使用 Mambo 项目原创种子课程，尚未绑定正式教材。", spacing: { before: 260 }, style: "Caption" }),
+          ]),
         ],
       }],
     });

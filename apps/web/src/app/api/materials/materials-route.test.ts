@@ -56,6 +56,8 @@ describe.each([
     expect(xml).toContain(course.objectives[0]);
     expect(xml).toContain(course.explanation.overview);
     expect(xml).toContain(course.exercises[0].prompt);
+    expect(xml).toContain("NIST Dictionary of Algorithms and Data Structures");
+    expect(xml).toContain("Bubble sort");
     if (_kind === "DOCX") {
       expect(xml).not.toContain("答案");
       expect(xml).not.toContain("参考答案");

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { getCourseById, type CurriculumCourse, type ReadonlyCurriculumCourse } from "@/data/curriculum";
+import { getKnowledgeContextForCourse } from "@/data/knowledge-sources";
 import { readBoundedJson } from "@/lib/bounded-json";
 import type { LearningMode } from "@/lib/domain";
 import { getStagePolicy } from "@/lib/stage-policy";
@@ -21,6 +22,7 @@ export interface LessonDocumentSpec {
   animationSteps: string[];
   quiz: Array<{ prompt: string }>;
   summary: string;
+  sources: Array<{ label: string; url: string }>;
 }
 
 const STAGE_LABELS = {
@@ -53,6 +55,7 @@ export async function parseMaterialRequest(request: Request): Promise<Curriculum
 
 export function buildLessonDocument(course: ReadonlyCurriculumCourse): LessonDocumentSpec {
   const policy = getStagePolicy(course.stage);
+  const knowledge = getKnowledgeContextForCourse(course.id);
   return {
     title: `${course.title}学习讲义`,
     stageLabel: STAGE_LABELS[course.stage],
@@ -62,6 +65,10 @@ export function buildLessonDocument(course: ReadonlyCurriculumCourse): LessonDoc
     animationSteps: course.animation.steps.map((step) => step.narration),
     quiz: course.exercises.map((exercise) => ({ prompt: exercise.prompt })),
     summary: `本课围绕${course.knowledgePointTags.join("、")}展开。建议用“${MODE_LABELS[policy.preferredModes[0]]}”方式复习，并能用自己的话说明每一步的依据。`,
+    sources: knowledge?.sources.map((source, index) => ({
+      label: `[${index + 1}] ${source.publisher}《${source.title}》`,
+      url: source.url,
+    })) ?? [],
   };
 }
 
