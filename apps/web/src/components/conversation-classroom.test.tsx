@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -205,6 +205,62 @@ describe("ConversationClassroom", () => {
     unmount();
 
     expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/transcribe", expect.anything());
+  });
+
+  it("allows only one microphone permission request while permission is pending", async () => {
+    let resolvePermission: ((stream: MediaStream) => void) | undefined;
+    const track = { stop: vi.fn() };
+    const getUserMedia = vi.fn(() => new Promise<MediaStream>((resolve) => { resolvePermission = resolve; }));
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
+    class FakeMediaRecorder {
+      onstop: (() => void) | null = null;
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      mimeType = "audio/webm";
+      start = vi.fn();
+      stop = vi.fn();
+    }
+    Object.defineProperty(window, "MediaRecorder", { configurable: true, value: FakeMediaRecorder });
+    render(<ConversationClassroom course={course} stage="lower_primary" />);
+
+    const recordButton = screen.getByRole("button", { name: "录音" });
+    fireEvent.click(recordButton);
+    fireEvent.click(recordButton);
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(recordButton).toBeDisabled();
+    expect(recordButton).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => { resolvePermission?.({ getTracks: () => [track] } as unknown as MediaStream); });
+    expect(await screen.findByRole("button", { name: "停止录音" })).toBeVisible();
+  });
+
+  it("stops a permission stream that resolves after unmount without creating a recorder", async () => {
+    let resolvePermission: ((stream: MediaStream) => void) | undefined;
+    const track = { stop: vi.fn() };
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn(() => new Promise<MediaStream>((resolve) => { resolvePermission = resolve; })) },
+    });
+    const recorderConstructor = vi.fn();
+    class FakeMediaRecorder {
+      onstop: (() => void) | null = null;
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      mimeType = "audio/webm";
+      constructor() { recorderConstructor(); }
+      start = vi.fn();
+      stop = vi.fn();
+    }
+    Object.defineProperty(window, "MediaRecorder", { configurable: true, value: FakeMediaRecorder });
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { unmount } = render(<ConversationClassroom course={course} stage="lower_primary" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "录音" }));
+    unmount();
+    await act(async () => { resolvePermission?.({ getTracks: () => [track] } as unknown as MediaStream); });
+
+    expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(recorderConstructor).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalledWith("/api/transcribe", expect.anything());
   });
 

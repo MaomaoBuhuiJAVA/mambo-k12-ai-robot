@@ -4,12 +4,23 @@ import { getCourseById } from "@/data/curriculum";
 import { chatRequestSchema, toModelMessages } from "@/lib/ai/chat-schema";
 import { getGoogleModel } from "@/lib/ai/provider";
 import { buildSystemPrompt } from "@/lib/ai/prompt";
+import {
+  acquireRequestLease,
+  leaseReadableStream,
+  requestLimitResponse,
+} from "@/lib/ai/request-guard";
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 const MAX_CHAT_BODY_BYTES = 6 * 1024 * 1024;
 
 async function readJsonBody(request: Request): Promise<unknown> {
   if (!request.body) throw new Error("Missing request body");
+
+  const contentLength = request.headers.get("content-length");
+  if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_CHAT_BODY_BYTES) {
+    await request.body.cancel();
+    throw new Error("Request body is too large");
+  }
 
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -21,7 +32,10 @@ async function readJsonBody(request: Request): Promise<unknown> {
       if (done) break;
 
       totalBytes += value.byteLength;
-      if (totalBytes > MAX_CHAT_BODY_BYTES) throw new Error("Request body is too large");
+      if (totalBytes > MAX_CHAT_BODY_BYTES) {
+        await reader.cancel();
+        throw new Error("Request body is too large");
+      }
       chunks.push(value);
     }
   } finally {
@@ -62,16 +76,25 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: "INVALID_CHAT_REQUEST" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
-    const result = streamText({
-      model: getGoogleModel(),
-      instructions: buildSystemPrompt({ stage: parsed.data.stage, course }),
-      messages: toModelMessages(parsed.data),
-    });
+    const access = acquireRequestLease(request, "chat");
+    if (!access.ok) return requestLimitResponse(access.retryAfter);
 
-    return createTextStreamResponse({
-      stream: toTextStream({ stream: result.stream }),
-      headers: NO_STORE_HEADERS,
-    });
+    try {
+      const result = streamText({
+        model: getGoogleModel(),
+        instructions: buildSystemPrompt({ stage: parsed.data.stage, course }),
+        messages: toModelMessages(parsed.data),
+      });
+      const textStream = toTextStream({ stream: result.stream });
+
+      return createTextStreamResponse({
+        stream: leaseReadableStream(textStream, access.lease),
+        headers: NO_STORE_HEADERS,
+      });
+    } catch (error) {
+      access.lease.release();
+      throw error;
+    }
   } catch {
     return Response.json({ error: "CHAT_FAILED" }, { status: 502, headers: NO_STORE_HEADERS });
   }

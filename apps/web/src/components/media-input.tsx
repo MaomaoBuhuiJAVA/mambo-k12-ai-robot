@@ -21,8 +21,11 @@ export function MediaInput({ image, onImageChange, onTranscript }: MediaInputPro
   const transcriptionRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
   const shouldTranscribeRef = useRef(false);
+  const permissionPendingRef = useRef(false);
+  const permissionGenerationRef = useRef(0);
   const [status, setStatus] = useState("");
   const [recording, setRecording] = useState(false);
+  const [requestingPermission, setRequestingPermission] = useState(false);
 
   function setStatusIfMounted(nextStatus: string) {
     if (mountedRef.current) setStatus(nextStatus);
@@ -41,6 +44,8 @@ export function MediaInput({ image, onImageChange, onTranscript }: MediaInputPro
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      permissionGenerationRef.current += 1;
+      permissionPendingRef.current = false;
       transcriptionRef.current?.abort();
       transcriptionRef.current = null;
       const recorder = recorderRef.current;
@@ -91,6 +96,7 @@ export function MediaInput({ image, onImageChange, onTranscript }: MediaInputPro
   }
 
   async function toggleRecording() {
+    if (permissionPendingRef.current) return;
     if (recording) {
       shouldTranscribeRef.current = true;
       recorderRef.current?.stop();
@@ -102,8 +108,11 @@ export function MediaInput({ image, onImageChange, onTranscript }: MediaInputPro
     }
 
     try {
+      permissionPendingRef.current = true;
+      const permissionGeneration = ++permissionGenerationRef.current;
+      setRequestingPermission(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!mountedRef.current) {
+      if (!mountedRef.current || permissionGeneration !== permissionGenerationRef.current) {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
@@ -128,6 +137,9 @@ export function MediaInput({ image, onImageChange, onTranscript }: MediaInputPro
     } catch {
       clearMediaResources();
       setStatusIfMounted("没有获得麦克风权限，可以直接输入问题。");
+    } finally {
+      permissionPendingRef.current = false;
+      if (mountedRef.current) setRequestingPermission(false);
     }
   }
 
@@ -135,7 +147,14 @@ export function MediaInput({ image, onImageChange, onTranscript }: MediaInputPro
     <div className="media-input">
       <input ref={inputRef} className="sr-only" id="classroom-image" aria-label="添加图片" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImage} />
       <button type="button" className="media-input__button" aria-label="选择图片" onClick={() => inputRef.current?.click()}><ImagePlus size={17} /></button>
-      <button type="button" className="media-input__button" aria-label={recording ? "停止录音" : "录音"} onClick={toggleRecording}><Mic size={17} /></button>
+      <button
+        type="button"
+        className="media-input__button"
+        aria-label={recording ? "停止录音" : "录音"}
+        aria-busy={requestingPermission || undefined}
+        disabled={requestingPermission}
+        onClick={toggleRecording}
+      ><Mic size={17} /></button>
       {image && <span className="media-input__preview"><Image src={image} alt="待发送图片预览" width={30} height={30} unoptimized /><button type="button" aria-label="移除图片" onClick={() => onImageChange(null)}><X size={14} /></button></span>}
       {status && <span className="media-input__status" role="status">{status}</span>}
     </div>

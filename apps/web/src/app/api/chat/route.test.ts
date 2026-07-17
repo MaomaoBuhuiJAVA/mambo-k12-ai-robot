@@ -12,6 +12,7 @@ vi.mock("@/lib/ai/provider", () => ({
 
 import { createTextStreamResponse, streamText, toTextStream } from "ai";
 import { getGoogleModel } from "@/lib/ai/provider";
+import { resetRequestGuardForTests } from "@/lib/ai/request-guard";
 
 import { POST } from "./route";
 
@@ -21,10 +22,33 @@ const request = (body: string) => new Request("http://localhost/api/chat", {
   body,
 });
 
+function oversizedRequest(contentLength?: string) {
+  const cancel = vi.fn();
+  const chunk = new Uint8Array(1024 * 1024);
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      controller.enqueue(chunk);
+    },
+    cancel,
+  });
+  const headers = new Headers({ "content-type": "application/json" });
+  if (contentLength) headers.set("content-length", contentLength);
+  return {
+    cancel,
+    request: new Request("http://localhost/api/chat", {
+      method: "POST",
+      headers,
+      body,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" }),
+  };
+}
+
 describe("POST /api/chat", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.clearAllMocks();
+    resetRequestGuardForTests();
   });
 
   it("rejects malformed JSON", async () => {
@@ -62,6 +86,17 @@ describe("POST /api/chat", () => {
     await expect(response.json()).resolves.toEqual({ error: "INVALID_CHAT_REQUEST" });
   });
 
+  it.each([undefined, String(6 * 1024 * 1024 + 1)])("cancels an oversized chat body with Content-Length %s", async (contentLength) => {
+    const oversized = oversizedRequest(contentLength);
+
+    const response = await POST(oversized.request);
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(oversized.cancel).toHaveBeenCalledTimes(1);
+    expect(streamText).not.toHaveBeenCalled();
+  });
+
   it("streams a valid request with AI SDK 7 adapters and no-store headers", async () => {
     vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
     vi.mocked(getGoogleModel).mockReturnValue("google-model" as never);
@@ -85,6 +120,33 @@ describe("POST /api/chat", () => {
       messages: [{ role: "user", content: "help" }],
     }));
     expect(toTextStream).toHaveBeenCalledWith({ stream: providerStream });
-    expect(createTextStreamResponse).toHaveBeenCalledWith({ stream: textStream, headers: { "Cache-Control": "no-store" } });
+    expect(createTextStreamResponse).toHaveBeenCalledWith({ stream: expect.any(ReadableStream), headers: { "Cache-Control": "no-store" } });
+  });
+
+  it("holds concurrency until a chat response stream is cancelled", async () => {
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.mocked(getGoogleModel).mockReturnValue("google-model" as never);
+    vi.mocked(streamText).mockReturnValue({ stream: new ReadableStream() } as never);
+    vi.mocked(toTextStream).mockImplementation(() => new ReadableStream());
+    vi.mocked(createTextStreamResponse).mockImplementation(({ stream, headers }) => new Response(stream, { headers }));
+    const body = JSON.stringify({
+      stage: "lower_primary",
+      courseId: "lower-bubble-sort",
+      messages: [{ role: "user", content: "help" }],
+    });
+
+    const first = await POST(request(body));
+    const second = await POST(request(body));
+    const blocked = await POST(request(body));
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("Retry-After")).toBe("1");
+    expect(blocked.headers.get("Cache-Control")).toBe("no-store");
+
+    await first.body?.cancel();
+    expect((await POST(request(body))).status).toBe(200);
+    await second.body?.cancel();
   });
 });
