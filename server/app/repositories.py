@@ -3,11 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import Device, DeviceCommand, DeviceStatus, utc_now
 from .protocol import CommandRecord
+
+
+MAX_DEVICE_STATUS_HISTORY = 1_000
 
 
 async def mark_all_devices_offline(session: AsyncSession) -> None:
@@ -57,6 +60,18 @@ async def persist_device_seen(
     if status is not None:
         device.latest_status = status
         session.add(DeviceStatus(device_id=device_id, payload=status))
+        await session.flush()
+        retained_ids = (
+            select(DeviceStatus.id)
+            .where(DeviceStatus.device_id == device_id)
+            .order_by(DeviceStatus.id.desc())
+            .limit(MAX_DEVICE_STATUS_HISTORY)
+        )
+        await session.execute(
+            delete(DeviceStatus)
+            .where(DeviceStatus.device_id == device_id)
+            .where(DeviceStatus.id.not_in(retained_ids))
+        )
     await session.commit()
 
 
@@ -119,7 +134,7 @@ async def complete_command(
 ) -> None:
     command_id = str(payload.get("command_id", ""))
     command = await session.get(DeviceCommand, command_id)
-    if command is None or command.device_id != device_id:
+    if command is None or command.device_id != device_id or command.state != "sent":
         return
     command.state = "completed" if bool(payload.get("ok", False)) else "failed"
     command.completed_at = utc_now()

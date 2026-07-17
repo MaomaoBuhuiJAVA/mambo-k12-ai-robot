@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import hmac
 import re
+from typing import Any
 from uuid import uuid4
 
 from anyio import CancelScope
@@ -14,7 +16,14 @@ from ..config import settings
 from ..database import get_session, session_factory
 from ..manager import manager
 from ..models import Device
-from ..protocol import CommandRecord, CommandRequest, DeviceMessage, ServerMessage, utc_now
+from ..protocol import (
+    CommandRecord,
+    CommandRequest,
+    DeviceMessage,
+    RecentMessageIds,
+    ServerMessage,
+    utc_now,
+)
 from ..repositories import (
     command_to_record,
     complete_command,
@@ -39,6 +48,12 @@ router = APIRouter(
     tags=["devices"],
 )
 websocket_router = APIRouter()
+
+
+async def receive_json_with_timeout(
+    websocket: WebSocket, *, timeout_seconds: float
+) -> Any:
+    return await asyncio.wait_for(websocket.receive_json(), timeout=timeout_seconds)
 
 
 @router.get("/devices")
@@ -148,9 +163,17 @@ async def device_socket(websocket: WebSocket, device_id: str) -> None:
         ),
     )
 
+    recent_message_ids = RecentMessageIds()
     try:
         while True:
-            raw = await websocket.receive_json()
+            try:
+                raw = await receive_json_with_timeout(
+                    websocket,
+                    timeout_seconds=settings.device_stale_after_seconds,
+                )
+            except asyncio.TimeoutError:
+                await websocket.close(code=4008, reason="device_inactive")
+                return
             try:
                 message = DeviceMessage.model_validate(raw)
             except ValidationError:
@@ -159,6 +182,13 @@ async def device_socket(websocket: WebSocket, device_id: str) -> None:
             if message.device_id != device_id:
                 await websocket.close(code=4003, reason="device_id_mismatch")
                 return
+
+            is_duplicate = recent_message_ids.remember(message.message_id)
+            if is_duplicate and message.type != "heartbeat":
+                await manager.update_seen(device_id)
+                async with session_factory() as session:
+                    await persist_device_seen(session, device_id)
+                continue
 
             async with session_factory() as session:
                 if message.type == "hello":
