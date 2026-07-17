@@ -107,6 +107,7 @@ def test_device_lifecycle_and_command() -> None:
         assert device.json()["online"] is False
         assert device.json()["agent_version"] == "0.1.0"
         assert device.json()["latest_status"]["cpu_load_1m"] == 0.25
+        assert device.json()["last_seen_at"].endswith(("Z", "+00:00"))
 
         history = client.get(
             "/api/v1/devices/test-device-01/status-history",
@@ -114,6 +115,7 @@ def test_device_lifecycle_and_command() -> None:
         )
         assert history.status_code == 200
         assert history.json()[0]["payload"]["cpu_load_1m"] == 0.25
+        assert history.json()[0]["recorded_at"].endswith(("Z", "+00:00"))
 
         persisted_command = client.get(
             f"/api/v1/commands/{command_id}", headers=ADMIN_HEADERS
