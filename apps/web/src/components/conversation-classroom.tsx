@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import type { CurriculumCourse } from "@/data/curriculum";
+import { loadConversation, saveConversation } from "@/lib/conversation-store";
 import type { Stage } from "@/lib/domain";
 
 import { MediaInput } from "./media-input";
@@ -120,6 +121,19 @@ export function ConversationClassroom({ course, stage }: { course: CurriculumCou
   const [messages, setMessages] = useState<Message[]>(() => createWelcomeMessages(course));
   const controllerRef = useRef<AbortController | null>(null);
 
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      const restored = loadConversation(course.id);
+      if (restored.length === 0) return;
+      setMessages([...createWelcomeMessages(course), ...restored]);
+      const latestQuestion = [...restored].reverse().find((message) => message.author === "learner");
+      setLastQuestion(latestQuestion?.text ?? "");
+    });
+    return () => { active = false; };
+  }, [course]);
+
   useEffect(() => () => {
     controllerRef.current?.abort();
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -178,12 +192,24 @@ export function ConversationClassroom({ course, stage }: { course: CurriculumCou
       }
       answer += decoder.decode();
       if (!answer) throw new Error("empty");
-      setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, text: answer } : item));
+      setMessages((current) => {
+        const completed = current.map((item) => item.id === assistantId ? { ...item, text: answer } : item);
+        saveConversation(course.id, completed);
+        return completed;
+      });
     } catch (error) {
       if ((error as DOMException).name === "AbortError") {
-        setMessages((current) => current.filter((item) => item.id !== assistantId || Boolean(item.text)));
+        setMessages((current) => {
+          const completed = current.filter((item) => item.id !== assistantId || Boolean(item.text));
+          saveConversation(course.id, completed);
+          return completed;
+        });
       } else {
-        setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, text: fallback(course) } : item));
+        setMessages((current) => {
+          const completed = current.map((item) => item.id === assistantId ? { ...item, text: fallback(course) } : item);
+          saveConversation(course.id, completed);
+          return completed;
+        });
       }
     } finally {
       setBusy(false);

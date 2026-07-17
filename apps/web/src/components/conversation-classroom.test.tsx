@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getFeaturedCourses } from "@/data/curriculum";
+import { conversationStorageKey } from "@/lib/conversation-store";
 
 import { ConversationClassroom } from "./conversation-classroom";
 
@@ -20,9 +21,39 @@ function streamResponse(chunks: string[]) {
   );
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  localStorage.clear();
+  vi.restoreAllMocks();
+});
 
 describe("ConversationClassroom", () => {
+  it("restores completed text turns for the selected course", async () => {
+    localStorage.setItem(conversationStorageKey(course.id), JSON.stringify([
+      { id: "saved-user", author: "learner", text: "为什么大的数会往后走？" },
+      { id: "saved-assistant", author: "assistant", text: "因为相邻比较后，较大的数会交换到右边。" },
+    ]));
+
+    render(<ConversationClassroom course={course} stage="lower_primary" />);
+
+    expect(await screen.findByText("为什么大的数会往后走？")).toBeVisible();
+    expect(screen.getByText("因为相邻比较后，较大的数会交换到右边。")).toBeVisible();
+  });
+
+  it("persists a completed answer so it survives a remount", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(streamResponse(["保存后的回答"]));
+    const first = render(<ConversationClassroom course={course} stage="lower_primary" />);
+
+    await user.type(screen.getByRole("textbox", { name: "给 Mambo 发消息" }), "请记住这一问");
+    await user.click(screen.getByRole("button", { name: "发送消息" }));
+    await screen.findByText("保存后的回答");
+    first.unmount();
+
+    render(<ConversationClassroom course={course} stage="lower_primary" />);
+    expect(await screen.findByText("请记住这一问")).toBeVisible();
+    expect(screen.getByText("保存后的回答")).toBeVisible();
+  });
+
   it("sends the course context and renders streamed assistant text", async () => {
     const user = userEvent.setup({ applyAccept: false });
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
