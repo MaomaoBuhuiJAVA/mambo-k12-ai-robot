@@ -11,7 +11,7 @@ import {
 const PRIMARY_NAVIGATION = [
   { label: "今日学习", href: "#workspace", icon: House, current: true },
   { label: "课程", href: "#course-rail", icon: BookOpen },
-  { label: "编程实验", href: "#teaching-canvas", icon: Code2 },
+  { label: "编程实验", href: "/lab", icon: Code2 },
   { label: "作品", href: "#workspace", icon: FolderOpen },
   {
     label: "学习进度",
