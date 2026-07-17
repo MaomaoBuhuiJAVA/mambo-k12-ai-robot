@@ -1,0 +1,54 @@
+name: mambo-k12
+
+services:
+  database:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mambo
+      POSTGRES_USER: mambo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - mambo-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mambo -d mambo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  core-api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://mambo:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@database:5432/mambo
+      DEVICE_AUTH_TOKEN: ${DEVICE_AUTH_TOKEN:?set DEVICE_AUTH_TOKEN}
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:?set ADMIN_API_TOKEN}
+      AUTO_CREATE_SCHEMA: "false"
+      HEARTBEAT_INTERVAL_SECONDS: ${HEARTBEAT_INTERVAL_SECONDS:-5}
+      DEVICE_STALE_AFTER_SECONDS: ${DEVICE_STALE_AFTER_SECONDS:-20}
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "${CORE_API_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+volumes:
+  mambo-postgres:
+
+networks:
+  backend:
