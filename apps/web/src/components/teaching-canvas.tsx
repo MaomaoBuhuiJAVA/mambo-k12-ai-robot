@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import {
   BookOpenCheck,
   Boxes,
@@ -10,17 +10,41 @@ import {
 } from "lucide-react";
 
 import type { CurriculumCourse } from "@/data/curriculum";
+import { ResourceLibrary } from "@/features/courses/resource-library";
+import { BubbleSortAnimation } from "@/features/animation/bubble-sort-animation";
+import { NeuralNetworkAnimation } from "@/features/animation/neural-network-animation";
+import { StorybookPlayer } from "@/features/storybook/storybook-player";
 
-type CanvasTab = "course" | "animation" | "exercise";
+type CanvasTab = "course" | "animation" | "storybook" | "resources" | "exercise";
 
 const TABS: ReadonlyArray<{ value: CanvasTab; label: string }> = [
   { value: "course", label: "课程" },
   { value: "animation", label: "动画" },
+  { value: "storybook", label: "绘本" },
+  { value: "resources", label: "资源" },
   { value: "exercise", label: "练习" },
 ];
 
 export function TeachingCanvas({ course }: { course: CurriculumCourse }) {
   const [activeTab, setActiveTab] = useState<CanvasTab>("course");
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  function activateTab(index: number) {
+    const normalized = (index + TABS.length) % TABS.length;
+    setActiveTab(TABS[normalized].value);
+    tabRefs.current[normalized]?.focus();
+  }
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") nextIndex = index + 1;
+    else if (event.key === "ArrowLeft") nextIndex = index - 1;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = TABS.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    activateTab(nextIndex);
+  }
 
   return (
     <aside className="teaching-canvas" id="teaching-canvas" aria-label="教学画布">
@@ -36,15 +60,18 @@ export function TeachingCanvas({ course }: { course: CurriculumCourse }) {
         </div>
 
         <div className="canvas-tabs" role="tablist" aria-label="教学内容">
-          {TABS.map((tab) => (
+          {TABS.map((tab, index) => (
             <button
               id={`canvas-tab-${tab.value}`}
               type="button"
               role="tab"
               aria-selected={activeTab === tab.value}
               aria-controls={`canvas-panel-${tab.value}`}
+              tabIndex={activeTab === tab.value ? 0 : -1}
+              ref={(node) => { tabRefs.current[index] = node; }}
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
+              onKeyDown={(event) => handleTabKeyDown(event, index)}
             >
               {tab.label}
             </button>
@@ -52,18 +79,28 @@ export function TeachingCanvas({ course }: { course: CurriculumCourse }) {
         </div>
       </header>
 
-      <div
-        className="canvas-panel"
-        id={`canvas-panel-${activeTab}`}
-        role="tabpanel"
-        aria-labelledby={`canvas-tab-${activeTab}`}
-      >
-        {activeTab === "course" ? <CourseView course={course} /> : null}
-        {activeTab === "animation" ? <AnimationView course={course} /> : null}
-        {activeTab === "exercise" ? <ExerciseView course={course} /> : null}
-      </div>
+      {TABS.map((tab) => (
+        <div
+          className="canvas-panel"
+          id={`canvas-panel-${tab.value}`}
+          role="tabpanel"
+          aria-labelledby={`canvas-tab-${tab.value}`}
+          hidden={activeTab !== tab.value}
+          key={tab.value}
+        >
+          {activeTab === tab.value ? <CanvasContent tab={tab.value} course={course} /> : null}
+        </div>
+      ))}
     </aside>
   );
+}
+
+function CanvasContent({ tab, course }: { tab: CanvasTab; course: CurriculumCourse }) {
+  if (tab === "course") return <CourseView course={course} />;
+  if (tab === "animation") return <AnimationView course={course} />;
+  if (tab === "storybook") return <StorybookPlayer course={course} />;
+  if (tab === "resources") return <ResourceLibrary course={course} />;
+  return <ExerciseView course={course} />;
 }
 
 function CourseView({ course }: { course: CurriculumCourse }) {
@@ -101,6 +138,13 @@ function CourseView({ course }: { course: CurriculumCourse }) {
 }
 
 function AnimationView({ course }: { course: CurriculumCourse }) {
+  if (/bubble|sort/i.test(`${course.id} ${course.animation.template}`)) {
+    return <BubbleSortAnimation stage={course.stage} />;
+  }
+  if (/neural|classif|feature|picture-label/i.test(`${course.id} ${course.animation.template}`)) {
+    return <NeuralNetworkAnimation stage={course.stage} />;
+  }
+
   return (
     <div className="animation-view">
       <div className="animation-view__title">

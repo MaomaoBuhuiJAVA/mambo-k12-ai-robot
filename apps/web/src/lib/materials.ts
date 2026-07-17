@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-import { getCourseById, type CurriculumCourse } from "@/data/curriculum";
+import { getCourseById, type CurriculumCourse, type ReadonlyCurriculumCourse } from "@/data/curriculum";
 import { readBoundedJson } from "@/lib/bounded-json";
+import type { LearningMode } from "@/lib/domain";
 import { getStagePolicy } from "@/lib/stage-policy";
 
 const MAX_REQUEST_BYTES = 8 * 1024;
@@ -18,7 +19,7 @@ export interface LessonDocumentSpec {
   explanation: string[];
   activity: string;
   animationSteps: string[];
-  quiz: Array<{ prompt: string; answer: string }>;
+  quiz: Array<{ prompt: string }>;
   summary: string;
 }
 
@@ -28,6 +29,16 @@ const STAGE_LABELS = {
   middle_school: "初中",
   high_school: "高中",
 } as const;
+
+const MODE_LABELS: Record<LearningMode, string> = {
+  voice: "语音复述",
+  storybook: "互动绘本",
+  game: "游戏练习",
+  diagram: "图示观察",
+  quiz: "随堂测验",
+  code: "代码实践",
+  project: "项目探究",
+};
 
 export async function parseMaterialRequest(request: Request): Promise<CurriculumCourse | null> {
   try {
@@ -40,11 +51,7 @@ export async function parseMaterialRequest(request: Request): Promise<Curriculum
   }
 }
 
-function exerciseAnswer(exercise: CurriculumCourse["exercises"][number]): string {
-  return Array.isArray(exercise.answer) ? exercise.answer.join(" → ") : exercise.answer;
-}
-
-export function buildLessonDocument(course: CurriculumCourse): LessonDocumentSpec {
+export function buildLessonDocument(course: ReadonlyCurriculumCourse): LessonDocumentSpec {
   const policy = getStagePolicy(course.stage);
   return {
     title: `${course.title}学习讲义`,
@@ -53,12 +60,12 @@ export function buildLessonDocument(course: CurriculumCourse): LessonDocumentSpe
     explanation: [course.explanation.overview, ...course.explanation.keyIdeas, course.explanation.workedExample],
     activity: course.ageAdaptation.activity,
     animationSteps: course.animation.steps.map((step) => step.narration),
-    quiz: course.exercises.map((exercise) => ({ prompt: exercise.prompt, answer: exerciseAnswer(exercise) })),
-    summary: `本课围绕${course.knowledgePointTags.join("、")}展开。建议用“${policy.preferredModes[0]}”方式复习，并能用自己的话说明每一步的依据。`,
+    quiz: course.exercises.map((exercise) => ({ prompt: exercise.prompt })),
+    summary: `本课围绕${course.knowledgePointTags.join("、")}展开。建议用“${MODE_LABELS[policy.preferredModes[0]]}”方式复习，并能用自己的话说明每一步的依据。`,
   };
 }
 
-export function downloadHeaders(course: CurriculumCourse, extension: "docx" | "pptx", mime: string) {
+export function downloadHeaders(course: ReadonlyCurriculumCourse, extension: "docx" | "pptx", mime: string) {
   const chineseName = `${course.title}-${STAGE_LABELS[course.stage]}学习材料.${extension}`;
   return {
     "Cache-Control": "no-store",

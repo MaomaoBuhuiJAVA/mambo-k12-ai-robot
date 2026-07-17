@@ -21,6 +21,8 @@ describe("ResourceLibrary", () => {
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 
     render(<ResourceLibrary course={course} />);
+    const appendChild = vi.spyOn(document.body, "appendChild");
+    const schedule = vi.spyOn(window, "setTimeout");
     const wordButton = screen.getByRole("button", { name: "下载 Word 讲义" });
     const slidesButton = screen.getByRole("button", { name: "下载 PowerPoint 课件" });
     await user.click(wordButton);
@@ -31,6 +33,10 @@ describe("ResourceLibrary", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/materials/docx", expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/materials/pptx", expect.objectContaining({ method: "POST" }));
     expect(revokeObjectURL).toHaveBeenCalledTimes(2);
+    const downloadedAnchors = appendChild.mock.calls.map(([node]) => node).filter((node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement);
+    expect(downloadedAnchors).toHaveLength(2);
+    expect(downloadedAnchors.every((anchor) => !anchor.isConnected)).toBe(true);
+    expect(schedule.mock.calls.some(([, delay]) => delay === 0)).toBe(true);
     expect(screen.getByText(course.materials[0].name)).toBeVisible();
   });
 });

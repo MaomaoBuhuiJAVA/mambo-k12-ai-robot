@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { CurriculumCourse } from "@/data/curriculum";
+import type { ReadonlyCurriculumCourse } from "@/data/curriculum";
 
 const safeText = (minimum: number, maximum: number) => z.string()
   .trim()
@@ -41,7 +41,7 @@ export type Storybook = z.infer<typeof storybookSchema>;
 
 const OBSERVE_OPTIONS = ["先观察当前状态", "跳过观察直接猜"];
 
-export function createSeedStorybook(course: CurriculumCourse): Storybook {
+export function createSeedStorybook(course: ReadonlyCurriculumCourse): Storybook {
   return storybookSchema.parse({
     title: `${course.title}探险记`,
     summary: `跟随故事角色，用${course.ageAdaptation.language}认识${course.knowledgePointTags.join("、")}。`,
@@ -60,7 +60,7 @@ export function createSeedStorybook(course: CurriculumCourse): Storybook {
   });
 }
 
-export function buildStorybookPrompt(course: CurriculumCourse): string {
+export function buildStorybookPrompt(course: ReadonlyCurriculumCourse): string {
   return [
     `课程：${course.title}`,
     `学段表达要求：${course.ageAdaptation.language}`,

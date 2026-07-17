@@ -50,10 +50,9 @@ export async function POST(request: Request): Promise<Response> {
           new Paragraph({ text: lesson.activity, spacing: { after: 100 } }),
           ...lesson.animationSteps.map((step, index) => bullet(`第 ${index + 1} 步：${step}`)),
           heading("四、随堂测验"),
-          ...lesson.quiz.flatMap((item, index) => [
+          ...lesson.quiz.map((item, index) =>
             new Paragraph({ children: [new TextRun({ text: `${index + 1}. ${item.prompt}`, bold: true })] }),
-            new Paragraph({ text: `参考答案：${item.answer}`, spacing: { after: 110 } }),
-          ]),
+          ),
           heading("五、学习总结"),
           new Paragraph({ text: lesson.summary }),
           new Paragraph({ text: "内容来源：Mambo 项目原创课程数据", spacing: { before: 260 }, style: "Caption" }),

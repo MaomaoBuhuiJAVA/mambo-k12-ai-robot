@@ -7,17 +7,12 @@ import { BookMarked, ChevronLeft, ChevronRight, RefreshCw, Save, Volume2 } from 
 import type { CurriculumCourse } from "@/data/curriculum";
 
 import styles from "./storybook-player.module.css";
+import { selectStorybookIllustration } from "./storybook-illustrations";
 import { createSeedStorybook, storybookSchema, type Storybook } from "./storybook";
 
 const STORAGE_KEY = "mambo.storybooks.v1";
 const MAX_SAVED_VERSIONS = 10;
 const MAX_GLOBAL_VERSIONS = 30;
-const SCENE_IMAGES = [
-  { src: "/storybook/sorting-lab.png", alt: "四个数字泡泡相邻排队并用弧线标出移动方向" },
-  { src: "/storybook/feature-studio.png", alt: "输入节点、隐藏节点和输出节点组成的神经网络示意场景" },
-  { src: "/storybook/data-journey.png", alt: "四块编号数据沿处理流程依次传递的场景" },
-  { src: "/storybook/reflection-board.png", alt: "学习复盘板上列出三项已完成检查的场景" },
-] as const;
 
 interface SavedStorybook {
   id: string;
@@ -58,7 +53,9 @@ export function StorybookPlayer({ course }: { course: CurriculumCourse }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const page = storybook.pages[pageIndex];
-  const sceneImage = SCENE_IMAGES[pageIndex % SCENE_IMAGES.length];
+  const sceneImage = page
+    ? selectStorybookIllustration(course, page, pageIndex, storybook.pages.length)
+    : null;
 
   useEffect(() => {
     return () => window.speechSynthesis?.cancel();
@@ -138,7 +135,7 @@ export function StorybookPlayer({ course }: { course: CurriculumCourse }) {
     setNotice(`正在回看 ${new Date(latest.savedAt).toLocaleDateString("zh-CN")} 保存的版本。`);
   }
 
-  if (!page) return null;
+  if (!page || !sceneImage) return null;
   const question = page.interactiveQuestion;
   const feedback = selectedAnswer === null
     ? null

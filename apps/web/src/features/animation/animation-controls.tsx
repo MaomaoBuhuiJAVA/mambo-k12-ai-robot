@@ -37,7 +37,7 @@ export function AnimationControls({
         <RotateCcw size={16} aria-hidden="true" />
         <span>重置</span>
       </button>
-      <div className="teaching-animation__speed" aria-label="播放速度">
+      <div className="teaching-animation__speed" role="group" aria-label="播放速度">
         {([0.5, 1, 2] as const).map((option) => {
           const name = option === 0.5 ? "0.5 倍速" : option === 1 ? "1 倍速" : "2 倍速";
           return (

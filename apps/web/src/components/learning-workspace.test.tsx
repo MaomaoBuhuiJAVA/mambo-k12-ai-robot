@@ -74,4 +74,16 @@ describe("LearningWorkspace", () => {
       screen.getByText("比较 4 和 2 时，为了从小到大排列应该怎样做？"),
     ).toBeVisible();
   });
+
+  it("reaches the real animation, storybook, and material download tools", async () => {
+    const user = userEvent.setup();
+    render(<LearningWorkspace />);
+
+    await user.click(screen.getByRole("tab", { name: "动画" }));
+    expect(screen.getByRole("region", { name: "冒泡排序交互动画" })).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "绘本" }));
+    expect(screen.getByRole("region", { name: /绘本阅读器/ })).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "资源" }));
+    expect(screen.getByRole("button", { name: "下载 Word 讲义" })).toBeVisible();
+  });
 });

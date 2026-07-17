@@ -678,16 +678,20 @@ a[href] {
 
 .canvas-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .canvas-tabs button {
   position: relative;
+  min-width: 0;
   min-height: 38px;
+  padding-inline: 3px;
   color: var(--foreground-muted);
   background: transparent;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 650;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
   transition:
     color 160ms ease,
     background-color 160ms ease;

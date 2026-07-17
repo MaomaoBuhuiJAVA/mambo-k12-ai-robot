@@ -27,8 +27,13 @@ async function downloadMaterial(course: CurriculumCourse, format: Format) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = name;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  document.body.appendChild(anchor);
+  try {
+    anchor.click();
+  } finally {
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
 }
 
 export function ResourceLibrary({ course }: { course: CurriculumCourse }) {

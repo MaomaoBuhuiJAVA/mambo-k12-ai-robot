@@ -20,11 +20,11 @@ describe("StorybookPlayer", () => {
     render(<StorybookPlayer course={course} />);
 
     expect(screen.getByText("第 1 / 4 页")).toBeVisible();
-    const firstScene = screen.getByRole("img", { name: /数字泡泡相邻排队/ });
-    const firstSource = firstScene.getAttribute("src");
+    screen.getByRole("img", { name: /数字泡泡相邻排队/ });
     await user.click(screen.getByRole("button", { name: "下一页" }));
     expect(screen.getByText("第 2 / 4 页")).toBeVisible();
-    expect(screen.getByRole("img", { name: /神经网络示意场景/ }).getAttribute("src")).not.toBe(firstSource);
+    expect(screen.getByRole("img", { name: /数字泡泡相邻排队/ })).toBeVisible();
+    expect(screen.queryByRole("img", { name: /隐藏特征节点/ })).not.toBeInTheDocument();
 
     const answer = screen.getAllByRole("button", { name: /答案：/ })[0];
     await user.click(answer);
