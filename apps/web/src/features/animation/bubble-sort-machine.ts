@@ -8,6 +8,7 @@ export interface BubbleSortMachine {
   readonly swaps: number;
   readonly lastAction: "ready" | "compare" | "swap" | "complete";
   readonly lastCompared: readonly [number, number] | null;
+  readonly lastComparedIndexes: readonly [number, number] | null;
 }
 
 export function createBubbleSortMachine(values = [4, 1, 3, 2]): BubbleSortMachine {
@@ -22,12 +23,13 @@ export function createBubbleSortMachine(values = [4, 1, 3, 2]): BubbleSortMachin
     swaps: 0,
     lastAction: "ready",
     lastCompared: null,
+    lastComparedIndexes: null,
   };
 }
 
 export function nextBubbleSortFrame(state: BubbleSortMachine): BubbleSortMachine {
   if (state.sortedFrom <= 1) {
-    return { ...state, lastAction: "complete" };
+    return state;
   }
 
   const left = state.comparisonIndex;
@@ -41,16 +43,18 @@ export function nextBubbleSortFrame(state: BubbleSortMachine): BubbleSortMachine
   }
 
   const reachesEndOfPass = right === state.sortedFrom - 1;
+  const nextSortedFrom = reachesEndOfPass ? state.sortedFrom - 1 : state.sortedFrom;
   return {
     ...state,
     values,
     comparisonIndex: reachesEndOfPass ? 0 : left + 1,
     pass: reachesEndOfPass ? state.pass + 1 : state.pass,
-    sortedFrom: reachesEndOfPass ? state.sortedFrom - 1 : state.sortedFrom,
+    sortedFrom: nextSortedFrom,
     comparisons: state.comparisons + 1,
     swaps: state.swaps + (shouldSwap ? 1 : 0),
-    lastAction: shouldSwap ? "swap" : "compare",
+    lastAction: nextSortedFrom <= 1 ? "complete" : shouldSwap ? "swap" : "compare",
     lastCompared,
+    lastComparedIndexes: [left, right],
   };
 }
 

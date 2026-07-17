@@ -22,14 +22,15 @@ export function BubbleSortAnimation() {
   const [speed, setSpeed] = useState<AnimationSpeed>(1);
 
   const isComplete = state.sortedFrom <= 1;
+  const isActivelyPlaying = isPlaying && !isComplete;
   useEffect(() => {
-    if (!isPlaying || isComplete) return;
+    if (!isActivelyPlaying) return;
     const timer = window.setInterval(() => setState(nextBubbleSortFrame), INTERVAL_BY_SPEED[speed]);
     return () => window.clearInterval(timer);
-  }, [isComplete, isPlaying, speed]);
+  }, [isActivelyPlaying, speed]);
 
   const narration = useMemo(() => buildNarration(state), [state]);
-  const comparedIndexes = [state.comparisonIndex, state.comparisonIndex + 1];
+  const comparedIndexes = state.lastComparedIndexes ?? [0, 1];
 
   function step() {
     setState(nextBubbleSortFrame);
@@ -79,10 +80,17 @@ export function BubbleSortAnimation() {
       </dl>
       <p className="teaching-animation__hint">从相邻两个数字开始。左边更大时交换，一轮结束后最大数会留在最右边。</p>
       <AnimationControls
-        isPlaying={isPlaying}
+        isPlaying={isActivelyPlaying}
         speed={speed}
         label="冒泡排序动画控制"
-        onTogglePlay={() => setIsPlaying((value) => !value)}
+        onTogglePlay={() => {
+          if (isComplete) {
+            setState(resetBubbleSortMachine);
+            setIsPlaying(true);
+            return;
+          }
+          setIsPlaying((value) => !value);
+        }}
         onStep={step}
         onReset={reset}
         onSpeedChange={setSpeed}

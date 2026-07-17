@@ -19,6 +19,7 @@ describe("bubble-sort animation machine", () => {
     expect(state.sortedFrom).toBe(3);
     expect(state.comparisons).toBe(3);
     expect(state.swaps).toBe(3);
+    expect(state.lastComparedIndexes).toEqual([2, 3]);
   });
 
   it("replays deterministically and resets to its original values", () => {

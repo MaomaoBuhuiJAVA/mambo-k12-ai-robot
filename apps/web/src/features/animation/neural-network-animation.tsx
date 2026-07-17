@@ -18,12 +18,13 @@ export function NeuralNetworkAnimation() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState<AnimationSpeed>(1);
   const isComplete = state.activeLayer === "complete";
+  const isActivelyPlaying = isPlaying && !isComplete;
 
   useEffect(() => {
-    if (!isPlaying || isComplete) return;
+    if (!isActivelyPlaying) return;
     const timer = window.setInterval(() => setState(nextNeuralNetworkFrame), INTERVAL_BY_SPEED[speed]);
     return () => window.clearInterval(timer);
-  }, [isComplete, isPlaying, speed]);
+  }, [isActivelyPlaying, speed]);
 
   function reset() {
     setIsPlaying(false);
@@ -60,10 +61,17 @@ export function NeuralNetworkAnimation() {
       </div>
       <p className="teaching-animation__hint">把图像想成许多明暗小格子。网络先看格子，再找线索，最后比较每一种类别的可能性。</p>
       <AnimationControls
-        isPlaying={isPlaying}
+        isPlaying={isActivelyPlaying}
         speed={speed}
         label="神经网络动画控制"
-        onTogglePlay={() => setIsPlaying((value) => !value)}
+        onTogglePlay={() => {
+          if (isComplete) {
+            setState(createNeuralNetworkMachine());
+            setIsPlaying(true);
+            return;
+          }
+          setIsPlaying((value) => !value);
+        }}
         onStep={() => setState(nextNeuralNetworkFrame)}
         onReset={reset}
         onSpeedChange={setSpeed}
