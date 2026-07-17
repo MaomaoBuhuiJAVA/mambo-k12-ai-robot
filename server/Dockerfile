@@ -8,6 +8,7 @@ COPY server/requirements.txt /app/server/requirements.txt
 RUN pip install --no-cache-dir -r /app/server/requirements.txt
 
 COPY server /app/server
+COPY alembic.ini /app/alembic.ini
+RUN chmod +x /app/server/entrypoint.sh
 EXPOSE 8000
-CMD ["uvicorn", "server.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
+ENTRYPOINT ["/app/server/entrypoint.sh"]

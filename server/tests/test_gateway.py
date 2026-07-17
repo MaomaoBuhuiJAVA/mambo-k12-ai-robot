@@ -1,7 +1,4 @@
-import os
-
-os.environ["DEVICE_AUTH_TOKEN"] = "test-device-token-123456"
-os.environ["ADMIN_API_TOKEN"] = "test-admin-token-123456"
+import time
 
 from fastapi.testclient import TestClient
 
@@ -38,7 +35,16 @@ def test_device_lifecycle_and_command() -> None:
             welcome = socket.receive_json()
             assert welcome["type"] == "welcome"
 
-            socket.send_json(envelope("hello", {"agent_version": "0.1.0"}))
+            socket.send_json(
+                envelope(
+                    "hello",
+                    {
+                        "agent_version": "0.1.0",
+                        "platform": "Linux-aarch64",
+                        "capabilities": ["audio", "camera", "display", "npu"],
+                    },
+                )
+            )
             socket.send_json(envelope("heartbeat", {}))
             assert socket.receive_json()["type"] == "heartbeat_ack"
             socket.send_json(envelope("status", {"cpu_load_1m": 0.25}))
@@ -66,14 +72,50 @@ def test_device_lifecycle_and_command() -> None:
                 )
             )
 
-            result = client.get(
-                f"/api/v1/commands/{command_id}", headers=ADMIN_HEADERS
-            )
+            deadline = time.monotonic() + 1
+            while True:
+                result = client.get(
+                    f"/api/v1/commands/{command_id}", headers=ADMIN_HEADERS
+                )
+                if result.json()["state"] != "sent" or time.monotonic() >= deadline:
+                    break
+                time.sleep(0.01)
             assert result.status_code == 200
             assert result.json()["state"] == "completed"
+
+        deadline = time.monotonic() + 1
+        while True:
+            device = client.get(
+                "/api/v1/devices/test-device-01", headers=ADMIN_HEADERS
+            )
+            if device.json()["online"] is False or time.monotonic() >= deadline:
+                break
+            time.sleep(0.01)
+        assert device.status_code == 200
+        assert device.json()["online"] is False
+        assert device.json()["agent_version"] == "0.1.0"
+        assert device.json()["latest_status"]["cpu_load_1m"] == 0.25
+
+        history = client.get(
+            "/api/v1/devices/test-device-01/status-history",
+            headers=ADMIN_HEADERS,
+        )
+        assert history.status_code == 200
+        assert history.json()[0]["payload"]["cpu_load_1m"] == 0.25
+
+        persisted_command = client.get(
+            f"/api/v1/commands/{command_id}", headers=ADMIN_HEADERS
+        )
+        assert persisted_command.status_code == 200
+        assert persisted_command.json()["state"] == "completed"
+
+        command_history = client.get(
+            "/api/v1/devices/test-device-01/commands", headers=ADMIN_HEADERS
+        )
+        assert command_history.status_code == 200
+        assert command_history.json()[0]["command_id"] == command_id
 
 
 def test_admin_endpoint_rejects_missing_token() -> None:
     with TestClient(app) as client:
         assert client.get("/api/v1/devices").status_code == 401
-

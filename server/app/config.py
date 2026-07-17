@@ -10,6 +10,8 @@ class Settings:
     admin_api_token: str
     heartbeat_interval_seconds: int
     device_stale_after_seconds: int
+    database_url: str
+    auto_create_schema: bool
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -22,8 +24,12 @@ class Settings:
             device_stale_after_seconds=max(
                 10, int(os.getenv("DEVICE_STALE_AFTER_SECONDS", "20"))
             ),
+            database_url=os.getenv(
+                "DATABASE_URL", "sqlite+aiosqlite:///./data/mambo.db"
+            ),
+            auto_create_schema=os.getenv("AUTO_CREATE_SCHEMA", "false").lower()
+            in {"1", "true", "yes", "on"},
         )
 
 
 settings = Settings.from_env()
-

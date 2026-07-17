@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
-from uuid import uuid4
 
 from fastapi import WebSocket
 
@@ -24,7 +22,6 @@ class DeviceConnection:
 class DeviceManager:
     def __init__(self) -> None:
         self._connections: dict[str, DeviceConnection] = {}
-        self._commands: OrderedDict[str, CommandRecord] = OrderedDict()
         self._lock = asyncio.Lock()
 
     async def connect(self, device_id: str, websocket: WebSocket) -> None:
@@ -35,11 +32,13 @@ class DeviceManager:
         if previous is not None:
             await previous.websocket.close(code=4009, reason="replaced_by_new_connection")
 
-    async def disconnect(self, device_id: str, websocket: WebSocket) -> None:
+    async def disconnect(self, device_id: str, websocket: WebSocket) -> bool:
         async with self._lock:
             current = self._connections.get(device_id)
             if current is not None and current.websocket is websocket:
                 self._connections.pop(device_id, None)
+                return True
+        return False
 
     async def update_seen(
         self,
@@ -93,56 +92,18 @@ class DeviceManager:
                 "latest_status": connection.latest_status,
             }
 
-    async def issue_command(
-        self, device_id: str, name: str, arguments: dict[str, Any]
-    ) -> CommandRecord:
-        command_id = str(uuid4())
-        record = CommandRecord(
-            command_id=command_id,
-            device_id=device_id,
-            name=name,
-            arguments=arguments,
-            state="sent",
-            created_at=utc_now(),
+    async def issue_command(self, record: CommandRecord) -> None:
+        await self.send(
+            record.device_id,
+            ServerMessage(
+                type="command",
+                payload={
+                    "command_id": record.command_id,
+                    "name": record.name,
+                    "arguments": record.arguments,
+                },
+            ),
         )
-        async with self._lock:
-            self._commands[command_id] = record
-            while len(self._commands) > 1000:
-                self._commands.popitem(last=False)
-        try:
-            await self.send(
-                device_id,
-                ServerMessage(
-                    type="command",
-                    payload={
-                        "command_id": command_id,
-                        "name": name,
-                        "arguments": arguments,
-                    },
-                ),
-            )
-        except Exception:
-            async with self._lock:
-                self._commands.pop(command_id, None)
-            raise
-        return record
-
-    async def complete_command(
-        self, device_id: str, payload: dict[str, Any]
-    ) -> None:
-        command_id = str(payload.get("command_id", ""))
-        async with self._lock:
-            record = self._commands.get(command_id)
-            if record is None or record.device_id != device_id:
-                return
-            ok = bool(payload.get("ok", False))
-            record.state = "completed" if ok else "failed"
-            record.completed_at = utc_now()
-            record.result = payload
-
-    async def get_command(self, command_id: str) -> CommandRecord | None:
-        async with self._lock:
-            return self._commands.get(command_id)
 
 
 manager = DeviceManager()
