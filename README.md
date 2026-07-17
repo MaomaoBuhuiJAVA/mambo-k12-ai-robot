@@ -158,6 +158,7 @@ GitHub Actions 在 push/PR 时使用 Node.js 22 执行 Web 测试、lint、typec
 - [比赛演示脚本](docs/report/demo-script.md)：在网络或机器人不可用时也能降级完成的 8-10 分钟流程。
 - [项目技术报告](docs/report/project-report.md)：架构、模型策略、多模态路线、难题、安全与后续计划。
 - [赛题证据矩阵](docs/evidence/index.md)：R01-R16 与代码、测试、手工证据状态。
+- [2026-07-18 验证记录](docs/verification/2026-07-18-p0-results.md)：本次真实结果、GitHub CI 证据和 Vercel 阻塞。
 
 ## 安全提示
 

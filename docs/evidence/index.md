@@ -1,5 +1,7 @@
 # 赛题需求与评分证据矩阵
 
+最新统一验证结果见 [`docs/verification/2026-07-18-p0-results.md`](../verification/2026-07-18-p0-results.md)。
+
 赛题：JBGS-2026-02 多模态 K12 人工智能通识课教学助手对话智能体。
 
 证据状态说明：
