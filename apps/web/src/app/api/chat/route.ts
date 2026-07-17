@@ -109,6 +109,7 @@ export async function POST(request: Request): Promise<Response> {
         instructions: buildSystemPrompt({ stage: parsed.data.stage, course }),
         messages: toModelMessages(parsed.data),
         abortSignal: deadline.signal,
+        maxRetries: 0,
       });
       const textStream = toTextStream({ stream: result.stream });
       const resilientStream = withTextStreamFallback(textStream, buildCourseFallback(course));

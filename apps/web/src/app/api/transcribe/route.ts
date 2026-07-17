@@ -129,6 +129,7 @@ export async function POST(request: Request): Promise<Response> {
         content: [{ type: "file", mediaType, data: new Uint8Array(await audio.arrayBuffer()) }],
       }],
       abortSignal: deadline.signal,
+      maxRetries: 0,
     });
 
     const transcript = result.text.trim().slice(0, 4000);

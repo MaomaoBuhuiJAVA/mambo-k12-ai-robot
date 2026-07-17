@@ -181,6 +181,7 @@ describe("POST /api/transcribe", () => {
     await expect(response.json()).resolves.toEqual({ transcript: "transcript" });
     expect(generateText).toHaveBeenCalledWith(expect.objectContaining({
       abortSignal: expect.any(AbortSignal),
+      maxRetries: 0,
       messages: [{ role: "user", content: [expect.objectContaining({ type: "file", mediaType: "audio/webm", data: expect.any(Uint8Array) })] }],
     }));
   });

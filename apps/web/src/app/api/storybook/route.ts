@@ -65,6 +65,7 @@ export async function POST(request: Request): Promise<Response> {
         ].join("\n"),
         prompt: buildStorybookPrompt(course),
         abortSignal: deadline?.signal,
+        maxRetries: 0,
       });
       const validated = storybookSchema.safeParse(result.output);
       if (!validated.success) throw new Error("Invalid structured storybook");

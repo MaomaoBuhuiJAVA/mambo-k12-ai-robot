@@ -142,6 +142,7 @@ describe("POST /api/storybook", () => {
       output: expect.anything(),
       instructions: expect.stringContaining("不可信"),
       prompt: expect.stringContaining(course.objectives[0]),
+      maxRetries: 0,
     }));
   });
 

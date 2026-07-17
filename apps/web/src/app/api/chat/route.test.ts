@@ -249,6 +249,7 @@ describe("POST /api/chat", () => {
       instructions: expect.stringContaining("Mambo"),
       messages: [{ role: "user", content: "help" }],
       abortSignal: expect.any(AbortSignal),
+      maxRetries: 0,
     }));
     expect(toTextStream).toHaveBeenCalledWith({ stream: providerStream });
     expect(createTextStreamResponse).toHaveBeenCalledWith({ stream: expect.any(ReadableStream), headers: { "Cache-Control": "no-store" } });
