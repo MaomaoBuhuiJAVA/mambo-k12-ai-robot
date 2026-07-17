@@ -85,7 +85,7 @@ describe("ProgressDashboard", () => {
     expect(screen.getByText(/保存于/)).toBeVisible();
     expect(screen.getByRole("link", { name: /冒泡排序探险记/ })).toHaveAttribute(
       "href",
-      "/?course=lower-bubble-sort#workspace",
+      "/?course=lower-bubble-sort&tab=storybook&work=storybook-1#teaching-canvas",
     );
     expect(screen.queryByText(/功能启用后/)).not.toBeInTheDocument();
   });
@@ -117,5 +117,23 @@ describe("ProgressDashboard", () => {
 
     expect(await screen.findByRole("heading", { name: "图片标签小侦探" })).toBeVisible();
     expect(loadLearningState().interests).toEqual(["image"]);
+    expect(screen.getByRole("status")).toHaveTextContent("兴趣偏好已保存");
+  });
+
+  it("reports an interest storage failure without showing a false selection", async () => {
+    const user = userEvent.setup();
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => { throw new Error("blocked"); };
+
+    try {
+      render(<ProgressDashboard now={new Date("2026-07-18T08:00:00.000Z")} />);
+      const checkbox = await screen.findByRole("checkbox", { name: "图像识别" });
+      await user.click(checkbox);
+
+      expect(checkbox).not.toBeChecked();
+      expect(screen.getByRole("status")).toHaveTextContent("兴趣偏好未能保存");
+    } finally {
+      Storage.prototype.setItem = original;
+    }
   });
 });

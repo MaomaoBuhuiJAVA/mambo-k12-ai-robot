@@ -22,6 +22,7 @@ const STAGE_LABELS = {
 export function ProgressDashboard({ now }: { now?: Date }) {
   const [state, setState] = useState<LearningState>(() => createDefaultLearningState());
   const [savedWorks, setSavedWorks] = useState<SavedStorybook[]>([]);
+  const [interestNotice, setInterestNotice] = useState<string | null>(null);
   const [nowMs] = useState(() => now?.getTime() ?? Date.now());
 
   useEffect(() => {
@@ -58,8 +59,12 @@ export function ProgressDashboard({ now }: { now?: Date }) {
       ? [...new Set([...current.interests, interestId])]
       : current.interests.filter((interest) => interest !== interestId);
     const next = { ...current, interests, updatedAt: new Date().toISOString() };
-    if (!saveLearningState(next)) return;
+    if (!saveLearningState(next)) {
+      setInterestNotice("兴趣偏好未能保存，请检查浏览器存储权限后重试。");
+      return;
+    }
     setState(loadLearningState());
+    setInterestNotice("兴趣偏好已保存。");
     announceLearningStateChanged();
   }
 
@@ -129,6 +134,7 @@ export function ProgressDashboard({ now }: { now?: Date }) {
                 </label>
               ))}
             </div>
+            {interestNotice ? <p role="status">{interestNotice}</p> : null}
           </fieldset>
           <section className={styles.recommendation}>
             <span>推荐下一课</span>
@@ -145,7 +151,7 @@ export function ProgressDashboard({ now }: { now?: Date }) {
               <ul className={styles.workList}>
                 {savedWorks.slice(0, 5).map((work) => (
                   <li key={work.id}>
-                    <Link href={`/?course=${encodeURIComponent(work.courseId)}#workspace`}>
+                    <Link href={`/?course=${encodeURIComponent(work.courseId)}&tab=storybook&work=${encodeURIComponent(work.id)}#teaching-canvas`}>
                       <strong>{work.storybook.title}</strong>
                       <span>保存于 {formatDate(work.savedAt)}</span>
                     </Link>

@@ -25,8 +25,18 @@ const TABS: ReadonlyArray<{ value: CanvasTab; label: string }> = [
   { value: "exercise", label: "练习" },
 ];
 
-export function TeachingCanvas({ course }: { course: CurriculumCourse }) {
-  const [activeTab, setActiveTab] = useState<CanvasTab>("course");
+interface TeachingCanvasProps {
+  course: CurriculumCourse;
+  initialTab?: string;
+  initialStorybookId?: string;
+}
+
+function parseCanvasTab(value: string | undefined): CanvasTab {
+  return TABS.some((tab) => tab.value === value) ? value as CanvasTab : "course";
+}
+
+export function TeachingCanvas({ course, initialTab, initialStorybookId }: TeachingCanvasProps) {
+  const [activeTab, setActiveTab] = useState<CanvasTab>(() => parseCanvasTab(initialTab));
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   function activateTab(index: number) {
@@ -88,17 +98,27 @@ export function TeachingCanvas({ course }: { course: CurriculumCourse }) {
           hidden={activeTab !== tab.value}
           key={tab.value}
         >
-          {activeTab === tab.value ? <CanvasContent tab={tab.value} course={course} /> : null}
+          {activeTab === tab.value ? (
+            <CanvasContent tab={tab.value} course={course} initialStorybookId={initialStorybookId} />
+          ) : null}
         </div>
       ))}
     </aside>
   );
 }
 
-function CanvasContent({ tab, course }: { tab: CanvasTab; course: CurriculumCourse }) {
+function CanvasContent({
+  tab,
+  course,
+  initialStorybookId,
+}: {
+  tab: CanvasTab;
+  course: CurriculumCourse;
+  initialStorybookId?: string;
+}) {
   if (tab === "course") return <CourseView course={course} />;
   if (tab === "animation") return <AnimationView course={course} />;
-  if (tab === "storybook") return <StorybookPlayer course={course} />;
+  if (tab === "storybook") return <StorybookPlayer course={course} initialSavedId={initialStorybookId} />;
   if (tab === "resources") return <ResourceLibrary course={course} />;
   return <QuizPlayer course={course} />;
 }

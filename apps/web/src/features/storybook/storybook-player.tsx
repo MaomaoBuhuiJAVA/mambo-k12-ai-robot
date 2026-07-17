@@ -26,7 +26,7 @@ function readSaved(courseId: string): SavedStorybook[] {
   return readAllSaved().filter((item) => item.courseId === courseId).slice(0, MAX_SAVED_VERSIONS);
 }
 
-export function StorybookPlayer({ course }: { course: CurriculumCourse }) {
+export function StorybookPlayer({ course, initialSavedId }: { course: CurriculumCourse; initialSavedId?: string }) {
   const seed = useMemo(() => createSeedStorybook(course), [course]);
   const [storybook, setStorybook] = useState(seed);
   const [pageIndex, setPageIndex] = useState(0);
@@ -42,8 +42,21 @@ export function StorybookPlayer({ course }: { course: CurriculumCourse }) {
     : null;
 
   useEffect(() => {
-    return () => window.speechSynthesis?.cancel();
-  }, []);
+    let active = true;
+    queueMicrotask(() => {
+      if (!active || !initialSavedId) return;
+      const requested = readSaved(course.id).find((item) => item.id === initialSavedId);
+      if (!requested) return;
+      setStorybook(requested.storybook);
+      setPageIndex(0);
+      setSelectedAnswer(null);
+      setNotice(`正在回看 ${new Date(requested.savedAt).toLocaleDateString("zh-CN")} 保存的版本。`);
+    });
+    return () => {
+      active = false;
+      window.speechSynthesis?.cancel();
+    };
+  }, [course.id, initialSavedId]);
 
   function goToPage(nextIndex: number) {
     setPageIndex(Math.max(0, Math.min(storybook.pages.length - 1, nextIndex)));

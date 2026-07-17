@@ -12,6 +12,13 @@ const course = getCourseById("lower-bubble-sort")!;
 describe("TeachingCanvas", () => {
   beforeEach(() => localStorage.clear());
 
+  it("opens the requested content tab from a deep link", async () => {
+    render(<TeachingCanvas course={course} initialTab="storybook" initialStorybookId="missing" />);
+
+    expect(screen.getByRole("tab", { name: "绘本" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("region", { name: /绘本阅读器/ })).toBeVisible();
+  });
+
   it("exposes course, animation, storybook, resources, and practice as real tabs", async () => {
     const user = userEvent.setup();
     render(<TeachingCanvas course={course} />);

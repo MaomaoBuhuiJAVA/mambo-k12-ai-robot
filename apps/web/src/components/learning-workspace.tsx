@@ -44,10 +44,22 @@ function persistLearningSelection(nextStage: Stage, courseId: string) {
   })) announceLearningStateChanged();
 }
 
-export function LearningWorkspace() {
-  const [stage, setStage] = useState<Stage>(DEFAULT_STAGE);
+interface LearningWorkspaceProps {
+  requestedCourseId?: string;
+  initialCanvasTab?: string;
+  initialStorybookId?: string;
+}
+
+export function LearningWorkspace({
+  requestedCourseId,
+  initialCanvasTab,
+  initialStorybookId,
+}: LearningWorkspaceProps = {}) {
+  const requestedCourse = requestedCourseId ? getCourseById(requestedCourseId) : undefined;
+  const initialStage = requestedCourse?.stage ?? DEFAULT_STAGE;
+  const [stage, setStage] = useState<Stage>(initialStage);
   const [selectedCourseId, setSelectedCourseId] = useState(() =>
-    getDefaultCourseId(DEFAULT_STAGE),
+    requestedCourse?.id ?? getDefaultCourseId(initialStage),
   );
   const [mobileView, setMobileView] =
     useState<MobileView>("conversation");
@@ -60,8 +72,7 @@ export function LearningWorkspace() {
     queueMicrotask(() => {
       if (!active) return;
       const saved = loadLearningState();
-      const requestedId = new URLSearchParams(window.location.search).get("course");
-      const requested = requestedId ? getCourseById(requestedId) : undefined;
+      const requested = requestedCourseId ? getCourseById(requestedCourseId) : undefined;
       const savedCourse = saved.lastCourseId ? getCourseById(saved.lastCourseId) : undefined;
       const initialCourse = requested ?? (savedCourse?.stage === saved.profile.stage ? savedCourse : undefined);
       const initialStage = initialCourse?.stage ?? saved.profile.stage;
@@ -70,7 +81,7 @@ export function LearningWorkspace() {
       if (requested) persistLearningSelection(requested.stage, requested.id);
     });
     return () => { active = false; };
-  }, []);
+  }, [requestedCourseId]);
 
   function handleStageChange(nextStage: Stage) {
     const nextCourseId = getDefaultCourseId(nextStage);
@@ -123,7 +134,12 @@ export function LearningWorkspace() {
           className="workspace-panel workspace-panel--content"
           data-mobile-active={mobileView === "content"}
         >
-          <TeachingCanvas course={course} key={course.id} />
+          <TeachingCanvas
+            course={course}
+            initialTab={initialCanvasTab}
+            initialStorybookId={initialStorybookId}
+            key={course.id}
+          />
         </div>
       </div>
 

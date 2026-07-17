@@ -15,6 +15,22 @@ afterEach(() => {
 });
 
 describe("StorybookPlayer", () => {
+  it("opens the exact saved version requested by a progress deep link", async () => {
+    const saved = createSeedStorybook(course);
+    saved.title = "我保存的排序绘本";
+    localStorage.setItem("mambo.storybooks.v1", JSON.stringify([{
+      id: "saved-version-1",
+      courseId: course.id,
+      savedAt: "2026-07-18T08:00:00.000Z",
+      storybook: saved,
+    }]));
+
+    render(<StorybookPlayer course={course} initialSavedId="saved-version-1" />);
+
+    expect(await screen.findByText("我保存的排序绘本")).toBeVisible();
+    expect(screen.getByText(/正在回看/)).toBeVisible();
+  });
+
   it("turns pages and gives explicit answer feedback", async () => {
     const user = userEvent.setup();
     render(<StorybookPlayer course={course} />);
