@@ -11,6 +11,10 @@
 - **手工待采集**：需要浏览器、Office、云环境或 OrangePi 实机，本轮未执行浏览器验收。
 - **规划**：未实现，不计入已交付能力。
 
+## 最新交接
+
+- [P0 功能交接文档](../handoff/functional-handoff.md)：当前真实功能、接口、环境变量、硬件边界和前端重设计契约。
+
 ## R01-R16
 
 | requirement_id | claim | owner/status | code_ref | api_ref | test_ref | visual_ref / demo_timestamp |
@@ -57,3 +61,6 @@
 7. 所有证据记录 commit SHA、环境、日期、操作者、结果和已知限制。
 
 本轮没有执行浏览器验收、云部署或实机端到端演示，因此这些证据仍是发布阻断项，而不是“默认通过”。
+# 最新交接
+
+- [P0 功能交接文档](../handoff/functional-handoff.md)：当前真实功能、接口、环境变量、硬件边界和前端重设计契约。

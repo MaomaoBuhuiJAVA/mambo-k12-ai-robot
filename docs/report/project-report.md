@@ -87,7 +87,7 @@ Core API 负责 OrangePi WebSocket 鉴权、在线连接、心跳、状态、白
 
 ### 5.1 Provider
 
-当前正式 Provider 是 Google Gemini，通过 Vercel AI SDK 调用，模型 ID 由 `GEMINI_MODEL` 配置，默认 `gemini-2.5-flash`。Knodo、Dify、扣子或其他平台没有接入；因此当前不能声称已实现可热切换 Provider。后续会把聊天、ASR、TTS 和图片生成抽象为独立适配器，而不是让平台字段进入核心课程模型。
+当前正式 Provider 是 Google Gemini，通过 Vercel AI SDK 调用，模型 ID 由 `GEMINI_MODEL` 配置，默认 `gemini-3.5-flash`。Knodo、Dify、扣子或其他平台没有接入；因此当前不能声称已实现可热切换 Provider。后续会把聊天、ASR、TTS 和图片生成抽象为独立适配器，而不是让平台字段进入核心课程模型。
 
 ### 5.2 上下文与提示
 

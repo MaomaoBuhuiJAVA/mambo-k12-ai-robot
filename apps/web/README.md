@@ -45,7 +45,7 @@ npm run dev --workspace apps/web
 | 变量 | 必需条件 | 说明 |
 |---|---|---|
 | `GOOGLE_GENERATIVE_AI_API_KEY` | 使用对话/转写/AI 绘本 | Google Gemini 密钥，仅由 Route Handler 读取 |
-| `GEMINI_MODEL` | 可选 | 默认 `gemini-2.5-flash` |
+| `GEMINI_MODEL` | 可选 | 默认 `gemini-3.5-flash` |
 | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Vercel AI 请求必需，二选一组 | 首选 Redis REST 凭证组 |
 | `KV_REST_API_URL` + `KV_REST_API_TOKEN` | Vercel AI 请求必需，二选一组 | 兼容凭证组；只在首选组不完整时使用完整的本组 |
 | `CORE_API_URL` | 可选 | FastAPI Core 根地址；Vercel 环境必须是 HTTPS |
