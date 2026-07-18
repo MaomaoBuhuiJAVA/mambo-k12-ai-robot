@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Web application
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test --workspace apps/web -- --run
+      - run: npm run lint --workspace apps/web
+      - run: npm run typecheck --workspace apps/web
+      - run: npm run build --workspace apps/web
+      - run: npm run smoke:lab --workspace apps/web
+
+  core-api:
+    name: Core API and device agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: server/requirements-dev.txt
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r server/requirements-dev.txt
+      - run: python -m pytest

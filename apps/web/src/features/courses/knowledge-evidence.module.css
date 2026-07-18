@@ -1,0 +1,101 @@
+.evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-block: 2px 18px;
+  border-bottom: 1px solid #dde3e1;
+  color: #173f3a;
+}
+
+.evidence h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+}
+
+.evidence h3 svg {
+  color: #087f6d;
+}
+
+.evidence > p {
+  color: #66807c;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.facts,
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  list-style: none;
+}
+
+.facts li {
+  position: relative;
+  padding-left: 14px;
+  color: #52706b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.citation {
+  margin-left: 4px;
+  color: #087f6d;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.facts li::before {
+  position: absolute;
+  top: 8px;
+  left: 1px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #087f6d;
+  content: "";
+}
+
+.sources {
+  gap: 5px;
+}
+
+.sources a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1px 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-left: 2px solid #c7d9d5;
+  color: #176f66;
+  background: #f3fbf9;
+  overflow-wrap: anywhere;
+}
+
+.sources a:hover {
+  border-left-color: #087f6d;
+}
+
+.sources span {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sources small {
+  grid-column: 1;
+  color: #66807c;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.sources svg {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.evidence[data-variant="sources"] {
+  padding-top: 3px;
+  border-bottom: 0;
+}

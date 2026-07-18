@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "reviewedOn": "2026-07-18",
+  "sources": [
+    {
+      "id": "nist-bubble-sort",
+      "title": "Bubble sort",
+      "publisher": "NIST Dictionary of Algorithms and Data Structures",
+      "sourceType": "算法词典",
+      "url": "https://www.nist.gov/dads/HTML/bubblesort.html"
+    },
+    {
+      "id": "pytorch-neural-networks",
+      "title": "Neural Networks",
+      "publisher": "PyTorch Tutorials",
+      "sourceType": "官方教程",
+      "url": "https://docs.pytorch.org/tutorials/beginner/blitz/neural_networks_tutorial.html"
+    },
+    {
+      "id": "pytorch-training-classifier",
+      "title": "Training a Classifier",
+      "publisher": "PyTorch Tutorials",
+      "sourceType": "官方教程",
+      "url": "https://docs.pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html"
+    },
+    {
+      "id": "sklearn-classification-metrics",
+      "title": "Metrics and scoring: quantifying the quality of predictions",
+      "publisher": "scikit-learn",
+      "sourceType": "官方文档",
+      "url": "https://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics"
+    }
+  ],
+  "topics": [
+    {
+      "id": "bubble-sort",
+      "label": "冒泡排序",
+      "courseIds": [
+        "lower-bubble-sort",
+        "high-bubble-analysis"
+      ],
+      "facts": [
+        {
+          "id": "bubble-adjacent-swap",
+          "statement": "冒泡排序逐对比较相邻元素，顺序不对就交换；重复遍历，直到一轮没有交换。",
+          "sourceIds": ["nist-bubble-sort"],
+          "courseIds": ["lower-bubble-sort", "high-bubble-analysis"]
+        },
+        {
+          "id": "bubble-complexity",
+          "statement": "对任意数据，NIST 将冒泡排序的复杂度记为 O(n²)；初始序列接近有序时可接近 Θ(n)。",
+          "sourceIds": ["nist-bubble-sort"],
+          "courseIds": ["high-bubble-analysis"]
+        }
+      ]
+    },
+    {
+      "id": "image-classification",
+      "label": "神经网络与图像分类",
+      "courseIds": [
+        "lower-picture-labels",
+        "upper-fruit-classifier",
+        "middle-neural-signals",
+        "middle-data-bias",
+        "high-image-model-audit"
+      ],
+      "facts": [
+        {
+          "id": "neural-forward-and-training",
+          "statement": "神经网络的前向传播让输入依次经过多层得到输出；训练通过损失、反向传播和参数更新来学习权重。",
+          "sourceIds": ["pytorch-neural-networks"],
+          "courseIds": ["middle-neural-signals", "high-image-model-audit"]
+        },
+        {
+          "id": "classifier-score-is-prediction",
+          "statement": "图像分类器为各类别输出分数，通常选择最高分对应的类别作为预测；预测不等于事实，需要与真实标签核对。",
+          "sourceIds": ["pytorch-training-classifier"],
+          "courseIds": [
+            "lower-picture-labels",
+            "upper-fruit-classifier",
+            "middle-neural-signals",
+            "middle-data-bias",
+            "high-image-model-audit"
+          ]
+        },
+        {
+          "id": "evaluate-by-class",
+          "statement": "整体准确率可能掩盖类别差异，因此还要逐类检查分类表现。",
+          "sourceIds": ["pytorch-training-classifier"],
+          "courseIds": ["middle-data-bias", "high-image-model-audit"]
+        },
+        {
+          "id": "confusion-matrix-counts",
+          "statement": "混淆矩阵按真实类别与预测类别统计结果，可用来定位哪些类别容易混淆。",
+          "sourceIds": ["sklearn-classification-metrics"],
+          "courseIds": ["middle-data-bias", "high-image-model-audit"]
+        }
+      ]
+    }
+  ]
+}

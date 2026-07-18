@@ -1,0 +1,22 @@
+{
+  "name": "mambo-k12-ai-robot",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "workspaces": [
+    "apps/web"
+  ],
+  "dependencies": {
+    "next": "16.2.10"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "build": "npm run build --workspace apps/web",
+    "start": "npm run start --workspace apps/web",
+    "lint": "npm run lint --workspace apps/web",
+    "test": "npm run test --workspace apps/web",
+    "typecheck": "npm run typecheck --workspace apps/web"
+  }
+}
