@@ -6,7 +6,7 @@
 
 - OrangePi 主动建立 WebSocket 长连接，支持认证、心跳、状态上报和自动重连
 - 服务端持久化设备、状态历史和命令结果，重启后记录不丢失
-- 服务端只下发 `ping`、`get_status` 白名单命令，不提供远程 Shell
+- 服务端下发拍照、媒体显示、音频播放和屏幕模式白名单命令，不提供远程 Shell
 - 学生档案支持四个学段和兴趣标签
 - 课程按学段管理，学习会话会校验学生与课程学段是否匹配
 - 持久化对话消息、多模态元数据、练习答案、成绩和反馈
@@ -108,6 +108,26 @@ export DEVICE_AUTH_TOKEN="与服务端一致的设备令牌"
 export SERVER_WS_URL="ws://<服务端局域网IP>:8000/ws/v1/devices"
 python -m device.agent
 ```
+
+设备端硬件配置包括：
+
+```text
+MEDIA_ROOT=/home/orangepi/.local/share/mambo/media
+CAMERA_DEVICE=/dev/video0
+CAMERA_WIDTH=1920
+CAMERA_HEIGHT=1080
+CAMERA_FPS=30
+CAMERA_WARMUP_FRAMES=120
+DISPLAY_NAME=:0
+XAUTHORITY_PATH=/home/orangepi/.Xauthority
+MEDIA_ALLOWED_HOSTS=<服务端或对象存储主机>
+COMMAND_TIMEOUT_SECONDS=30
+```
+
+代理启动后会在 `hello` 中上报摄像头、显示器、音频、NPU 和工具能力；拍照文件
+默认写入 `MEDIA_ROOT/snapshots`。图片、视频和音频由代理持有的 `mpv` 进程管理。
+
+服务端设备命令的完整参数和错误码见 `docs/protocol.md`。
 
 已经安装 systemd 服务时，开发板开机后会自行连接服务端，无需先 SSH。部署详情见 `deploy/mambo-device-agent.service`。
 

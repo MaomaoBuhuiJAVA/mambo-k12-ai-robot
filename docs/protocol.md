@@ -56,6 +56,38 @@ Authorization: Bearer <DEVICE_AUTH_TOKEN>
 
 - `ping`
 - `get_status`
+- `capture_snapshot`
+- `show_artifact`
+- `stop_artifact`
+- `play_audio`
+- `stop_audio`
+- `set_display_mode`
 
 任何未知命令都必须返回 `unsupported_command`，不得转交 Shell。
 
+## 硬件命令参数
+
+所有命令都必须带 `command_id`。设备端会缓存最近的结果，同一个命令 ID 在同一
+进程内重复到达时只执行一次。
+
+```json
+{"name": "capture_snapshot", "arguments": {}}
+{"name": "show_artifact", "arguments": {"source": "/home/orangepi/.local/share/mambo/media/snapshots/id.jpg", "media_type": "image"}}
+{"name": "play_audio", "arguments": {"source": "https://media.example/audio.mp3", "volume": 80}}
+{"name": "set_display_mode", "arguments": {"mode": "presentation"}}
+```
+
+`media_type` 只能是 `image` 或 `video`，音量范围为 `0..100`，显示模式只能是
+`on`、`presentation` 或 `off`。本地文件必须位于设备 `MEDIA_ROOT` 内；远程资源
+只能使用 `http/https` 且主机必须在 `MEDIA_ALLOWED_HOSTS` 中。设备不会执行任意
+Shell，也不会返回令牌、环境变量或完整命令输出。
+
+命令结果至少包含：
+
+```json
+{"command_id": "...", "ok": true, "duration_ms": 12}
+```
+
+失败时使用 `unsupported_command`、`invalid_arguments`、`source_not_allowed`、
+`tool_unavailable`、`device_unavailable`、`command_timeout`、`capture_failed`、
+`playback_failed` 或 `display_failed` 等稳定错误码。
