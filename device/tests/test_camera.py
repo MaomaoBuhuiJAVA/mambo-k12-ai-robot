@@ -52,7 +52,8 @@ def test_capture_warms_camera_and_atomically_returns_jpeg(tmp_path: Path) -> Non
     assert result["width"] == 1920
     assert result["height"] == 1080
     assert Path(result["path"]).is_file()
-    assert not list(tmp_path.glob("*.tmp"))
+    assert runner.argv[-1].endswith(".tmp.jpg")
+    assert not list(tmp_path.rglob("*.tmp.jpg"))
 
 
 def test_capture_failure_removes_temporary_file(tmp_path: Path) -> None:
@@ -68,4 +69,4 @@ def test_capture_failure_removes_temporary_file(tmp_path: Path) -> None:
         asyncio.run(adapter.capture("capture-failed"))
 
     assert exc_info.value.code == "capture_failed"
-    assert not list((tmp_path / "snapshots").iterdir())
+    assert not list((tmp_path / "snapshots").rglob("*.tmp.jpg"))

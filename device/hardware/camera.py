@@ -38,7 +38,7 @@ class CameraAdapter:
         snapshots = self.config.media_root / "snapshots"
         snapshots.mkdir(parents=True, exist_ok=True)
         safe_id = re.sub(r"[^A-Za-z0-9_-]", "-", command_id).strip("-") or "snapshot"
-        temporary = snapshots / f"{safe_id}.tmp"
+        temporary = snapshots / f"{safe_id}.tmp.jpg"
         final = snapshots / f"{safe_id}.jpg"
         argv = [
             "ffmpeg",
