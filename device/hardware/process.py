@@ -57,7 +57,13 @@ def _signal_process(process: Any, *, force: bool) -> None:
 
 
 class ProcessRunner:
-    async def run(self, argv: list[str], timeout_seconds: float) -> ProcessResult:
+    async def run(
+        self,
+        argv: list[str],
+        timeout_seconds: float,
+        *,
+        env: dict[str, str] | None = None,
+    ) -> ProcessResult:
         if not argv or any(not isinstance(item, str) or not item for item in argv):
             raise ProcessExecutionError("invalid process arguments", code="invalid_arguments")
         try:
@@ -66,6 +72,7 @@ class ProcessRunner:
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
                 start_new_session=True,
             )
         except FileNotFoundError as exc:
