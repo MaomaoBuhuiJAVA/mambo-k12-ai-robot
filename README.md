@@ -7,6 +7,7 @@
 - OrangePi 主动建立 WebSocket 长连接，支持认证、心跳、状态上报和自动重连
 - 服务端持久化设备、状态历史和命令结果，重启后记录不丢失
 - 服务端下发拍照、媒体显示、音频播放和屏幕模式白名单命令，不提供远程 Shell
+- `/robot` 提供 800x480 机器人课堂页：百度 ASR/TTS、文字对话、本地手势光标和握拳确认点击
 - 学生档案支持四个学段和兴趣标签
 - 课程按学段管理，学习会话会校验学生与课程学段是否匹配
 - 持久化对话消息、多模态元数据、练习答案、成绩和反馈
@@ -38,7 +39,7 @@ pip install -r server/requirements-dev.txt
 cp .env.example .env
 ```
 
-修改 `.env`，至少设置不同的 `DEVICE_AUTH_TOKEN` 和 `ADMIN_API_TOKEN`。本地默认数据库为 `data/mambo.db`。
+修改 `.env`，至少设置不同的 `DEVICE_AUTH_TOKEN` 和 `ADMIN_API_TOKEN`；机器人语音还需要配置 `BAIDU_APP_ID`、`BAIDU_API_KEY`、`BAIDU_SECRET_KEY`。本地默认数据库为 `data/mambo.db`。真实密钥只写入被忽略的 `.env`，不要写入开发板或 Git。
 
 Windows PowerShell：
 
@@ -93,6 +94,8 @@ POST   /api/v1/learning-sessions/{session_id}/attempts
 ```text
 Authorization: Bearer <ADMIN_API_TOKEN>
 ```
+
+机器人语音接口（供 Web BFF 调用）为 `POST /api/v1/voice/asr` 和 `POST /api/v1/voice/tts`，同样使用管理令牌保护。
 
 ## 启动 OrangePi 代理
 

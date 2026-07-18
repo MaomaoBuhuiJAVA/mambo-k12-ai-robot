@@ -84,6 +84,11 @@ Compose 会等待 PostgreSQL healthcheck，通过内部 `postgresql+asyncpg` 连
 | `HEARTBEAT_INTERVAL_SECONDS` | 可选，默认 5 | Welcome 消息中的心跳间隔，最小 2 秒 |
 | `DEVICE_STALE_AFTER_SECONDS` | 可选，默认 20 | 离线判定配置，最小 10 秒 |
 | `PORT` | 平台提供或默认 8000 | 容器监听端口 |
+| `BAIDU_APP_ID` | 机器人语音必需 | 百度语音 AppID，仅 Core 使用 |
+| `BAIDU_API_KEY` | 机器人语音必需 | 百度语音 API Key，仅 Core 使用 |
+| `BAIDU_SECRET_KEY` | 机器人语音必需 | 百度语音 Secret Key，仅 Core 使用 |
+| `BAIDU_ASR_DEV_PID` | 可选，默认 1537 | 百度中文普通话识别模型 |
+| `BAIDU_TTS_PER` | 可选，默认 110 | 百度中文发音人 |
 
 示意运行命令只展示变量名，不包含真实值：
 
@@ -93,6 +98,9 @@ docker run --rm -p 8000:8000 \
   -e ADMIN_API_TOKEN \
   -e DATABASE_URL \
   -e AUTO_CREATE_SCHEMA=false \
+  -e BAIDU_APP_ID \
+  -e BAIDU_API_KEY \
+  -e BAIDU_SECRET_KEY \
   mambo-core:0.2
 ```
 
