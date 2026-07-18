@@ -1,20 +1,27 @@
+import asyncio
 import time
+from datetime import timedelta
 
 from fastapi.testclient import TestClient
 
+from server.app.database import session_factory
 from server.app.main import app
+from server.app.models import Device, DeviceCommand, utc_now
+from server.app.repositories import complete_command, expire_stale_commands
 
 
 DEVICE_HEADERS = {"Authorization": "Bearer test-device-token-123456"}
 ADMIN_HEADERS = {"Authorization": "Bearer test-admin-token-123456"}
 
 
-def envelope(message_type: str, payload: dict) -> dict:
+def envelope(
+    message_type: str, payload: dict, device_id: str = "test-device-01"
+) -> dict:
     return {
         "version": 1,
         "message_id": f"message-{message_type}-123456",
         "type": message_type,
-        "device_id": "test-device-01",
+        "device_id": device_id,
         "timestamp": "2026-07-17T10:00:00Z",
         "payload": payload,
     }
@@ -119,3 +126,79 @@ def test_device_lifecycle_and_command() -> None:
 def test_admin_endpoint_rejects_missing_token() -> None:
     with TestClient(app) as client:
         assert client.get("/api/v1/devices").status_code == 401
+
+
+def test_new_command_has_deadline_and_is_returned() -> None:
+    with TestClient(app) as client:
+        with client.websocket_connect(
+            "/ws/v1/devices/deadline-device-01", headers=DEVICE_HEADERS
+        ) as socket:
+            assert socket.receive_json()["type"] == "welcome"
+            socket.send_json(
+                envelope(
+                    "hello",
+                    {"agent_version": "0.1.0"},
+                    device_id="deadline-device-01",
+                )
+            )
+            socket.send_json(
+                envelope("heartbeat", {}, device_id="deadline-device-01")
+            )
+            assert socket.receive_json()["type"] == "heartbeat_ack"
+
+            response = client.post(
+                "/api/v1/devices/deadline-device-01/commands",
+                headers=ADMIN_HEADERS,
+                json={"name": "capture_snapshot", "arguments": {}},
+            )
+            assert response.status_code == 200
+            command = response.json()
+            assert command["expires_at"] is not None
+
+            delivered = socket.receive_json()
+            assert delivered["payload"]["name"] == "capture_snapshot"
+
+
+def test_expired_command_cannot_be_overwritten_by_late_result() -> None:
+    command_id = "expired-command-000000000000000000000000000000"
+    device_id = "expired-device-01"
+
+    async def seed_expired_command() -> None:
+        now = utc_now()
+        async with session_factory() as session:
+            session.add(Device(device_id=device_id))
+            session.add(
+                DeviceCommand(
+                    command_id=command_id,
+                    device_id=device_id,
+                    name="ping",
+                    arguments={},
+                    state="sent",
+                    created_at=now - timedelta(minutes=1),
+                    expires_at=now - timedelta(seconds=30),
+                )
+            )
+            await session.commit()
+
+    async def late_result() -> None:
+        async with session_factory() as session:
+            await complete_command(
+                session,
+                device_id,
+                {"command_id": command_id, "ok": True, "pong": "late"},
+            )
+
+    asyncio.run(seed_expired_command())
+    with TestClient(app) as client:
+        response = client.get(
+            f"/api/v1/commands/{command_id}", headers=ADMIN_HEADERS
+        )
+        assert response.status_code == 200
+        assert response.json()["state"] == "timed_out"
+
+    asyncio.run(late_result())
+    with TestClient(app) as client:
+        response = client.get(
+            f"/api/v1/commands/{command_id}", headers=ADMIN_HEADERS
+        )
+        assert response.json()["state"] == "timed_out"

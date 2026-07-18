@@ -97,6 +97,7 @@ async def create_command(session: AsyncSession, record: CommandRecord) -> None:
             arguments=record.arguments,
             state=record.state,
             created_at=record.created_at,
+            expires_at=record.expires_at,
         )
     )
     await session.commit()
@@ -121,10 +122,38 @@ async def complete_command(
     command = await session.get(DeviceCommand, command_id)
     if command is None or command.device_id != device_id:
         return
+    if command.state != "sent":
+        await session.commit()
+        return
     command.state = "completed" if bool(payload.get("ok", False)) else "failed"
     command.completed_at = utc_now()
     command.result = payload
     await session.commit()
+
+
+async def expire_stale_commands(
+    session: AsyncSession, now: datetime | None = None
+) -> int:
+    cutoff = now or utc_now()
+    result = await session.scalars(
+        select(DeviceCommand).where(
+            DeviceCommand.state == "sent",
+            DeviceCommand.expires_at <= cutoff,
+        )
+    )
+    commands = list(result)
+    for command in commands:
+        command.state = "timed_out"
+        command.completed_at = cutoff
+        command.result = {
+            "command_id": command.command_id,
+            "ok": False,
+            "error": "command_timeout",
+            "source": "server",
+        }
+    if commands:
+        await session.commit()
+    return len(commands)
 
 
 async def get_command(session: AsyncSession, command_id: str) -> DeviceCommand | None:
@@ -151,6 +180,7 @@ def command_to_record(command: DeviceCommand) -> CommandRecord:
         arguments=command.arguments,
         state=command.state,
         created_at=command.created_at,
+        expires_at=command.expires_at,
         completed_at=command.completed_at,
         result=command.result,
     )

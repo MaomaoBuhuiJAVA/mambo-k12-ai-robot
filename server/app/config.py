@@ -12,6 +12,7 @@ class Settings:
     device_stale_after_seconds: int
     database_url: str
     auto_create_schema: bool
+    command_timeout_seconds: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -29,6 +30,9 @@ class Settings:
             ),
             auto_create_schema=os.getenv("AUTO_CREATE_SCHEMA", "false").lower()
             in {"1", "true", "yes", "on"},
+            command_timeout_seconds=max(
+                1, int(os.getenv("COMMAND_TIMEOUT_SECONDS", "30"))
+            ),
         )
 
 

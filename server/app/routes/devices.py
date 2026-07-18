@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 import re
+from datetime import timedelta
 from uuid import uuid4
 
 from anyio import CancelScope
@@ -19,6 +20,7 @@ from ..repositories import (
     command_to_record,
     complete_command,
     create_command,
+    expire_stale_commands,
     fail_command_delivery,
     get_command,
     list_device_commands,
@@ -84,6 +86,7 @@ async def issue_command(
         arguments=request.arguments,
         state="sent",
         created_at=utc_now(),
+        expires_at=utc_now() + timedelta(seconds=settings.command_timeout_seconds),
     )
     await create_command(session, record)
     try:
@@ -105,6 +108,7 @@ async def read_device_commands(
     limit: int = Query(default=100, ge=1, le=1000),
     session: AsyncSession = Depends(get_session),
 ) -> list[CommandRecord]:
+    await expire_stale_commands(session)
     if await session.get(Device, device_id) is None:
         raise HTTPException(status_code=404, detail="device_not_found")
     return [
@@ -117,6 +121,7 @@ async def read_device_commands(
 async def read_command(
     command_id: str, session: AsyncSession = Depends(get_session)
 ) -> CommandRecord:
+    await expire_stale_commands(session)
     command = await get_command(session, command_id)
     if command is None:
         raise HTTPException(status_code=404, detail="command_not_found")

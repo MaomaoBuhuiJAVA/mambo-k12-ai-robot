@@ -113,5 +113,6 @@ class CommandRecord(BaseModel):
     arguments: dict[str, Any]
     state: Literal["sent", "completed", "failed", "timed_out"]
     created_at: datetime
+    expires_at: datetime
     completed_at: datetime | None = None
     result: dict[str, Any] | None = None
