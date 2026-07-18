@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from device.hardware.mouse import MouseAdapter, MouseConfig
@@ -58,3 +60,22 @@ def test_mouse_adapter_rate_limits_clicks() -> None:
     now[0] += 0.5
     assert adapter.click() == {"button": "left"}
     assert backend.clicks == 2
+
+
+def test_xtest_backend_moves_the_real_pointer_when_explicitly_enabled() -> None:
+    if os.getenv("MAMBO_RUN_XTEST") != "1":
+        pytest.skip("set MAMBO_RUN_XTEST=1 on an X11 board to run this hardware smoke test")
+
+    adapter = MouseAdapter(
+        MouseConfig(
+            display_name=os.getenv("DISPLAY", ":0"),
+            xauthority_path=os.getenv("XAUTHORITY", ""),
+        )
+    )
+    try:
+        result = adapter.move(0.5, 0.5)
+    finally:
+        adapter.close()
+
+    assert result["screen_width"] > 0
+    assert result["screen_height"] > 0

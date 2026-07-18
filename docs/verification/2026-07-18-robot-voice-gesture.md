@@ -8,6 +8,7 @@
 - 手势模型加载失败或摄像头无权限时，页面回退鼠标/键盘，并保留文字对话。
 - OrangePi SSH、摄像头设备和 `mambo-device-agent` 已确认可用。
 - OrangePi 官方 VIPLite 冒烟样例已运行成功：`vpm_run -s sample.txt -l 1 -b 1`，记录的单帧推理耗时约 `2904us`。
+- XTest 适配器提供 `scripts/verify-xtest.py` 实机冒烟命令；它只把指针移动到屏幕中心，不执行点击。
 
 ## 尚需现场配置
 
