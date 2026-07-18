@@ -76,10 +76,6 @@ export function LearningWorkspace({
     courses.find((candidate) => candidate.id === selectedCourseId) ?? courses[0];
 
   useEffect(() => {
-    setMobileView(parseMobileView(initialMobileView));
-  }, [initialMobileView]);
-
-  useEffect(() => {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
