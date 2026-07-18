@@ -54,6 +54,8 @@ async def persist_device_seen(
         device.platform = str(hello.get("platform") or "") or None
         capabilities = hello.get("capabilities", [])
         device.capabilities = [str(item) for item in capabilities]
+        hardware = hello.get("hardware", {})
+        device.hardware = hardware if isinstance(hardware, dict) else {}
     if status is not None:
         device.latest_status = status
         session.add(DeviceStatus(device_id=device_id, payload=status))

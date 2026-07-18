@@ -46,6 +46,9 @@ class Device(Base):
     agent_version: Mapped[str | None] = mapped_column(String(32))
     platform: Mapped[str | None] = mapped_column(String(255))
     capabilities: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    hardware: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
     latest_status: Mapped[dict[str, Any]] = mapped_column(
         JSON, default=dict, nullable=False
     )

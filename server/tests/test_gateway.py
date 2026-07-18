@@ -49,6 +49,7 @@ def test_device_lifecycle_and_command() -> None:
                         "agent_version": "0.1.0",
                         "platform": "Linux-aarch64",
                         "capabilities": ["audio", "camera", "display", "npu"],
+                        "hardware": {"camera": {"available": True}},
                     },
                 )
             )
@@ -59,6 +60,9 @@ def test_device_lifecycle_and_command() -> None:
             devices = client.get("/api/v1/devices", headers=ADMIN_HEADERS)
             assert devices.status_code == 200
             assert devices.json()["items"][0]["device_id"] == "test-device-01"
+            assert devices.json()["items"][0]["hardware"] == {
+                "camera": {"available": True}
+            }
 
             issued = client.post(
                 "/api/v1/devices/test-device-01/commands",

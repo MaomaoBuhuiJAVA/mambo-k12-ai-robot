@@ -23,6 +23,7 @@ class DeviceRead(ORMModel):
     agent_version: str | None
     platform: str | None
     capabilities: list[str]
+    hardware: dict[str, Any]
     latest_status: dict[str, Any]
 
 
