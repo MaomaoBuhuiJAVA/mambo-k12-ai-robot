@@ -1,6 +1,6 @@
 import { google } from "@ai-sdk/google";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash";
 
 export function getGoogleModel(modelId = process.env.GEMINI_MODEL ?? DEFAULT_MODEL) {
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
