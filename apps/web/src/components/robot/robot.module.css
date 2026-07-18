@@ -1,0 +1,127 @@
+.robotPage {
+  --robot-ink: #202625;
+  --robot-muted: #68726f;
+  --robot-soft: #f4f7f5;
+  --robot-line: #dde3e1;
+  --robot-primary: #087f6d;
+  --robot-primary-soft: #e8f4f1;
+  --robot-yellow: #f4c84a;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1280px, 100%);
+  height: 100dvh;
+  min-height: 480px;
+  margin: 0 auto;
+  overflow: hidden;
+  color: var(--robot-ink);
+  background: #ffffff;
+}
+
+.header {
+  display: flex;
+  flex: 0 0 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--robot-line);
+}
+
+.brandBlock,
+.connection,
+.controlTitle,
+.modeHint,
+.secondaryButton,
+.actionRow,
+.phase {
+  display: flex;
+  align-items: center;
+}
+
+.brandBlock { gap: 10px; min-width: 0; }
+.brandMark {
+  display: grid;
+  flex: 0 0 34px;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #ffffff;
+  background: var(--robot-primary);
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.brandBlock h1 { font-size: 18px; line-height: 1.2; }
+.brandBlock p { margin-top: 2px; color: var(--robot-muted); font-size: 12px; }
+.connection { gap: 6px; max-width: 42%; color: var(--robot-muted); font-size: 12px; }
+.connection[data-status="online"] { color: var(--robot-primary); }
+.connection[data-status="offline"], .connection[data-status="unavailable"] { color: #b35a32; }
+
+.contentGrid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(150px, 0.72fr) minmax(300px, 1.5fr) minmax(178px, 0.82fr);
+  min-height: 0;
+}
+
+.lessonRail,
+.conversation,
+.controlRail { min-width: 0; min-height: 0; padding: 18px; }
+.lessonRail { border-right: 1px solid var(--robot-line); background: var(--robot-soft); }
+.conversation { display: flex; flex-direction: column; border-right: 1px solid var(--robot-line); }
+.controlRail { display: flex; flex-direction: column; gap: 12px; background: #ffffff; }
+.sectionLabel { color: var(--robot-primary); font-size: 11px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; }
+.lessonRail h2, .conversationHeader h2 { margin-top: 6px; font-size: clamp(18px, 2.4vw, 26px); line-height: 1.16; }
+.summary { margin-top: 10px; color: var(--robot-muted); font-size: 13px; line-height: 1.55; }
+.keyPoint { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--robot-line); }
+.keyPoint span { color: var(--robot-muted); font-size: 11px; }
+.keyPoint strong { display: block; margin-top: 7px; font-size: 15px; }
+.keyPoint p { margin-top: 6px; color: var(--robot-muted); font-size: 12px; line-height: 1.5; }
+.modeHint { gap: 6px; margin-top: 22px; color: var(--robot-primary); font-size: 11px; font-weight: 650; }
+
+.conversationHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.phase { flex: 0 0 auto; gap: 5px; min-height: 26px; padding: 4px 9px; border: 1px solid var(--robot-line); border-radius: 999px; color: var(--robot-muted); font-size: 11px; }
+.phase[data-phase="listening"] { border-color: var(--robot-yellow); color: #755a00; background: #fff8d8; }
+.phase[data-phase="thinking"], .phase[data-phase="transcribing"] { border-color: #91c8bd; color: var(--robot-primary); background: var(--robot-primary-soft); }
+.phase[data-phase="error"] { border-color: #f0b2a7; color: #a44336; background: #fff0ed; }
+.messages { display: flex; flex: 1; flex-direction: column; gap: 12px; min-height: 0; padding: 16px 0; overflow-y: auto; }
+.message { display: flex; align-items: flex-start; gap: 8px; max-width: 92%; }
+.message[data-author="learner"] { align-self: flex-end; flex-direction: row-reverse; }
+.messageAvatar { display: grid; flex: 0 0 25px; place-items: center; width: 25px; height: 25px; border-radius: 50%; color: var(--robot-primary); background: var(--robot-primary-soft); font-size: 10px; font-weight: 750; }
+.message[data-author="learner"] .messageAvatar { color: #755a00; background: #fff8d8; }
+.message p { padding: 8px 10px; border: 1px solid var(--robot-line); border-radius: 8px; font-size: 13px; line-height: 1.5; }
+.message[data-author="learner"] p { border-color: #e6d68e; background: #fff8d8; }
+.transcript { padding: 8px 10px; border-left: 3px solid var(--robot-primary); color: var(--robot-muted); background: var(--robot-soft); font-size: 12px; }
+.composer { display: flex; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--robot-line); color: var(--robot-muted); }
+.composer input { flex: 1; min-width: 0; height: 36px; border: 1px solid var(--robot-line); border-radius: 5px; padding: 0 10px; outline: 0; background: #ffffff; font-size: 13px; }
+.composer input:focus { border-color: var(--robot-primary); box-shadow: 0 0 0 3px var(--robot-primary-soft); }
+.composer button, .actionRow button { display: inline-grid; place-items: center; border-radius: 5px; color: #ffffff; background: var(--robot-primary); }
+.composer button { width: 36px; height: 36px; }
+.composer button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.voiceCard, .gestureCard, .deviceCard { padding: 13px; border: 1px solid var(--robot-line); border-radius: 8px; background: #ffffff; }
+.controlTitle { gap: 6px; color: var(--robot-primary); font-size: 12px; font-weight: 750; }
+.voiceButton { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; min-height: 52px; margin-top: 12px; border-radius: 7px; color: #ffffff; background: var(--robot-primary); font-size: 14px; font-weight: 750; }
+.voiceButton[data-recording="true"] { color: #5d3e00; background: var(--robot-yellow); }
+.secondaryButton { justify-content: center; gap: 6px; width: 100%; min-height: 30px; margin-top: 8px; border: 1px solid var(--robot-line); border-radius: 5px; color: var(--robot-muted); background: #ffffff; font-size: 11px; }
+.error { margin-top: 8px; color: #a44336; font-size: 11px; line-height: 1.4; }
+.gestureTrack { height: 7px; margin-top: 14px; overflow: hidden; border-radius: 4px; background: var(--robot-soft); }
+.gestureTrack span { display: block; height: 100%; border-radius: inherit; background: var(--robot-yellow); transition: width 120ms linear; }
+.gestureCard p { margin-top: 8px; color: var(--robot-muted); font-size: 11px; line-height: 1.4; }
+.cameraPreview { display: block; width: 100%; aspect-ratio: 16 / 9; margin-top: 10px; border: 1px solid var(--robot-line); border-radius: 5px; object-fit: cover; background: #17201e; transform: scaleX(-1); }
+.deviceCard { margin-top: auto; }
+.actionRow { gap: 7px; margin-top: 11px; }
+.actionRow button { width: 32px; height: 32px; }
+.virtualCursor { position: absolute; z-index: 5; width: 18px; height: 18px; border: 3px solid #ffffff; border-radius: 50%; background: var(--robot-primary); box-shadow: 0 0 0 2px var(--robot-primary), 0 3px 10px rgba(32, 38, 37, 0.2); transform: translate(-50%, -50%); pointer-events: none; }
+
+@media (max-width: 720px) {
+  .header { padding: 9px 12px; }
+  .connection { max-width: 45%; font-size: 10px; }
+  .contentGrid { grid-template-columns: 1fr; overflow-y: auto; }
+  .lessonRail, .conversation { border-right: 0; border-bottom: 1px solid var(--robot-line); }
+  .lessonRail { min-height: 150px; }
+  .conversation { min-height: 360px; }
+  .controlRail { min-height: 250px; }
+}
