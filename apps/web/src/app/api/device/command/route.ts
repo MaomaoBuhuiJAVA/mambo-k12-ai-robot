@@ -6,6 +6,10 @@ const managedSource = z.string().regex(
   /^\/home\/orangepi\/\.local\/share\/mambo\/media\/[A-Za-z0-9._/-]+$/,
   "source must be inside the managed media directory",
 );
+const pointerArguments = z.object({
+  x: z.number().finite().min(0).max(1),
+  y: z.number().finite().min(0).max(1),
+}).strict();
 const commandSchema = z.discriminatedUnion("name", [
   z.object({ name: z.literal("ping"), arguments: z.object({}).strict() }),
   z.object({ name: z.literal("get_status"), arguments: z.object({}).strict() }),
@@ -15,6 +19,8 @@ const commandSchema = z.discriminatedUnion("name", [
   z.object({ name: z.literal("set_display_mode"), arguments: z.object({ mode: z.enum(["on", "presentation", "off"]) }).strict() }),
   z.object({ name: z.literal("show_artifact"), arguments: z.object({ source: managedSource, media_type: z.enum(["image", "video"]) }).strict() }),
   z.object({ name: z.literal("play_audio"), arguments: z.object({ source: managedSource, volume: z.number().int().min(0).max(100) }).strict() }),
+  z.object({ name: z.literal("move_mouse"), arguments: pointerArguments }),
+  z.object({ name: z.literal("click_mouse"), arguments: z.object({}).strict() }),
 ]);
 
 export async function POST(request: Request): Promise<Response> {

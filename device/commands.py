@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 from urllib.parse import urlparse
 
@@ -13,6 +14,8 @@ ALLOWED_COMMANDS = {
     "play_audio",
     "stop_audio",
     "set_display_mode",
+    "move_mouse",
+    "click_mouse",
 }
 
 
@@ -52,6 +55,18 @@ def _require_source(arguments: dict[str, Any], *, media_type: bool) -> dict[str,
     return {"source": source, "volume": volume}
 
 
+def _require_pointer(arguments: dict[str, Any]) -> dict[str, float]:
+    if set(arguments) != {"x", "y"}:
+        raise CommandValidationError("pointer coordinates are required")
+    values: dict[str, float] = {}
+    for axis in ("x", "y"):
+        value = arguments[axis]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 1:
+            raise CommandValidationError("pointer coordinates must be finite numbers from 0 to 1")
+        values[axis] = float(value)
+    return values
+
+
 def validate_command(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     if name not in ALLOWED_COMMANDS:
         raise CommandValidationError("command is not allowed", code="unsupported_command")
@@ -67,4 +82,8 @@ def validate_command(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if set(arguments) != {"mode"} or arguments.get("mode") not in {"on", "presentation", "off"}:
             raise CommandValidationError("mode must be on, presentation, or off")
         return {"mode": arguments["mode"]}
+    if name == "move_mouse":
+        return _require_pointer(arguments)
+    if name == "click_mouse":
+        return _require_empty(arguments)
     raise CommandValidationError("command is not implemented", code="unsupported_command")

@@ -46,4 +46,33 @@ describe("POST /api/device/command", () => {
     expect(response.status).toBe(400);
     expect(proxyCore).not.toHaveBeenCalled();
   });
+
+  it("accepts bounded pointer commands", async () => {
+    vi.stubEnv("CORE_DEVICE_ID", "orangepi4pro-dev-01");
+    vi.mocked(proxyCore).mockResolvedValue(new Response(JSON.stringify({ command_id: "cmd-2" }), { status: 200 }));
+
+    const response = await POST(new Request("http://localhost/api/device/command", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "move_mouse", arguments: { x: 0.4, y: 0.6 } }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(String(vi.mocked(proxyCore).mock.calls[0][1]?.body))).toMatchObject({
+      name: "move_mouse",
+      arguments: { x: 0.4, y: 0.6 },
+    });
+  });
+
+  it("rejects pointer coordinates outside the normalized screen", async () => {
+    vi.stubEnv("CORE_DEVICE_ID", "orangepi4pro-dev-01");
+    const response = await POST(new Request("http://localhost/api/device/command", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "move_mouse", arguments: { x: 2, y: 0.6 } }),
+    }));
+
+    expect(response.status).toBe(400);
+    expect(proxyCore).not.toHaveBeenCalled();
+  });
 });

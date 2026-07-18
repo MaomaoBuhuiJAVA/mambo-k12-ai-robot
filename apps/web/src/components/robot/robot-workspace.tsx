@@ -98,10 +98,16 @@ export function RobotWorkspace() {
   const audioUrlRef = useRef<string | null>(null);
   const handTrackerRef = useRef<BrowserHandTracker | null>(null);
   const gestureControllerRef = useRef(new GestureController());
+  const deviceStatusRef = useRef(deviceStatus);
+  const lastMouseMoveSentAtRef = useRef(0);
   const lastUserMessage = useMemo(
     () => [...messages].reverse().find((message) => message.author === "learner")?.text ?? "",
     [messages],
   );
+
+  useEffect(() => {
+    deviceStatusRef.current = deviceStatus;
+  }, [deviceStatus]);
 
   useEffect(() => {
     let active = true;
@@ -225,6 +231,13 @@ export function RobotWorkspace() {
   function handleGestureEvent(event: GestureEvent) {
     if (event.type === "cursor_move") {
       setCursor({ x: event.x, y: event.y });
+      if (deviceStatusRef.current === "online") {
+        const now = performance.now();
+        if (now - lastMouseMoveSentAtRef.current >= 120) {
+          lastMouseMoveSentAtRef.current = now;
+          void issueDeviceCommand("move_mouse", { x: event.x, y: event.y }, { silent: true });
+        }
+      }
       return;
     }
     if (event.type === "progress") {
@@ -241,6 +254,10 @@ export function RobotWorkspace() {
     const target = document.elementFromPoint(rect.left + event.x * rect.width, rect.top + event.y * rect.height);
     const interactive = target instanceof HTMLElement ? target.closest("button, a, input, [role='button']") : null;
     if (interactive instanceof HTMLElement && !interactive.hasAttribute("disabled")) interactive.click();
+    if (deviceStatusRef.current === "online") {
+      void issueDeviceCommand("move_mouse", { x: event.x, y: event.y }, { silent: true })
+        .then(() => issueDeviceCommand("click_mouse", {}, { silent: true }));
+    }
   }
 
   async function startGesture() {
@@ -294,7 +311,7 @@ export function RobotWorkspace() {
     setPhase("idle");
   }
 
-  async function issueDeviceCommand(name: string, args: Record<string, unknown>) {
+  async function issueDeviceCommand(name: string, args: Record<string, unknown>, options: { silent?: boolean } = {}) {
     try {
       const response = await fetch("/api/device/command", {
         method: "POST",
@@ -302,9 +319,9 @@ export function RobotWorkspace() {
         body: JSON.stringify({ name, arguments: args }),
       });
       if (!response.ok) throw new Error("device_failed");
-      setDeviceMessage("命令已发送，等待开发板完成");
+      if (!options.silent) setDeviceMessage("命令已发送，等待开发板完成");
     } catch {
-      setDeviceMessage("设备命令失败或设备离线");
+      if (!options.silent) setDeviceMessage("设备命令失败或设备离线");
     }
   }
 

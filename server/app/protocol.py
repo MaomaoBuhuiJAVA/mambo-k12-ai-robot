@@ -38,6 +38,8 @@ class CommandRequest(BaseModel):
         "play_audio",
         "stop_audio",
         "set_display_mode",
+        "move_mouse",
+        "click_mouse",
     ]
     arguments: dict[str, Any] = Field(default_factory=dict)
 
@@ -52,6 +54,8 @@ class CommandRequest(BaseModel):
             "show_artifact": ShowArtifactArguments,
             "play_audio": PlayAudioArguments,
             "set_display_mode": DisplayModeArguments,
+            "move_mouse": PointerArguments,
+            "click_mouse": EmptyArguments,
         }
         model = argument_models[self.name].model_validate(self.arguments)
         self.arguments = model.model_dump(exclude_none=True)
@@ -104,6 +108,20 @@ class DisplayModeArguments(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     mode: Literal["on", "presentation", "off"]
+
+
+class PointerArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+    @field_validator("x", "y", mode="before")
+    @classmethod
+    def reject_boolean_coordinate(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("coordinate must be numeric")
+        return value
 
 
 class CommandRecord(BaseModel):
