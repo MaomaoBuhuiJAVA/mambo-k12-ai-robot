@@ -1,7 +1,7 @@
 # Mambo K12 AI 教室功能交接文档
 
 更新时间：2026-07-18
-当前分支：`feat/k12-teaching-assistant`
+当前分支：`main`
 当前可用 Preview：<https://guoke-2y-knowledge-assistant-46k2-54o0go7s0.vercel.app>
 
 这份文档描述当前代码真实可运行的功能边界，供后续前端视觉重设计、比赛演示和部署使用。它不把规划中的账号、教师后台、正式教材 RAG 或公网设备链路写成已完成能力。
