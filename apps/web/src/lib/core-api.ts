@@ -28,6 +28,7 @@ const deviceSchema = z.object({
   platform: z.string().max(128).nullable(),
   capabilities: z.array(z.string().min(1).max(64)).max(32),
   latest_status: z.record(z.string().max(64), z.unknown()),
+  hardware: z.record(z.string().max(64), z.unknown()).optional(),
 }).strict();
 
 const deviceListSchema = z.object({

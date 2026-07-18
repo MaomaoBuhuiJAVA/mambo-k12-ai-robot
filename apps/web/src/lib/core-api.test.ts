@@ -18,6 +18,11 @@ function upstreamDevice(overrides: Record<string, unknown> = {}) {
     platform: "Linux-aarch64",
     capabilities: ["audio", "camera", "display", "npu", "shell"],
     latest_status: { hostname: "orangepi4pro", cpu_load_1m: 0.25 },
+    hardware: {
+      camera: { available: true, device: "/dev/video0" },
+      display: { available: true, name: ":0" },
+      mouse: { available: true, backend: "xtest" },
+    },
     ...overrides,
   };
 }
