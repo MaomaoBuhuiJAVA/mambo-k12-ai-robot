@@ -18,6 +18,18 @@ const FINGER_CHAINS = [
 
 const distance = (a: Landmark, b: Landmark) => Math.hypot(a.x - b.x, a.y - b.y, (a.z ?? 0) - (b.z ?? 0));
 
+export function landmarksFromFlatOutput(output: ArrayLike<number>): Landmark[] | null {
+  if (output.length < 42) return null;
+  const landmarks: Landmark[] = [];
+  for (let index = 0; index < 21; index += 1) {
+    const x = Number(output[index * 2]);
+    const y = Number(output[index * 2 + 1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    landmarks.push({ x, y });
+  }
+  return landmarks;
+}
+
 function confidenceFor(extended: number, folded: number): number {
   if (extended >= 3) return Math.min(0.98, 0.62 + extended * 0.09);
   if (folded >= 3) return Math.min(0.98, 0.62 + folded * 0.09);

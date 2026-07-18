@@ -156,6 +156,8 @@ systemctl status mambo-device-agent --no-pager
 journalctl -u mambo-device-agent -n 50 --no-pager
 ```
 
+机器人页面启动脚本为 `deploy/launch-robot-browser.sh`。首次安装浏览器需要所有者明确执行 `sudo deploy/install-orangepi-browser.sh`；脚本只安装 Chromium，不保存密码。通过局域网 HTTP 访问时只能验证页面显示，摄像头手势应使用 HTTPS；临时演示可显式设置 `ROBOT_ALLOW_INSECURE_CAMERA=1`，不要用于公网部署。
+
 安装、复制到 `/opt`、写 `/etc` 与 `systemctl enable --now` 需要 `sudo`，必须由用户明确执行。当前协议仅支持 `ping` 和 `get_status`，不允许远程 Shell。
 
 生产多设备前的阻断项：当前 Core 使用一个环境级 `DEVICE_AUTH_TOKEN`。必须改为每设备独立、可撤销凭证，再批量接入真实学校设备。

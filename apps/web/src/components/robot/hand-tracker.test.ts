@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyHandLandmarks, observationFromLandmarks, type Landmark } from "./hand-tracker";
+import { classifyHandLandmarks, landmarksFromFlatOutput, observationFromLandmarks, type Landmark } from "./hand-tracker";
 
 function point(x: number, y: number, z = 0): Landmark {
   return { x, y, z };
@@ -65,5 +65,21 @@ describe("observationFromLandmarks", () => {
       confidence: 0,
       timestamp: 42,
     });
+  });
+});
+
+describe("landmarksFromFlatOutput", () => {
+  it("decodes the 42-value output used by handpose_x", () => {
+    const output = Array.from({ length: 42 }, (_, index) => index / 42);
+
+    expect(landmarksFromFlatOutput(output)).toHaveLength(21);
+    expect(landmarksFromFlatOutput(output)?.[3]).toEqual({ x: 6 / 42, y: 7 / 42 });
+  });
+
+  it("rejects incomplete or non-finite model output", () => {
+    expect(landmarksFromFlatOutput(new Float32Array(41))).toBeNull();
+    const output = new Float32Array(42);
+    output[4] = Number.NaN;
+    expect(landmarksFromFlatOutput(output)).toBeNull();
   });
 });
