@@ -17,7 +17,7 @@
 - 创建 `server/app/voice/baidu_tts.py`：百度短文本合成、音频响应校验和超时。
 - 创建 `server/app/routes/voice.py`：Core ASR/TTS 内部路由和凭证配置检查。
 - 修改 `server/app/config.py`、`server/app/main.py`、`server/requirements.txt`：语音配置与路由。
-- 创建 `server/tests/test_voice_auth.py`、`server/tests/test_voice_routes.py`：签名、输入边界和无凭证降级测试。
+- 创建 `server/tests/test_baidu_voice.py`、`server/tests/test_voice_routes.py`：Token、输入边界和无凭证降级测试。
 - 创建 `apps/web/src/app/robot/page.tsx`、`apps/web/src/app/robot/robot.module.css`：机器人页面。
 - 创建 `apps/web/src/components/robot/robot-workspace.tsx`、`apps/web/src/components/robot/voice-session.ts`：页面状态和语音流程。
 - 创建 `apps/web/src/components/robot/gesture-controller.ts`：光标、握拳进度和点击状态机。
@@ -32,7 +32,7 @@
 **Files:**
 - Create: `server/app/voice/baidu_token.py`
 - Modify: `server/app/config.py`
-- Test: `server/tests/test_voice_auth.py`
+- Test: `server/tests/test_baidu_voice.py`
 
 - [ ] **Step 1: Write failing signature tests**
 
@@ -40,21 +40,21 @@
 
 - [ ] **Step 2: Run focused tests and verify failure**
 
-Run: `\.venv\Scripts\python.exe -m pytest server/tests/test_voice_auth.py -q`
+Run: `\.venv\Scripts\python.exe -m pytest server/tests/test_baidu_voice.py -q`
 
 Expected: FAIL because the Baidu token module does not exist.
 
-- [ ] **Step 3: Implement HMAC-SHA256 auth and settings**
+- [ ] **Step 3: Implement Baidu Access Token auth and settings**
 
 调用 `https://aip.baidubce.com/oauth/2.0/token` 获取 Token，缓存过期时间并提前刷新；配置只从 `BAIDU_*` 环境变量读取，不在异常中打印值。
 
 - [ ] **Step 4: Run focused tests**
 
-Run: `\.venv\Scripts\python.exe -m pytest server/tests/test_voice_auth.py -q`
+Run: `\.venv\Scripts\python.exe -m pytest server/tests/test_baidu_voice.py -q`
 
 - [ ] **Step 5: Commit**
 
-`git add server/app/voice server/app/config.py server/tests/test_voice_auth.py && git commit -m "feat: add baidu speech token configuration"`
+`git add server/app/voice server/app/config.py server/tests/test_baidu_voice.py && git commit -m "feat: add baidu speech token configuration"`
 
 ### Task 2: Core 百度 ASR/TTS 适配器
 
