@@ -9,4 +9,3 @@ def test_collect_status_has_required_fields() -> None:
     assert status["disk_free_bytes"] > 0
     assert status["cpu_load_1m"] >= 0
 
-
