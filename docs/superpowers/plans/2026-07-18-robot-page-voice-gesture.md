@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 OrangePi 浏览器上提供 800x480 机器人教学页面，打通讯飞 ASR -> 现有 AI -> 讯飞 TTS，并实现张手移动、握拳悬停确认点击的本地交互。
+**Goal:** 在 OrangePi 浏览器上提供 800x480 机器人教学页面，打通百度 ASR -> 现有 AI -> 百度 TTS，并实现张手移动、握拳悬停确认点击的本地交互。
 
-**Architecture:** Next.js 提供 `/robot` 和 BFF，Core FastAPI 负责讯飞 WebSocket、设备命令代理和安全策略，OrangePi 只运行现有 device-agent 与浏览器。连续摄像头帧只在页面本地处理；手势事件不直接拥有硬件命令权限。讯飞凭证只在 Core 环境变量中。
+**Architecture:** Next.js 提供 `/robot` 和 BFF，Core FastAPI 负责百度 REST 语音服务、设备命令代理和安全策略，OrangePi 只运行现有 device-agent 与浏览器。连续摄像头帧只在页面本地处理；手势事件不直接拥有硬件命令权限。百度凭证只在 Core 环境变量中。
 
 **Tech Stack:** Next.js 16 / React 19 / TypeScript / Vitest，FastAPI / Python 3 / websockets，浏览器 MediaStream + Web Audio PCM，OrangePi X11/现有硬件适配器，官方 VIPCore `.nb` 样例。
 
@@ -12,9 +12,9 @@
 
 ## 文件结构
 
-- 创建 `server/app/voice/xfyun_auth.py`：讯飞 IAT/TTS 签名 URL 生成。
-- 创建 `server/app/voice/xfyun_asr.py`：IAT v2 音频流上传、结果解析和超时。
-- 创建 `server/app/voice/xfyun_tts.py`：TTS v2 文本合成和音频拼接。
+- 创建 `server/app/voice/baidu_token.py`：百度 Access Token 获取、缓存和过期刷新。
+- 创建 `server/app/voice/baidu_asr.py`：百度短语音识别请求、结果解析和超时。
+- 创建 `server/app/voice/baidu_tts.py`：百度短文本合成、音频响应校验和超时。
 - 创建 `server/app/routes/voice.py`：Core ASR/TTS 内部路由和凭证配置检查。
 - 修改 `server/app/config.py`、`server/app/main.py`、`server/requirements.txt`：语音配置与路由。
 - 创建 `server/tests/test_voice_auth.py`、`server/tests/test_voice_routes.py`：签名、输入边界和无凭证降级测试。
@@ -27,26 +27,26 @@
 - 创建 `device/vision/npu_smoke.py`、`scripts/verify-npu-smoke.ps1`：官方 `.nb` 运行链路记录，不把未知模型当作手势实现。
 - 修改 `deploy/device-agent.env.example`、README、协议文档和验收脚本。
 
-### Task 1: 讯飞配置与签名
+### Task 1: 百度配置与 Access Token
 
 **Files:**
-- Create: `server/app/voice/xfyun_auth.py`
+- Create: `server/app/voice/baidu_token.py`
 - Modify: `server/app/config.py`
 - Test: `server/tests/test_voice_auth.py`
 
 - [ ] **Step 1: Write failing signature tests**
 
-测试固定时间、主机、请求行和密钥，断言 IAT/TTS 生成的 `host`、`date`、`authorization` 参数存在且签名可复现；缺失密钥必须返回未配置状态。
+测试 API Key/Secret Key 缺失、Token 响应解析、缓存命中和过期刷新；密钥缺失必须返回未配置状态。
 
 - [ ] **Step 2: Run focused tests and verify failure**
 
 Run: `\.venv\Scripts\python.exe -m pytest server/tests/test_voice_auth.py -q`
 
-Expected: FAIL because the voice auth module does not exist.
+Expected: FAIL because the Baidu token module does not exist.
 
 - [ ] **Step 3: Implement HMAC-SHA256 auth and settings**
 
-实现 RFC1123 UTC 时间、`host date request-line` 拼接和 URL 编码；配置只从 `XFUN_*` 环境变量读取，不在异常中打印值。
+调用 `https://aip.baidubce.com/oauth/2.0/token` 获取 Token，缓存过期时间并提前刷新；配置只从 `BAIDU_*` 环境变量读取，不在异常中打印值。
 
 - [ ] **Step 4: Run focused tests**
 
@@ -54,19 +54,19 @@ Run: `\.venv\Scripts\python.exe -m pytest server/tests/test_voice_auth.py -q`
 
 - [ ] **Step 5: Commit**
 
-`git add server/app/voice server/app/config.py server/tests/test_voice_auth.py && git commit -m "feat: add xfyun signing configuration"`
+`git add server/app/voice server/app/config.py server/tests/test_voice_auth.py && git commit -m "feat: add baidu speech token configuration"`
 
-### Task 2: Core ASR/TTS 适配器
+### Task 2: Core 百度 ASR/TTS 适配器
 
 **Files:**
-- Create: `server/app/voice/xfyun_asr.py`
-- Create: `server/app/voice/xfyun_tts.py`
+- Create: `server/app/voice/baidu_asr.py`
+- Create: `server/app/voice/baidu_tts.py`
 - Modify: `server/requirements.txt`
 - Test: `server/tests/test_voice_adapters.py`
 
 - [ ] **Step 1: Write adapter tests with fake WebSocket**
 
-覆盖 IAT 首帧、音频帧、结束帧、动态修正结果、TTS 多帧 base64 音频、错误码、超时和最大文本/音频长度。
+覆盖百度 ASR WAV/PCM 请求、`result` 解析、错误码、超时和 60 秒边界；覆盖百度 TTS MP3/WAV 响应、错误 JSON、文本长度和超时。
 
 - [ ] **Step 2: Run tests and verify failure**
 
@@ -74,13 +74,13 @@ Run: `\.venv\Scripts\python.exe -m pytest server/tests/test_voice_adapters.py -q
 
 - [ ] **Step 3: Implement bounded WebSocket adapters**
 
-使用现有 `websockets` 依赖；IAT 只接受 16-bit mono PCM/WAV，TTS 限制 8000 字节以内，所有连接设置超时并在错误时关闭。解析结果时合并 `ws`/`wpgs` 结果，不能把服务端错误文本当作识别结果。
+使用现有 `httpx` 依赖；ASR 发送 `audio/wav;rate=16000`，TTS 使用表单参数 `tex/tok/cuid/ctp/lan/aue/per`。响应只接受正确音频媒体类型，百度错误 JSON 转为内部错误码。
 
 - [ ] **Step 4: Run adapter tests and commit**
 
 Run: `\.venv\Scripts\python.exe -m pytest server/tests/test_voice_adapters.py -q`
 
-`git add server/app/voice server/requirements.txt server/tests/test_voice_adapters.py && git commit -m "feat: integrate xfyun asr and tts adapters"`
+`git add server/app/voice server/requirements.txt server/tests/test_voice_adapters.py && git commit -m "feat: integrate baidu asr and tts adapters"`
 
 ### Task 3: Core 语音路由
 
@@ -99,7 +99,7 @@ Run: `\.venv\Scripts\python.exe -m pytest server/tests/test_voice_routes.py -q`
 
 - [ ] **Step 3: Implement routes**
 
-路由使用 Core 管理令牌保护，读取请求体上限，调用适配器并返回 `{text,duration_ms}` 或 `audio/mpeg`。不得把讯飞响应原文、签名 URL 或密钥返回给客户端。
+路由使用 Core 管理令牌保护，读取请求体上限，调用适配器并返回 `{text,duration_ms}` 或 `audio/mpeg`。不得把百度 Access Token、API Key 或 Secret Key 返回给客户端。
 
 - [ ] **Step 4: Run server tests and commit**
 
@@ -207,7 +207,7 @@ Run: `\.venv\Scripts\python.exe -m pytest -q`; `npm test --workspace apps/web --
 
 - [ ] **Step 2: Configure credentials without printing them**
 
-将讯飞变量写入 Core `.env` 或受保护环境文件，不提交、不通过 SSH 命令回显；缺少凭证时先验证结构化 503。
+将百度变量写入 Core `.env` 或受保护环境文件，不提交、不通过 SSH 命令回显；缺少凭证时先验证结构化 503。
 
 - [ ] **Step 3: Open `/robot` on OrangePi**
 
@@ -219,4 +219,4 @@ Run: `\.venv\Scripts\python.exe -m pytest -q`; `npm test --workspace apps/web --
 
 - [ ] **Step 5: Record limits and commit verification evidence**
 
-记录模型帧率、语音延迟、讯飞错误码、设备版本和已知限制，不写入密钥、完整签名 URL 或个人音频。
+记录模型帧率、语音延迟、百度错误码、设备版本和已知限制，不写入密钥、Access Token 或个人音频。

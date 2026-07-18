@@ -5,12 +5,12 @@
 在现有 K12 网页、Core API 和 OrangePi 硬件命令闭环之上，增加一个适合开发板 800x480 屏幕的机器人页面，并打通：
 
 ```text
-开发板浏览器 -> 机器人页面 -> Core 讯飞 ASR -> 网页 AI -> Core 讯飞 TTS -> 开发板扬声器
+开发板浏览器 -> 机器人页面 -> Core 百度 ASR -> 网页 AI -> Core 百度 TTS -> 开发板扬声器
 开发板摄像头 -> 机器人页面本地手势识别 -> 页面内光标和确认点击
 机器人页面 -> Next.js BFF -> Core 设备命令 -> OrangePi 硬件适配器
 ```
 
-网页仍是教学产品和 AI 业务真源，OrangePi 负责展示、声音和本地输入。讯飞密钥只存在服务端环境变量中。
+网页仍是教学产品和 AI 业务真源，OrangePi 负责展示、声音和本地输入。百度 API Key、Secret Key 和 Access Token 只存在服务端。
 
 ## 2. 本轮范围
 
@@ -26,12 +26,13 @@
 ### 2.2 语音对话
 
 - 浏览器采集 16 kHz、16 bit、单声道 PCM，单次最长 60 秒。
-- Core 新增讯飞 ASR 适配器，使用 `wss://iat-api.xfyun.cn/v2/iat` 和 HMAC-SHA256 签名。
-- Core 新增讯飞 TTS 适配器，使用 `wss://tts-api.xfyun.cn/v2/tts` 和 HMAC-SHA256 签名，默认返回 MP3。
+- Core 新增百度 ASR 适配器，使用短语音识别 REST API，支持 60 秒以内的 16kHz 单声道 WAV/PCM。
+- Core 新增百度 TTS 适配器，使用 `https://tsn.baidu.com/text2audio`，默认返回 MP3。
+- Core 使用 API Key/Secret Key 换取并缓存 Access Token，过期前自动刷新。
 - Next.js BFF 新增 ASR/TTS 代理，校验请求大小、文本长度、超时和响应媒体类型。
 - 识别结果复用现有 `/api/chat`，保持学段、课程和安全提示词策略。
 - AI 回答完成后调用 TTS，机器人页面通过 `<audio>` 在开发板扬声器播放。
-- 讯飞不可用时显示明确错误；文字对话仍可用现有 AI 降级回答。
+- 百度不可用时显示明确错误；文字对话仍可用现有 AI 降级回答。
 
 ### 2.3 手势输入
 
@@ -53,14 +54,11 @@
 服务端环境变量：
 
 ```text
-XFUN_IAT_APP_ID
-XFUN_IAT_API_KEY
-XFUN_IAT_API_SECRET
-XFUN_TTS_APP_ID
-XFUN_TTS_API_KEY
-XFUN_TTS_API_SECRET
-XFUN_TTS_VOICE=xiaoyan
-XFUN_TTS_AUDIO_FORMAT=mp3
+BAIDU_APP_ID
+BAIDU_API_KEY
+BAIDU_SECRET_KEY
+BAIDU_ASR_DEV_PID=1537
+BAIDU_TTS_PER=110
 ```
 
 Core 内部接口：
@@ -88,14 +86,14 @@ POST /api/device/command
 ## 4. 错误和降级
 
 - 浏览器不支持麦克风或未授权时，保留文字输入。
-- ASR 超时或讯飞授权失败时，显示可读错误和重试按钮，不把密钥或签名返回客户端。
+- ASR 超时或百度鉴权失败时，显示可读错误和重试按钮，不把密钥或 Access Token 返回客户端。
 - AI 失败时使用现有课程事实降级回答，TTS 失败时保留文字回答。
 - 设备离线时禁用拍照、显示和屏幕控制，但不阻塞网页对话。
 - 手势跟踪丢失时隐藏光标和清零点击进度，避免误点击。
 
 ## 5. 测试和验收
 
-- Core：讯飞签名、请求参数、音频长度、错误映射和超时的单元测试；无凭证时不建立外网连接。
+- Core：百度 Access Token 缓存、请求参数、音频长度、错误映射和超时的单元测试；无凭证时不建立外网连接。
 - Web：机器人页面渲染、录音状态、ASR 文本回填、AI 回答、TTS 播放、设备离线和手势状态机测试。
 - 设备：官方 `yolov5.nb` 样例运行、X11 显示和音频播放验证。
 - 实机：开发板浏览器打开 `/robot`，完成一次“说话 -> ASR -> AI -> TTS 播放”；完成一次张手移动、握拳进度满后点击；检查 systemd 日志无密钥。

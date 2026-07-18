@@ -13,14 +13,11 @@ class Settings:
     database_url: str
     auto_create_schema: bool
     command_timeout_seconds: int
-    xfun_iat_app_id: str
-    xfun_iat_api_key: str
-    xfun_iat_api_secret: str
-    xfun_tts_app_id: str
-    xfun_tts_api_key: str
-    xfun_tts_api_secret: str
-    xfun_tts_voice: str
-    xfun_tts_audio_format: str
+    baidu_app_id: str
+    baidu_api_key: str
+    baidu_secret_key: str
+    baidu_asr_dev_pid: int
+    baidu_tts_per: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -41,14 +38,11 @@ class Settings:
             command_timeout_seconds=max(
                 1, int(os.getenv("COMMAND_TIMEOUT_SECONDS", "30"))
             ),
-            xfun_iat_app_id=os.getenv("XFUN_IAT_APP_ID", "").strip(),
-            xfun_iat_api_key=os.getenv("XFUN_IAT_API_KEY", "").strip(),
-            xfun_iat_api_secret=os.getenv("XFUN_IAT_API_SECRET", "").strip(),
-            xfun_tts_app_id=os.getenv("XFUN_TTS_APP_ID", "").strip(),
-            xfun_tts_api_key=os.getenv("XFUN_TTS_API_KEY", "").strip(),
-            xfun_tts_api_secret=os.getenv("XFUN_TTS_API_SECRET", "").strip(),
-            xfun_tts_voice=os.getenv("XFUN_TTS_VOICE", "xiaoyan").strip() or "xiaoyan",
-            xfun_tts_audio_format=os.getenv("XFUN_TTS_AUDIO_FORMAT", "mp3").strip().lower() or "mp3",
+            baidu_app_id=os.getenv("BAIDU_APP_ID", "").strip(),
+            baidu_api_key=os.getenv("BAIDU_API_KEY", "").strip(),
+            baidu_secret_key=os.getenv("BAIDU_SECRET_KEY", "").strip(),
+            baidu_asr_dev_pid=max(1, int(os.getenv("BAIDU_ASR_DEV_PID", "1537"))),
+            baidu_tts_per=max(0, int(os.getenv("BAIDU_TTS_PER", "110"))),
         )
 
 
