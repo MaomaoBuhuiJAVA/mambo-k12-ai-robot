@@ -21,6 +21,7 @@ from .hardware.camera import CameraAdapter, CameraConfig
 from .hardware.capabilities import detect_capabilities
 from .hardware.display import DisplayAdapter
 from .hardware.media import ArtifactPlayer, AudioPlayer
+from .hardware.mouse import MouseAdapter, MouseConfig
 from .hardware.process import ProcessExecutionError, ProcessRunner
 
 
@@ -157,6 +158,19 @@ class HardwareController:
             xauthority_path=settings.xauthority_path,
             runner=runner,
         )
+        try:
+            self.mouse: MouseAdapter | None = MouseAdapter(
+                MouseConfig(
+                    display_name=settings.display_name,
+                    xauthority_path=settings.xauthority_path,
+                )
+            )
+        except ProcessExecutionError:
+            self.mouse = None
+        self._capabilities["mouse"] = {
+            "available": self.mouse is not None,
+            "backend": "xtest",
+        }
 
     def capabilities_payload(self) -> dict[str, object]:
         return self._capabilities
@@ -186,11 +200,21 @@ class HardwareController:
             return await self.audio.stop()
         if name == "set_display_mode":
             return await self.display.set_mode(str(arguments["mode"]))
+        if name == "move_mouse":
+            if self.mouse is None:
+                raise ProcessExecutionError("mouse controller is unavailable", code="mouse_unavailable")
+            return await asyncio.to_thread(self.mouse.move, float(arguments["x"]), float(arguments["y"]))
+        if name == "click_mouse":
+            if self.mouse is None:
+                raise ProcessExecutionError("mouse controller is unavailable", code="mouse_unavailable")
+            return await asyncio.to_thread(self.mouse.click)
         raise ProcessExecutionError("command is not a hardware action", code="unsupported_command")
 
     async def close(self) -> None:
         await self.artifact.stop()
         await self.audio.stop()
+        if self.mouse is not None:
+            self.mouse.close()
 
 
 def collect_status(hardware: HardwareController | None = None) -> dict[str, Any]:
@@ -221,6 +245,7 @@ def collect_status(hardware: HardwareController | None = None) -> dict[str, Any]
         status["hardware"] = {
             "camera_available": bool(hardware.capabilities_payload()["camera"]["available"]),
             "display_available": bool(hardware.capabilities_payload()["display"]["available"]),
+            "mouse_available": bool(hardware.capabilities_payload().get("mouse", {}).get("available", False)),
         }
         status["players"] = hardware.players_status()
     return status

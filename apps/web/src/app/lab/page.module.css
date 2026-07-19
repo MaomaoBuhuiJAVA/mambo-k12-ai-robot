@@ -1,40 +1,132 @@
 .page {
+  position: relative;
+  isolation: isolate;
   width: 100%;
+  min-height: 100dvh;
   height: 100dvh;
-  overflow: auto;
-  background: var(--surface-subtle);
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: #f8f0d7;
+  background-color: #091f28;
+  background-image:
+    linear-gradient(180deg, rgba(11, 27, 58, 0.32) 0%, rgba(9, 31, 40, 0.9) 38%, #092129 72%),
+    url("/assets/external/gothicvania/environment-preview.png");
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: 100% auto, max(1180px, 100%) auto;
+  scrollbar-color: #e9bd54 #061921;
+  scrollbar-width: thin;
+}
+
+.page::before {
+  position: fixed;
+  z-index: -1;
+  inset: auto 0 0;
+  height: min(18vw, 190px);
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(5, 22, 29, 0.5) 58%, rgba(5, 22, 29, 0.96) 100%),
+    url("/assets/external/gothicvania/house-b.png") right 5vw bottom -10px / auto 95% no-repeat;
+  image-rendering: pixelated;
+  content: "";
+}
+
+.page::-webkit-scrollbar {
+  width: 12px;
+}
+
+.page::-webkit-scrollbar-track {
+  background: #061921;
+}
+
+.page::-webkit-scrollbar-thumb {
+  border: 3px solid #061921;
+  background: #e9bd54;
 }
 
 .navigation {
   position: sticky;
-  z-index: 5;
+  z-index: 10;
   top: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 54px;
-  padding: 8px 26px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.96);
+  gap: 16px;
+  min-height: 72px;
+  padding: 12px clamp(16px, 3vw, 44px);
+  border-bottom: 3px solid #f0c85d;
+  color: #fff7df;
+  background:
+    linear-gradient(90deg, rgba(16, 31, 83, 0.98), rgba(25, 42, 103, 0.95) 58%, rgba(17, 31, 79, 0.98)),
+    repeating-linear-gradient(90deg, transparent 0 28px, rgba(248, 240, 215, 0.05) 28px 30px);
+  box-shadow: 0 4px 0 #06171e;
+}
+
+.navigation::after {
+  position: absolute;
+  right: 0;
+  bottom: -7px;
+  left: 0;
+  height: 4px;
+  pointer-events: none;
+  background: repeating-linear-gradient(90deg, #2b5b58 0 18px, #173d43 18px 36px);
+  content: "";
 }
 
 .navigation a {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  color: var(--primary-strong);
-  font-weight: 700;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 2px solid #f8d77b;
+  color: #fff8e6;
+  background: #244c50;
+  box-shadow: 3px 3px 0 #081a29;
+  font-weight: 750;
+  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.navigation a:hover {
+  background: #326461;
+  box-shadow: 4px 4px 0 #081a29;
+  transform: translate(-1px, -1px);
+}
+
+.navigation a:active {
+  box-shadow: 1px 1px 0 #081a29;
+  transform: translate(2px, 2px);
 }
 
 .navigation span {
-  color: var(--foreground-muted);
+  color: #f6d77a;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-shadow: 1px 1px 0 #142550;
 }
 
 @media (max-width: 600px) {
+  .page {
+    background-size: auto 100%, auto 270px;
+  }
+
   .navigation {
-    padding: 8px 12px;
+    min-height: 62px;
+    padding: 9px 12px;
+  }
+
+  .navigation span {
+    max-width: 43vw;
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigation a {
+    transition: none;
   }
 }

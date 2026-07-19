@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import {
   BookOpen,
-  Bot,
   ChartNoAxesColumnIncreasing,
   Code2,
   FolderOpen,
@@ -26,11 +25,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <a className="brand" href="#workspace" aria-label="Mambo AI 教室首页">
-          <span className="brand__mark" aria-hidden="true">
-            <Bot size={22} strokeWidth={2.2} />
-          </span>
+        <a className="brand" href="/preview" aria-label="返回首页">
+          <span className="brand__mark brand__mark--star" aria-hidden="true" />
           <span>Mambo AI 教室</span>
+          <small className="brand__back">返回首页</small>
         </a>
 
         <nav className="primary-navigation" aria-label="主导航">

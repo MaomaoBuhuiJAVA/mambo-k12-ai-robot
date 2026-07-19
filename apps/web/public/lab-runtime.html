@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8">
-    <!-- Pyodide 314 的 Emscripten 运行代码需要 eval；该权限只存在于无同源身份的 sandbox 文档。 -->
+    <!-- Pyodide needs eval only inside this opaque sandbox document. -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net/npm/pyodide@314.0.2/; worker-src blob:; connect-src https://cdn.jsdelivr.net/npm/pyodide@314.0.2/; base-uri 'none'; form-action 'none'; object-src 'none'"
@@ -10,60 +10,148 @@
     <title>隔离的 Python 课程运行时</title>
   </head>
   <body>
-    <script>
-      (() => {
-        "use strict";
-        const protocol = "mambo-lab-runtime-v1";
-        let channelToken = null;
-        let runtimeWorker = null;
-        let workerUrl = null;
+    <script type="module">
+      import { loadPyodide } from "https://cdn.jsdelivr.net/npm/pyodide@314.0.2/pyodide.mjs";
 
-        const sendToParent = (type, detail = {}) => {
-          parent.postMessage({ protocol, type, token: channelToken, ...detail }, "*");
-        };
+      const protocol = "mambo-lab-runtime-v1";
+      const pyodideIndexUrl = "https://cdn.jsdelivr.net/npm/pyodide@314.0.2/";
+      let channelToken = null;
+      let executionCore = null;
+      let pyodidePromise = null;
+      let disposed = false;
 
-        const disposeWorker = () => {
-          runtimeWorker?.terminate();
-          runtimeWorker = null;
-          if (workerUrl) URL.revokeObjectURL(workerUrl);
-          workerUrl = null;
-        };
+      const sendToParent = (type, detail = {}) => {
+        parent.postMessage({ protocol, type, token: channelToken, ...detail }, "*");
+      };
 
-        const initialize = (message) => {
-          if (channelToken !== null) return;
-          if (typeof message.token !== "string" || message.token.length < 20) return;
-          if (typeof message.coreSource !== "string" || message.coreSource.length > 100000) return;
-          if (typeof message.workerSource !== "string" || message.workerSource.length > 100000) return;
+      const safeError = (error) => {
+        const raw = error instanceof Error ? error.message : String(error);
+        return raw.slice(0, 900) || "Python 隔离环境发生错误。";
+      };
 
-          channelToken = message.token;
-          const source = `${message.coreSource}\n${message.workerSource}`;
-          workerUrl = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
-          runtimeWorker = new Worker(workerUrl, { type: "module", name: "mambo-isolated-python" });
-          runtimeWorker.onmessage = (event) => {
-            sendToParent("runtime-message", { payload: event.data });
-          };
-          runtimeWorker.onerror = () => {
-            sendToParent("runtime-error", { message: "Python Worker 发生错误，请重试加载。" });
-          };
-        };
-
-        addEventListener("message", (event) => {
-          if (event.source !== parent || !event.data || event.data.protocol !== protocol) return;
-          const message = event.data;
-          if (message.type === "initialize") {
-            initialize(message);
-            return;
-          }
-          if (message.token !== channelToken) return;
-          if (message.type === "runtime-command") {
-            runtimeWorker?.postMessage(message.payload);
-          } else if (message.type === "dispose") {
-            disposeWorker();
-          }
+      const getPyodideRuntime = () => {
+        pyodidePromise ??= loadPyodide({ indexURL: pyodideIndexUrl }).then((runtime) => {
+          executionCore.disableRuntimeCapabilities();
+          return runtime;
         });
+        return pyodidePromise;
+      };
 
-        parent.postMessage({ protocol, type: "runtime-bootstrap" }, "*");
-      })();
+      const initialize = async (message) => {
+        if (channelToken !== null) return;
+        if (typeof message.token !== "string" || message.token.length < 20) return;
+        if (typeof message.coreSource !== "string" || message.coreSource.length > 100000) return;
+
+        channelToken = message.token;
+        let coreUrl = null;
+        try {
+          coreUrl = URL.createObjectURL(
+            new Blob([message.coreSource], { type: "text/javascript" }),
+          );
+          executionCore = await import(coreUrl);
+          URL.revokeObjectURL(coreUrl);
+          coreUrl = null;
+          await getPyodideRuntime();
+          if (!disposed) sendToParent("runtime-message", { payload: { type: "ready" } });
+        } catch (error) {
+          if (!disposed) {
+            sendToParent("runtime-error", {
+              message: `Python 环境加载失败：${safeError(error)}`,
+            });
+          }
+        } finally {
+          if (coreUrl) URL.revokeObjectURL(coreUrl);
+        }
+      };
+
+      const execute = async (rawRequest) => {
+        if (!executionCore || disposed) return;
+
+        let request;
+        try {
+          request = executionCore.parseRunRequest(rawRequest);
+        } catch (error) {
+          const safe = executionCore.toSafeLabError(error);
+          sendToParent("runtime-message", {
+            payload: {
+              type: "error",
+              id: executionCore.isUuid(rawRequest?.id) ? rawRequest.id : null,
+              category: "validation",
+              message: safe.message,
+              output: [],
+            },
+          });
+          return;
+        }
+
+        sendToParent("runtime-message", { payload: { type: "running", id: request.id } });
+        const startedAt = performance.now();
+        const collector = executionCore.createOutputCollector();
+        const discouragedImport = executionCore.findDiscouragedImport(request.code);
+        if (discouragedImport) {
+          collector.capture(
+            "stderr",
+            `课程提示：当前任务通常不需要 ${discouragedImport}；导入提示不是安全隔离边界。`,
+          );
+        }
+
+        let globals;
+        try {
+          const pyodide = await getPyodideRuntime();
+          pyodide.setStdout({ batched: (text) => collector.capture("stdout", text) });
+          pyodide.setStderr({ batched: (text) => collector.capture("stderr", text) });
+          const dictFactory = pyodide.globals.get("dict");
+          globals = dictFactory();
+          await pyodide.runPythonAsync(
+            executionCore.buildExecutableCode(
+              request.templateId,
+              request.challengeVersion,
+              request.code,
+            ),
+            { globals },
+          );
+          sendToParent("runtime-message", {
+            payload: {
+              type: "result",
+              id: request.id,
+              durationMs: Math.round(performance.now() - startedAt),
+              passed: globals.get("_mambo_passed") === true,
+              output: collector.entries,
+            },
+          });
+        } catch (error) {
+          const safe = executionCore.toSafeLabError(error);
+          sendToParent("runtime-message", {
+            payload: {
+              type: "error",
+              id: request.id,
+              category: "python",
+              message: safe.message,
+              line: safe.line,
+              output: collector.entries,
+            },
+          });
+        } finally {
+          globals?.destroy();
+        }
+      };
+
+      addEventListener("message", (event) => {
+        if (event.source !== parent || !event.data || event.data.protocol !== protocol) return;
+        const message = event.data;
+        if (message.type === "initialize") {
+          void initialize(message);
+          return;
+        }
+        if (message.token !== channelToken) return;
+        if (message.type === "runtime-command") {
+          void execute(message.payload);
+        } else if (message.type === "dispose") {
+          disposed = true;
+        }
+      });
+
+      parent.postMessage({ protocol, type: "runtime-bootstrap" }, "*");
     </script>
   </body>
 </html>

@@ -1,0 +1,1141 @@
+.robotPage {
+  --robot-night: #101931;
+  --robot-indigo: #1d3150;
+  --robot-forest: #173f45;
+  --robot-forest-deep: #102e36;
+  --robot-ink: #0b1224;
+  --robot-parchment: #fff1c8;
+  --robot-muted: #b7c9ca;
+  --robot-teal: #8fd7cc;
+  --robot-teal-deep: #457f82;
+  --robot-gold: #f2c85b;
+  --robot-gold-deep: #b98237;
+  --robot-coral: #e78368;
+  --robot-lilac: #a899ec;
+  --robot-frame: #2d5870;
+  --robot-shadow: #080d1d;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100dvh;
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--robot-parchment);
+  background: var(--robot-night);
+  scrollbar-color: var(--robot-gold-deep) var(--robot-ink);
+  scrollbar-width: thin;
+}
+
+.robotPage::before {
+  position: fixed;
+  z-index: -2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: min(30vw, 292px);
+  min-height: 172px;
+  content: "";
+  pointer-events: none;
+  background: url("/assets/external/gothicvania/environment-preview.png") center bottom / auto 100% repeat-x;
+  image-rendering: pixelated;
+  opacity: 0.32;
+}
+
+.robotPage::after {
+  position: fixed;
+  z-index: -1;
+  top: 74px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  content: "";
+  pointer-events: none;
+  background-color: rgba(15, 31, 53, 0.72);
+}
+
+.header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(170px, 0.65fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 76px;
+  padding: 12px clamp(16px, 3vw, 38px);
+  border-bottom: 3px solid var(--robot-gold-deep);
+  box-shadow: 0 4px 0 var(--robot-shadow);
+  background: #18284b;
+}
+
+.header::after {
+  position: absolute;
+  right: 0;
+  bottom: -7px;
+  left: 0;
+  height: 4px;
+  content: "";
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 22px,
+    rgba(242, 200, 91, 0.7) 22px 26px,
+    transparent 26px 48px
+  );
+}
+
+.brandBlock,
+.connection,
+.controlTitle,
+.modeHint,
+.secondaryButton,
+.actionRow,
+.phase,
+.voiceMeterMeta {
+  display: flex;
+  align-items: center;
+}
+
+.brandBlock {
+  gap: 11px;
+  min-width: 0;
+}
+
+.brandMark {
+  display: block;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border: 3px solid var(--robot-parchment);
+  box-shadow: 3px 3px 0 var(--robot-shadow), inset 0 0 0 2px var(--robot-gold-deep);
+  color: transparent;
+  background-color: var(--robot-gold);
+  background-image: url("/assets/starbao-nav-peek.png");
+  background-position: 52% 36%;
+  background-size: 64px auto;
+  background-repeat: no-repeat;
+}
+
+.brandBlock h1 {
+  color: var(--robot-parchment);
+  font-size: clamp(17px, 1.55vw, 22px);
+  font-weight: 820;
+  line-height: 1.15;
+}
+
+.brandBlock p {
+  margin-top: 3px;
+  color: var(--robot-teal);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.homeLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 2px solid var(--robot-parchment);
+  box-shadow: 3px 3px 0 var(--robot-shadow);
+  color: var(--robot-parchment);
+  background: var(--robot-forest);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.homeLink:hover {
+  color: var(--robot-ink);
+  background: var(--robot-gold);
+  box-shadow: 1px 1px 0 var(--robot-shadow);
+  transform: translate(2px, 2px);
+}
+
+.connection {
+  justify-content: flex-end;
+  gap: 7px;
+  min-width: 0;
+  padding: 7px 0 7px 12px;
+  border-left: 2px solid rgba(143, 215, 204, 0.7);
+  color: var(--robot-muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.connection svg {
+  flex: 0 0 auto;
+  color: var(--robot-gold);
+}
+
+.connection span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection[data-status="online"] {
+  color: var(--robot-teal);
+}
+
+.connection[data-status="online"] svg {
+  color: var(--robot-teal);
+}
+
+.connection[data-status="offline"],
+.connection[data-status="unavailable"] {
+  color: #f3a589;
+}
+
+.connection[data-status="offline"] svg,
+.connection[data-status="unavailable"] svg {
+  color: var(--robot-coral);
+}
+
+.contentGrid {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-columns: minmax(210px, 0.7fr) minmax(390px, 1.55fr) minmax(252px, 0.84fr);
+  align-items: start;
+  gap: clamp(14px, 1.65vw, 26px);
+  min-height: calc(100dvh - 76px);
+  padding: clamp(18px, 3vw, 40px);
+}
+
+.lessonRail,
+.conversation,
+.controlRail {
+  min-width: 0;
+}
+
+.lessonRail,
+.conversation,
+.voiceCard,
+.gestureCard,
+.deviceCard {
+  position: relative;
+  border: 3px solid var(--robot-frame);
+  box-shadow: 4px 4px 0 var(--robot-shadow), inset 0 0 0 2px rgba(255, 241, 200, 0.12);
+}
+
+.lessonRail::before,
+.conversation::after,
+.voiceCard::before,
+.gestureCard::before,
+.deviceCard::before {
+  position: absolute;
+  z-index: 2;
+  width: 10px;
+  height: 10px;
+  content: "";
+  pointer-events: none;
+  background: var(--robot-gold);
+  box-shadow: 0 0 0 2px var(--robot-gold-deep);
+}
+
+.lessonRail::before,
+.voiceCard::before,
+.gestureCard::before,
+.deviceCard::before {
+  top: -7px;
+  left: 14px;
+}
+
+.lessonRail {
+  align-self: stretch;
+  min-height: 490px;
+  padding: clamp(20px, 2.3vw, 30px) clamp(18px, 2vw, 26px);
+  background: var(--robot-forest-deep);
+}
+
+.lessonRail::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 90px;
+  content: "";
+  pointer-events: none;
+  border-top: 3px solid rgba(143, 215, 204, 0.4);
+  background: url("/assets/rooms/room-create.svg") center bottom / cover no-repeat;
+  image-rendering: pixelated;
+  opacity: 0.6;
+}
+
+.lessonRail > * {
+  position: relative;
+  z-index: 1;
+}
+
+.sectionLabel {
+  color: var(--robot-gold);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.lessonRail h2,
+.conversationHeader h2 {
+  margin-top: 7px;
+  color: var(--robot-parchment);
+  font-size: clamp(21px, 2.1vw, 31px);
+  font-weight: 850;
+  line-height: 1.18;
+}
+
+.summary {
+  margin-top: 14px;
+  color: var(--robot-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.keyPoint {
+  margin-top: 26px;
+  padding: 14px 14px 15px;
+  border: 2px solid rgba(143, 215, 204, 0.5);
+  border-left: 6px solid var(--robot-gold);
+  background: rgba(7, 19, 35, 0.62);
+}
+
+.keyPoint span {
+  color: var(--robot-teal);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.keyPoint strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--robot-parchment);
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.keyPoint p {
+  margin-top: 8px;
+  color: var(--robot-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.modeHint {
+  gap: 7px;
+  margin-top: 22px;
+  color: var(--robot-teal);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.modeHint svg {
+  flex: 0 0 auto;
+  color: var(--robot-gold);
+}
+
+.conversation {
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 610px;
+  overflow: hidden;
+  background: #172a49;
+}
+
+.conversation::before {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 180px;
+  content: "";
+  background: url("/assets/rooms/room-future.svg") center top / cover no-repeat;
+  image-rendering: pixelated;
+}
+
+.conversation::after {
+  right: 16px;
+  bottom: -7px;
+  background: var(--robot-teal);
+  box-shadow: 0 0 0 2px var(--robot-teal-deep);
+}
+
+.conversationHeader {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 155px;
+  padding: 25px clamp(18px, 3vw, 32px) 27px;
+  border-bottom: 3px solid var(--robot-lilac);
+  background: rgba(17, 31, 55, 0.62);
+}
+
+.conversationHeader h2 {
+  font-size: clamp(23px, 2.4vw, 34px);
+}
+
+.phase {
+  flex: 0 0 auto;
+  min-height: 32px;
+  max-width: 140px;
+  justify-content: center;
+  padding: 5px 9px;
+  border: 2px solid rgba(255, 241, 200, 0.85);
+  box-shadow: 2px 2px 0 var(--robot-shadow);
+  color: var(--robot-parchment);
+  background: rgba(26, 57, 73, 0.92);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.phase[data-phase="listening"] {
+  border-color: var(--robot-gold);
+  color: var(--robot-ink);
+  background: var(--robot-gold);
+}
+
+.phase[data-phase="thinking"],
+.phase[data-phase="transcribing"] {
+  border-color: var(--robot-teal);
+  color: var(--robot-ink);
+  background: var(--robot-teal);
+}
+
+.phase[data-phase="speaking"] {
+  border-color: var(--robot-lilac);
+  color: var(--robot-ink);
+  background: var(--robot-lilac);
+}
+
+.phase[data-phase="error"] {
+  border-color: var(--robot-coral);
+  color: var(--robot-ink);
+  background: var(--robot-coral);
+}
+
+.messages {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 305px;
+  max-height: min(46dvh, 480px);
+  padding: 22px clamp(18px, 3vw, 32px);
+  overflow-y: auto;
+  scrollbar-color: var(--robot-teal-deep) transparent;
+  scrollbar-width: thin;
+  background: rgba(11, 23, 42, 0.9);
+}
+
+.message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: min(92%, 640px);
+}
+
+.message[data-author="learner"] {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.messageAvatar {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid var(--robot-parchment);
+  box-shadow: 2px 2px 0 var(--robot-shadow);
+  color: transparent;
+  background: var(--robot-gold) url("/assets/starbao-nav-peek.png") 52% 30% / 46px auto no-repeat;
+  font-size: 0;
+}
+
+.message[data-author="learner"] .messageAvatar {
+  color: var(--robot-ink);
+  background: var(--robot-teal);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.message p {
+  padding: 11px 13px;
+  border: 2px solid #6a9aa8;
+  box-shadow: 3px 3px 0 var(--robot-shadow);
+  color: var(--robot-parchment);
+  background: #1c4052;
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.message[data-author="learner"] p {
+  border-color: #d39b4b;
+  color: var(--robot-ink);
+  background: var(--robot-gold);
+}
+
+.transcript {
+  padding: 10px 12px;
+  border: 2px solid var(--robot-lilac);
+  border-left-width: 6px;
+  color: var(--robot-parchment);
+  background: #2d315c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.composer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 70px;
+  padding: 13px clamp(18px, 3vw, 32px);
+  border-top: 3px solid var(--robot-teal-deep);
+  color: var(--robot-teal);
+  background: #132b43;
+}
+
+.composer input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 2px solid #60909c;
+  border-radius: 0;
+  outline: 0;
+  color: var(--robot-parchment);
+  background: #0e2038;
+  font-size: 14px;
+}
+
+.composer input::placeholder {
+  color: #94abb5;
+}
+
+.composer input:focus {
+  border-color: var(--robot-gold);
+  box-shadow: 0 0 0 3px rgba(242, 200, 91, 0.3);
+}
+
+.composer button,
+.actionRow button {
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid var(--robot-parchment);
+  box-shadow: 3px 3px 0 var(--robot-shadow);
+  color: var(--robot-ink);
+  background: var(--robot-gold);
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.composer button {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+}
+
+.composer button:hover:not(:disabled),
+.actionRow button:hover {
+  background: var(--robot-teal);
+  box-shadow: 1px 1px 0 var(--robot-shadow);
+  transform: translate(2px, 2px);
+}
+
+.composer button:disabled {
+  border-color: #5d6c78;
+  box-shadow: none;
+  color: #758793;
+  background: #273d52;
+  cursor: not-allowed;
+}
+
+.controlRail {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 6px;
+}
+
+.voiceCard,
+.gestureCard,
+.deviceCard {
+  width: 100%;
+  padding: 18px;
+  background: var(--robot-forest-deep);
+}
+
+.voiceCard {
+  border-color: #427275;
+}
+
+.gestureCard {
+  border-color: #6968a0;
+  background: #20294d;
+}
+
+.deviceCard {
+  border-color: #9a7547;
+  background: #3d343d;
+}
+
+.controlTitle {
+  gap: 8px;
+  color: var(--robot-parchment);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.controlTitle svg {
+  color: var(--robot-gold);
+}
+
+.voiceButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 54px;
+  margin-top: 15px;
+  border: 2px solid var(--robot-parchment);
+  box-shadow: 4px 4px 0 var(--robot-shadow);
+  color: var(--robot-ink);
+  background: var(--robot-gold);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.voiceButton:hover:not(:disabled) {
+  background: var(--robot-teal);
+  box-shadow: 2px 2px 0 var(--robot-shadow);
+  transform: translate(2px, 2px);
+}
+
+.voiceButton[data-recording="true"] {
+  border-color: var(--robot-parchment);
+  color: var(--robot-parchment);
+  background: #c5655c;
+}
+
+.voiceButton:disabled {
+  border-color: #536471;
+  box-shadow: none;
+  color: #8798a1;
+  background: #243b4e;
+  cursor: not-allowed;
+}
+
+.autoVoiceStatus {
+  margin-top: 11px;
+  color: var(--robot-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.autoVoiceStatus[data-active="true"] {
+  color: var(--robot-teal);
+}
+
+.voiceMeterMeta {
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 11px;
+  color: var(--robot-muted);
+  font-size: 12px;
+}
+
+.voiceMeterMeta strong {
+  flex: 0 0 auto;
+  color: var(--robot-parchment);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.voiceMeter,
+.gestureTrack {
+  height: 8px;
+  overflow: hidden;
+  border: 2px solid var(--robot-shadow);
+  background: #081827;
+}
+
+.voiceMeter {
+  margin-top: 7px;
+}
+
+.voiceMeter span,
+.gestureTrack span {
+  display: block;
+  height: 100%;
+  background: var(--robot-teal);
+  transition: width 100ms linear;
+}
+
+.secondaryButton {
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 11px;
+  padding: 0 9px;
+  border: 2px solid rgba(255, 241, 200, 0.75);
+  box-shadow: 2px 2px 0 var(--robot-shadow);
+  color: var(--robot-parchment);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  transition: color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  color: var(--robot-ink);
+  background: var(--robot-teal);
+  box-shadow: 1px 1px 0 var(--robot-shadow);
+  transform: translate(1px, 1px);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.54;
+  cursor: wait;
+}
+
+.error {
+  margin-top: 10px;
+  padding: 8px 9px;
+  border-left: 4px solid var(--robot-coral);
+  color: #ffc5af;
+  background: rgba(112, 47, 47, 0.55);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.gestureTrack {
+  margin-top: 15px;
+}
+
+.gestureTrack span {
+  background: var(--robot-gold);
+  transition-duration: 120ms;
+}
+
+.gestureCard p {
+  margin-top: 10px;
+  color: var(--robot-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.cameraViewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin-top: 13px;
+  overflow: hidden;
+  border: 3px solid #8a85c2;
+  box-shadow: 3px 3px 0 var(--robot-shadow);
+  background: #0a1529 url("/assets/rooms/room-future.svg") center / cover no-repeat;
+}
+
+.cameraPreview,
+.handOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cameraPreview {
+  z-index: 0;
+  display: block;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.handOverlay {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.cameraStatusOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  color: var(--robot-parchment);
+  background: rgba(8, 24, 39, 0.64);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  text-align: center;
+  text-shadow: 1px 1px 0 var(--robot-shadow);
+  pointer-events: none;
+}
+
+.deviceCard {
+  margin-top: auto;
+}
+
+.actionRow {
+  gap: 10px;
+  margin-top: 13px;
+}
+
+.actionRow button {
+  width: 44px;
+  height: 44px;
+}
+
+.compactDeviceActions {
+  display: none;
+}
+
+.virtualCursor {
+  position: absolute;
+  z-index: 5;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--robot-parchment);
+  border-radius: 0;
+  background: var(--robot-gold);
+  box-shadow: 0 0 0 2px var(--robot-ink), 3px 3px 0 var(--robot-shadow);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+@media (max-width: 1120px) {
+  .header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .connection {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    max-width: min(100%, 560px);
+    min-height: 24px;
+    padding: 0 0 0 12px;
+  }
+
+  .contentGrid {
+    grid-template-columns: minmax(225px, 0.72fr) minmax(370px, 1.4fr);
+  }
+
+  .controlRail {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .deviceCard {
+    margin-top: 0;
+  }
+
+  .cameraViewport {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+/* The Orange Pi screen is 800 by 480: keep the interactive rails visible. */
+@media (max-height: 560px) and (min-width: 761px) {
+  .robotPage { overflow: hidden; }
+
+  .header {
+    grid-template-columns: minmax(0, 1fr) auto minmax(118px, 0.55fr);
+    gap: 8px;
+    min-height: 52px;
+    padding: 6px 12px;
+  }
+
+  .header::after { bottom: -5px; height: 3px; }
+  .brandBlock { gap: 8px; }
+  .brandMark { flex-basis: 30px; width: 30px; height: 30px; border-width: 2px; box-shadow: 2px 2px 0 var(--robot-shadow), inset 0 0 0 1px var(--robot-gold-deep); background-size: 42px auto; }
+  .brandBlock h1 { font-size: 16px; }
+  .brandBlock p { display: none; }
+  .homeLink { min-height: 32px; padding: 0 8px; border-width: 2px; box-shadow: 2px 2px 0 var(--robot-shadow); font-size: 11px; }
+  .connection { grid-column: auto; justify-content: flex-end; max-width: 168px; min-height: 0; padding: 3px 0 3px 7px; font-size: 10px; }
+
+  .contentGrid {
+    flex: 1 1 auto;
+    grid-template-columns: minmax(150px, 0.55fr) minmax(260px, 1fr) minmax(200px, 0.76fr);
+    gap: 8px;
+    min-height: 0;
+    height: calc(100dvh - 52px);
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .lessonRail,
+  .conversation { min-height: 0; height: 100%; }
+  .lessonRail { padding: 12px; }
+  .lessonRail::after { height: 44px; border-top-width: 2px; }
+  .sectionLabel { font-size: 10px; }
+  .lessonRail h2,
+  .conversationHeader h2 { margin-top: 4px; font-size: 18px; }
+  .summary { margin-top: 8px; font-size: 11px; line-height: 1.4; }
+  .keyPoint { margin-top: 11px; padding: 8px; border-width: 1px; border-left-width: 4px; }
+  .keyPoint span { font-size: 10px; }
+  .keyPoint strong { margin-top: 4px; font-size: 13px; }
+  .keyPoint p { margin-top: 4px; font-size: 10px; line-height: 1.35; }
+  .modeHint { gap: 5px; margin-top: 10px; font-size: 10px; }
+  .modeHint svg { width: 13px; height: 13px; }
+
+  .conversation::before { height: 92px; }
+  .conversationHeader { min-height: 74px; gap: 8px; padding: 10px 12px; border-bottom-width: 2px; }
+  .conversationHeader h2 { font-size: 19px; }
+  .phase { min-height: 26px; max-width: 94px; padding: 3px 5px; border-width: 1px; box-shadow: 1px 1px 0 var(--robot-shadow); font-size: 10px; }
+  .messages { gap: 8px; min-height: 0; max-height: none; padding: 10px; }
+  .message { gap: 6px; }
+  .messageAvatar { flex-basis: 24px; width: 24px; height: 24px; border-width: 1px; box-shadow: 1px 1px 0 var(--robot-shadow); background-size: 34px auto; }
+  .message p { padding: 7px 8px; border-width: 1px; box-shadow: 1px 1px 0 var(--robot-shadow); font-size: 11px; line-height: 1.35; }
+  .composer { min-height: 48px; gap: 6px; padding: 7px 10px; border-top-width: 2px; }
+  .composer svg { width: 14px; height: 14px; }
+  .composer input { height: 32px; padding: 0 8px; border-width: 1px; font-size: 12px; }
+  .composer button { flex-basis: 32px; width: 32px; height: 32px; border-width: 1px; box-shadow: 1px 1px 0 var(--robot-shadow); }
+
+  .controlRail { display: flex; grid-column: auto; flex-direction: column; gap: 6px; min-height: 0; max-height: 100%; padding: 0 2px 2px 0; overflow-y: auto; scrollbar-width: thin; }
+  .voiceCard,
+  .gestureCard,
+  .deviceCard { padding: 9px; border-width: 2px; box-shadow: 2px 2px 0 var(--robot-shadow), inset 0 0 0 1px rgba(255, 241, 200, 0.12); }
+  .gestureCard { order: -1; }
+  .controlTitle { gap: 5px; font-size: 11px; }
+  .controlTitle svg { width: 14px; height: 14px; }
+  .voiceButton { min-height: 34px; margin-top: 7px; border-width: 1px; box-shadow: 2px 2px 0 var(--robot-shadow); font-size: 12px; }
+  .autoVoiceStatus { margin-top: 6px; font-size: 10px; line-height: 1.3; }
+  .voiceMeterMeta { margin-top: 6px; font-size: 10px; }
+  .voiceMeter,
+  .gestureTrack { height: 6px; border-width: 1px; }
+  .voiceMeter { margin-top: 4px; }
+  .gestureTrack { margin-top: 7px; }
+  .gestureCard p { margin-top: 6px; font-size: 10px; line-height: 1.3; }
+  .cameraViewport { aspect-ratio: 16 / 9; margin-top: 7px; border-width: 2px; box-shadow: 2px 2px 0 var(--robot-shadow); }
+  .cameraStatusOverlay { padding: 8px; font-size: 10px; }
+  .secondaryButton { min-height: 28px; margin-top: 7px; padding: 0 6px; border-width: 1px; box-shadow: 1px 1px 0 var(--robot-shadow); font-size: 10px; }
+  .gestureResetButton { display: none; }
+  .compactDeviceActions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-top: 7px; }
+  .compactDeviceActions button { display: inline-grid; width: 100%; height: 28px; place-items: center; border: 1px solid rgba(255, 241, 200, 0.75); box-shadow: 1px 1px 0 var(--robot-shadow); color: var(--robot-parchment); background: #173f45; }
+  .compactDeviceActions button:hover { color: var(--robot-ink); background: var(--robot-teal); }
+  .compactDeviceActions button svg { width: 13px; height: 13px; }
+  .deviceCard { display: none; }
+  .actionRow { gap: 6px; margin-top: 7px; }
+  .actionRow button { width: 30px; height: 30px; border-width: 1px; box-shadow: 1px 1px 0 var(--robot-shadow); }
+  .actionRow button svg { width: 13px; height: 13px; }
+}
+
+@media (max-width: 760px) {
+  .robotPage::before {
+    height: 180px;
+    min-height: 150px;
+    opacity: 0.25;
+  }
+
+  .header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 66px;
+    padding: 9px 14px;
+  }
+
+  .brandMark {
+    flex-basis: 42px;
+    width: 42px;
+    height: 42px;
+    background-size: 58px auto;
+  }
+
+  .brandBlock h1 {
+    font-size: 17px;
+  }
+
+  .brandBlock p {
+    display: none;
+  }
+
+  .homeLink {
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .connection {
+    font-size: 11px;
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    min-height: auto;
+    padding: 18px 14px 210px;
+  }
+
+  .lessonRail,
+  .conversation {
+    min-height: 0;
+  }
+
+  .lessonRail {
+    padding-bottom: 115px;
+  }
+
+  .conversation::before {
+    height: 145px;
+  }
+
+  .conversationHeader {
+    min-height: 134px;
+    padding: 20px 18px;
+  }
+
+  .conversationHeader h2 {
+    font-size: 25px;
+  }
+
+  .messages {
+    min-height: 330px;
+    max-height: 430px;
+    padding: 18px;
+  }
+
+  .composer {
+    min-height: 67px;
+    padding: 12px 18px;
+  }
+
+  .controlRail {
+    display: flex;
+    grid-column: auto;
+    align-items: stretch;
+    gap: 18px;
+  }
+
+  .voiceCard,
+  .gestureCard,
+  .deviceCard {
+    padding: 17px;
+  }
+
+  .cameraViewport {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+@media (max-width: 460px) {
+  .header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-inline: 11px;
+  }
+
+  .brandBlock {
+    gap: 8px;
+  }
+
+  .brandMark {
+    flex-basis: 38px;
+    width: 38px;
+    height: 38px;
+    border-width: 2px;
+    box-shadow: 2px 2px 0 var(--robot-shadow), inset 0 0 0 1px var(--robot-gold-deep);
+    background-size: 52px auto;
+  }
+
+  .brandBlock h1 {
+    font-size: 15px;
+  }
+
+  .homeLink {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .homeLink svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .contentGrid {
+    padding-inline: 10px;
+  }
+
+  .lessonRail,
+  .voiceCard,
+  .gestureCard,
+  .deviceCard {
+    padding-inline: 14px;
+  }
+
+  .conversationHeader {
+    gap: 10px;
+    padding-inline: 14px;
+  }
+
+  .conversationHeader h2 {
+    font-size: 22px;
+  }
+
+  .phase {
+    max-width: 98px;
+    min-height: 30px;
+    padding-inline: 6px;
+    font-size: 11px;
+  }
+
+  .messages,
+  .composer {
+    padding-inline: 14px;
+  }
+
+  .message {
+    max-width: 98%;
+  }
+
+  .message p {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .messageAvatar {
+    flex-basis: 30px;
+    width: 30px;
+    height: 30px;
+    background-size: 42px auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robotPage *,
+  .robotPage *::before,
+  .robotPage *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

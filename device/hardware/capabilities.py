@@ -30,6 +30,10 @@ def detect_capabilities(
             "name": display_name if display_available else None,
             "xauthority": xauthority_path if display_available else None,
         },
+        "mouse": {
+            "available": False,
+            "backend": "xtest",
+        },
         "audio_playback": {
             "available": exists_any(("/dev/snd/pcmC0D0p", "/proc/asound/cards"))
         },

@@ -9,12 +9,15 @@
 | `/` | 四学段、课程路径、流式对话、图片/语音输入、教学画布、动画、绘本、材料与练习 |
 | `/lab` | Monaco + Pyodide Python 实验、确定性挑战检查、提示、停止与重置 |
 | `/progress` | 本机答题记录、知识点掌握度、兴趣设置、间隔复习与下一课推荐 |
+| `/robot` | 面向 OrangePi 的 800x480 精简课堂页：百度语音、本地手势光标与设备屏幕控制 |
 | `/api/chat` | Gemini 流式文字/单图问答 |
 | `/api/transcribe` | Gemini 音频转写 |
 | `/api/storybook` | 结构化绘本生成，失败或未配置 AI 时回退种子绘本 |
 | `/api/materials/docx` | 根据课程数据生成 DOCX；锚点课含来源标签与超链接 |
 | `/api/materials/pptx` | 根据课程数据生成 PPTX；锚点课增加参考来源页 |
 | `/api/device` | 服务端读取 Core API，向浏览器返回清洗后的只读设备状态 |
+| `/api/device/command` | 服务端校验后的设备白名单命令代理 |
+| `/api/voice/asr`、`/api/voice/tts` | 服务端代理 Core 的百度语音接口 |
 
 当前课程是项目内原创、固定版本的种子数据：四个学段各 2 门，共 8 门。冒泡排序与神经网络/图像分类锚点课另有版本化参考目录，页面展示经核对事实以及 NIST、PyTorch、scikit-learn 来源，提示词要求模型用 `[S#]` 标注受支持事实。这是小规模权威来源 grounding，不是教材选择、文档检索或完整 RAG；教材上传、教师审核后台和任意主题内容生成尚未实现。
 
@@ -53,6 +56,8 @@ npm run dev --workspace apps/web
 | `CORE_DEVICE_ID` | 可选 | 指定展示的设备；为空时选 Core 返回的第一台设备 |
 | `TRUST_PROXY_HEADERS` | 仅自托管本地限流可选 | 设为 `true` 才信任普通 `x-forwarded-for`；Vercel 使用平台转发头和 Redis 限流 |
 
+百度语音凭据属于 Core 环境，不放在 `apps/web/.env.local`：根目录 `.env` 中配置 `BAIDU_APP_ID`、`BAIDU_API_KEY`、`BAIDU_SECRET_KEY`，Web 只配置 `CORE_API_URL` 与 `CORE_API_ADMIN_TOKEN`。
+
 Vercel 会自动设置 `VERCEL=1`，不要手工伪造。该标记下，`/api/chat`、`/api/transcribe` 和 AI 模式的 `/api/storybook` 必须成功访问 Redis REST；凭证缺失或 Redis 故障时返回 503，而不是退回单实例内存限流。
 
 本地开发未设置 `VERCEL=1` 时使用进程内限流，适合单进程联调，不适合多实例公网部署。
@@ -85,9 +90,9 @@ Vercel 会自动设置 `VERCEL=1`，不要手工伪造。该标记下，`/api/ch
 
 ## 设备状态适配
 
-浏览器每 18 秒、仅在页面可见且没有前一个请求时调用 `/api/device`。Route Handler 使用 3 秒超时和 `CORE_API_ADMIN_TOKEN` 请求 Core API，只返回设备名、在线状态、最后心跳及白名单能力。管理令牌、完整状态 JSON 和命令接口不会暴露给浏览器。
+浏览器每 18 秒、仅在页面可见且没有前一个请求时调用 `/api/device`。Route Handler 使用 3 秒超时和 `CORE_API_ADMIN_TOKEN` 请求 Core API，只返回设备名、在线状态、最后心跳及白名单能力；语音与设备命令 BFF 也只在服务端注入该令牌。管理令牌、完整状态 JSON、百度凭据不会暴露给浏览器。
 
-Core 未配置、离线或响应不合法时，界面显示“网页模式”，教学功能继续可用。网页当前不能下发设备命令，也没有把对话或作品同步到机器人。
+Core 未配置、离线或响应不合法时，界面显示“网页模式”，文字教学继续可用；设备按钮会明确提示离线。机器人页可以下发固定白名单命令，但不会把对话或作品自动同步到机器人。
 
 ## 验证命令
 

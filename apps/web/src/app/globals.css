@@ -140,6 +140,16 @@ a[href] {
   box-shadow: 3px 3px 0 var(--highlight);
 }
 
+.brand__back {
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  background: var(--surface-subtle);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .primary-navigation {
   display: flex;
   flex: 1 1 auto;
@@ -1327,4 +1337,174 @@ a[href] {
   .network-column h4 { font-size: 9px; }
   .feature-node, .probability-node { padding: 3px 2px; font-size: 9px; }
   .teaching-animation__controls > button { padding-inline: 7px; }
+}
+
+/* Shared pixel-workbench shell for the interactive learning routes. */
+.app-shell {
+  --background: #142d3a;
+  --surface-subtle: #193947;
+  --surface-muted: #214956;
+  --foreground: #f7efd4;
+  --foreground-muted: #b9c9bd;
+  --foreground-soft: #8fa9a0;
+  --primary: #e1b754;
+  --primary-strong: #ffe3a0;
+  --primary-soft: #214c4e;
+  --feedback: #d97a64;
+  --feedback-soft: #493a41;
+  --highlight: #f3c85e;
+  --highlight-soft: #3b3a4d;
+  --border: #365d61;
+  --border-strong: #5d8880;
+  --shadow-soft: 4px 4px 0 #0d222d;
+  color: var(--foreground);
+  background: #102c36 url("/assets/external/gothicvania/environment-preview.png") center bottom / auto 300px repeat-x;
+}
+
+.app-header {
+  min-height: 66px;
+  border-bottom: 2px solid #515daa;
+  background: #242967;
+  box-shadow: 0 2px 0 #151a48;
+}
+
+.brand { color: #fff0c8; }
+
+.brand__mark {
+  width: 42px;
+  height: 42px;
+  border: 2px solid #e7c15a;
+  border-radius: 0;
+  background-color: #263653;
+  box-shadow: 3px 3px 0 #161d47;
+}
+
+.brand__mark--star {
+  background-image: url("/assets/pets/twinkle-twinkle/spritesheet.webp");
+  background-repeat: no-repeat;
+  background-size: 800% 900%;
+  background-position: 0 0;
+  image-rendering: pixelated;
+}
+
+.brand__back {
+  border-color: #6875b0;
+  border-radius: 0;
+  color: #f8e4a1;
+  background: #30386f;
+}
+
+.primary-navigation { gap: 8px; }
+
+.primary-navigation__link {
+  border: 1px solid transparent;
+  border-radius: 0;
+  color: #d9dfcd;
+}
+
+.primary-navigation__link:hover {
+  border-color: #6674ad;
+  color: #fff0bd;
+  background: #303a73;
+}
+
+.primary-navigation__link[aria-current="page"] {
+  border-color: #e2be5b;
+  color: #fff3c7;
+  background: #37456f;
+}
+
+.learning-workspace { background: #132f39cc; }
+
+.workspace-toolbar {
+  min-height: 60px;
+  border-bottom: 2px solid #365d61;
+  background: #183b46;
+}
+
+.stage-switcher__label { color: #d6dfcb; }
+
+.stage-switcher__options {
+  border-color: #5b8278;
+  border-radius: 0;
+  background: #112c37;
+}
+
+.stage-switcher__button {
+  border-radius: 0;
+  color: #c0cfc1;
+}
+
+.stage-switcher__button:hover { color: #fff1c9; background: #284c50; }
+
+.stage-switcher__button[aria-pressed="true"] {
+  color: #24323a;
+  background: #e3bb57;
+  box-shadow: 2px 2px 0 #122630;
+}
+
+.workspace-grid { background: #14333c; }
+
+.workspace-panel--path,
+.workspace-panel--conversation { border-right: 2px solid #365d61; }
+
+.course-rail,
+.conversation-classroom,
+.teaching-canvas { background: #173741; }
+
+.course-rail,
+.conversation-classroom,
+.teaching-canvas,
+.canvas-panel { scrollbar-color: #e1b754 #132e38; }
+
+.panel-heading__icon {
+  border: 1px solid #5c887d;
+  border-radius: 0;
+  color: #f1c65d;
+  background: #244e50;
+}
+
+.course-list__button,
+.message__body,
+.message-composer,
+.canvas-section,
+.teaching-animation__status,
+.bubble-stage,
+.network-stage,
+.network-column,
+.feature-node,
+.probability-node,
+.teaching-animation__metrics div,
+.teaching-animation__controls > button,
+.teaching-animation__speed {
+  border-radius: 0;
+}
+
+.course-list__button:hover,
+.course-list__button[aria-current="true"] {
+  border-color: #e0ba58;
+  background: #254b4e;
+}
+
+.message__body { border-color: #436a69; background: #193b45; }
+.message[data-author="learner"] .message__body { border-color: #d3aa55; background: #3f4343; }
+.message-composer { border-top-color: #41696a; background: #173741; }
+.message-composer textarea,
+.message-composer input { border-radius: 0; background: #102c37; }
+.message-composer button { border-radius: 0; background: #d9b454; }
+
+.canvas-tabs { border-bottom-color: #41696a; }
+.canvas-tabs button { border-radius: 0; color: #b9c9bd; }
+.canvas-tabs button[aria-selected="true"] { color: #fff0bc; }
+.canvas-panel { background: #173741; }
+.canvas-section { border-color: #41696a; background: #193b45; }
+.bubble-stage,
+.network-stage,
+.teaching-animation__metrics div,
+.teaching-animation__status { border-color: #41696a; background: #102c37; }
+
+@media (max-width: 700px) {
+  .app-header { padding-inline: 12px; }
+  .brand { gap: 7px; margin-right: 16px; font-size: 15px; }
+  .brand__mark { width: 36px; height: 36px; }
 }

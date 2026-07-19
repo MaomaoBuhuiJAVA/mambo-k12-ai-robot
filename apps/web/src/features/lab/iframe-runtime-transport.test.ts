@@ -6,7 +6,6 @@ import { IframeRuntimeTransport } from "./iframe-runtime-transport";
 const sources = {
   html: "<!doctype html><html><body></body></html>",
   core: "export function parseRunRequest(value) { return value; }",
-  worker: "self.onmessage = () => {};",
 };
 
 describe("IframeRuntimeTransport", () => {
@@ -50,7 +49,6 @@ describe("IframeRuntimeTransport", () => {
         type: "initialize",
         token: "channel-token-1234567890",
         coreSource: sources.core,
-        workerSource: sources.worker,
       },
       "*",
     );
@@ -94,7 +92,7 @@ describe("IframeRuntimeTransport", () => {
 
     transport.start({ onMessage: vi.fn(), onError: vi.fn() });
 
-    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
     expect(fetcher).toHaveBeenCalledWith(
       expect.stringMatching(/^\/lab-runtime/),
       expect.objectContaining({ credentials: "omit" }),

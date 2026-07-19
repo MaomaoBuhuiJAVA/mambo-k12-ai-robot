@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 import { AppShell } from "./app-shell";
 
 describe("AppShell lab navigation", () => {
+  it("returns to the public homepage from the brand", () => {
+    render(<AppShell><div>workspace</div></AppShell>);
+
+    expect(screen.getByRole("link", { name: "返回首页" })).toHaveAttribute("href", "/preview");
+  });
+
   it("opens the real Python laboratory page", () => {
     render(<AppShell><div>workspace</div></AppShell>);
 

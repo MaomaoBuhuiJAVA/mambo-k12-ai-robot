@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, BookOpenCheck, CalendarClock, ClipboardList } from "lucide-react";
@@ -71,12 +72,15 @@ export function ProgressDashboard({ now }: { now?: Date }) {
   return (
     <section className={styles.dashboard} aria-labelledby="progress-title">
       <header className={styles.header}>
+        <div className={styles.headerMascot} aria-hidden="true">
+          <Image src="/assets/starbao-nav-peek.png" alt="" width={152} height={208} priority />
+        </div>
         <div>
           <span>{STAGE_LABELS[state.profile.stage]}</span>
           <h1 id="progress-title">学习进度</h1>
           <p>这里只展示本机实际保存的练习证据，不根据使用时长推测能力。</p>
         </div>
-        <Link href="/" className={styles.backLink}>返回学习工作台</Link>
+        <Link href="/preview" className={styles.backLink}>返回首页</Link>
       </header>
 
       <div className={styles.summaryBand}>

@@ -24,6 +24,12 @@ import styles from "./python-lab.module.css";
 
 interface PythonLabProps {
   createRunner?: () => LabRunner;
+  /**
+   * A lab entry flow can choose a stage without overwriting the learner's
+   * saved profile. The value is intentionally used only for this session.
+   */
+  initialStage?: Stage;
+  initialTemplateId?: LabTemplateId;
 }
 
 function outputFrom(response: LabTerminalResponse): LabOutputEntry[] {
@@ -34,14 +40,16 @@ function outputFrom(response: LabTerminalResponse): LabOutputEntry[] {
 
 export function PythonLab({
   createRunner = createPyodideWorkerController,
+  initialStage,
+  initialTemplateId = DEFAULT_LAB_TEMPLATE_ID,
 }: PythonLabProps) {
-  const [templateId, setTemplateId] = useState<LabTemplateId>(DEFAULT_LAB_TEMPLATE_ID);
-  const [code, setCode] = useState(() => getLabTemplate(DEFAULT_LAB_TEMPLATE_ID).starterCode);
+  const [templateId, setTemplateId] = useState<LabTemplateId>(initialTemplateId);
+  const [code, setCode] = useState(() => getLabTemplate(initialTemplateId).starterCode);
   const [status, setStatus] = useState<LabRunnerStatus>("loading");
   const [output, setOutput] = useState<LabOutputEntry[]>([]);
   const [resultMessage, setResultMessage] = useState("等待运行");
   const [hintIndex, setHintIndex] = useState(-1);
-  const [stage, setStage] = useState<Stage>("lower_primary");
+  const [stage, setStage] = useState<Stage>(initialStage ?? "lower_primary");
   const runnerRef = useRef<LabRunner | null>(null);
 
   const template = getLabTemplate(templateId);
@@ -52,7 +60,7 @@ export function PythonLab({
     const runner = createRunner();
     let active = true;
     queueMicrotask(() => {
-      if (active) setStage(loadLearningState().profile.stage);
+      if (active && !initialStage) setStage(loadLearningState().profile.stage);
     });
     runnerRef.current = runner;
     const unsubscribe = runner.subscribe(setStatus);
@@ -64,7 +72,7 @@ export function PythonLab({
       runner.dispose();
       runnerRef.current = null;
     };
-  }, [createRunner]);
+  }, [createRunner, initialStage]);
 
   const selectTemplate = (nextId: LabTemplateId) => {
     if (isRunning || nextId === templateId) return;
@@ -139,7 +147,7 @@ export function PythonLab({
         <div>
           <p className={styles.eyebrow}>Python 编程实验室</p>
           <h1 id="lab-title">边改边运行，亲手验证算法</h1>
-          <p>代码在无主站同源权限的隔离页面 Worker 中执行，不会发送到服务端。</p>
+          <p>代码在无主站同源权限的隔离页面中执行，不会发送到服务端。</p>
         </div>
         <div className={styles.runtimeStatus} data-status={status} aria-live="polite">
           <span aria-hidden="true" />

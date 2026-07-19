@@ -84,6 +84,11 @@ Compose 会等待 PostgreSQL healthcheck，通过内部 `postgresql+asyncpg` 连
 | `HEARTBEAT_INTERVAL_SECONDS` | 可选，默认 5 | Welcome 消息中的心跳间隔，最小 2 秒 |
 | `DEVICE_STALE_AFTER_SECONDS` | 可选，默认 20 | 离线判定配置，最小 10 秒 |
 | `PORT` | 平台提供或默认 8000 | 容器监听端口 |
+| `BAIDU_APP_ID` | 机器人语音必需 | 百度语音 AppID，仅 Core 使用 |
+| `BAIDU_API_KEY` | 机器人语音必需 | 百度语音 API Key，仅 Core 使用 |
+| `BAIDU_SECRET_KEY` | 机器人语音必需 | 百度语音 Secret Key，仅 Core 使用 |
+| `BAIDU_ASR_DEV_PID` | 可选，默认 1537 | 百度中文普通话识别模型 |
+| `BAIDU_TTS_PER` | 可选，默认 110 | 百度中文发音人 |
 
 示意运行命令只展示变量名，不包含真实值：
 
@@ -93,6 +98,9 @@ docker run --rm -p 8000:8000 \
   -e ADMIN_API_TOKEN \
   -e DATABASE_URL \
   -e AUTO_CREATE_SCHEMA=false \
+  -e BAIDU_APP_ID \
+  -e BAIDU_API_KEY \
+  -e BAIDU_SECRET_KEY \
   mambo-core:0.2
 ```
 
@@ -147,6 +155,8 @@ python -m device.agent
 systemctl status mambo-device-agent --no-pager
 journalctl -u mambo-device-agent -n 50 --no-pager
 ```
+
+机器人页面启动脚本为 `deploy/launch-robot-browser.sh`。首次安装浏览器需要所有者明确执行 `sudo deploy/install-orangepi-browser.sh`；脚本只安装 Chromium，不保存密码。通过局域网 HTTP 访问时只能验证页面显示，摄像头手势应使用 HTTPS；临时演示可显式设置 `ROBOT_ALLOW_INSECURE_CAMERA=1`，不要用于公网部署。
 
 安装、复制到 `/opt`、写 `/etc` 与 `systemctl enable --now` 需要 `sudo`，必须由用户明确执行。当前协议仅支持 `ping` 和 `get_status`，不允许远程 Shell。
 

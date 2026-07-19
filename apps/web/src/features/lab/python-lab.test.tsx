@@ -71,6 +71,20 @@ describe("PythonLab", () => {
     expect((editor as HTMLTextAreaElement).value).toContain("classify_image");
   });
 
+  it("starts from an entry-flow template and keeps its requested stage guidance", async () => {
+    render(
+      <PythonLab
+        createRunner={fakeRunner}
+        initialStage="lower_primary"
+        initialTemplateId="image-classifier"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "图像分类" })).toHaveAttribute("aria-pressed", "true");
+    expect((screen.getByRole("textbox", { name: "Python 代码" }) as HTMLTextAreaElement).value).toContain("classify_image");
+    expect(screen.getByText("给叶子、球和杯子分别计分，再选出分数最高的图片标签。")).toBeInTheDocument();
+  });
+
   it("enables stop while running and disposes the worker on unmount", async () => {
     const user = userEvent.setup();
     let listener: ((status: "ready" | "running") => void) | undefined;

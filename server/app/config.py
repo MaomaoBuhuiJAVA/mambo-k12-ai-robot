@@ -13,6 +13,11 @@ class Settings:
     database_url: str
     auto_create_schema: bool
     command_timeout_seconds: int
+    baidu_app_id: str
+    baidu_api_key: str
+    baidu_secret_key: str
+    baidu_asr_dev_pid: int
+    baidu_tts_per: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -33,6 +38,11 @@ class Settings:
             command_timeout_seconds=max(
                 1, int(os.getenv("COMMAND_TIMEOUT_SECONDS", "30"))
             ),
+            baidu_app_id=os.getenv("BAIDU_APP_ID", "").strip(),
+            baidu_api_key=os.getenv("BAIDU_API_KEY", "").strip(),
+            baidu_secret_key=os.getenv("BAIDU_SECRET_KEY", "").strip(),
+            baidu_asr_dev_pid=max(1, int(os.getenv("BAIDU_ASR_DEV_PID", "1537"))),
+            baidu_tts_per=max(0, int(os.getenv("BAIDU_TTS_PER", "110"))),
         )
 
 

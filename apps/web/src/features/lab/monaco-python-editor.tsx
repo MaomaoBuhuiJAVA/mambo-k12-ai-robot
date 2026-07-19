@@ -24,13 +24,14 @@ export function MonacoPythonEditor({ value, onChange }: MonacoPythonEditorProps)
       <MonacoEditor
         height="100%"
         language="python"
-        theme="vs-light"
+        theme="vs-dark"
         value={value}
         onChange={(nextValue: string | undefined) => onChange(nextValue ?? "")}
         options={{
           automaticLayout: true,
-          fontSize: 14,
-          lineHeight: 22,
+          fontFamily: "Cascadia Code, Cascadia Mono, Consolas, monospace",
+          fontSize: 15,
+          lineHeight: 23,
           minimap: { enabled: false },
           padding: { top: 14, bottom: 14 },
           scrollBeyondLastLine: false,

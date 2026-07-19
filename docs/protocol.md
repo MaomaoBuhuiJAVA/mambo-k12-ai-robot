@@ -62,6 +62,8 @@ Authorization: Bearer <DEVICE_AUTH_TOKEN>
 - `play_audio`
 - `stop_audio`
 - `set_display_mode`
+- `move_mouse`
+- `click_mouse`
 
 任何未知命令都必须返回 `unsupported_command`，不得转交 Shell。
 
@@ -75,7 +77,11 @@ Authorization: Bearer <DEVICE_AUTH_TOKEN>
 {"name": "show_artifact", "arguments": {"source": "/home/orangepi/.local/share/mambo/media/snapshots/id.jpg", "media_type": "image"}}
 {"name": "play_audio", "arguments": {"source": "https://media.example/audio.mp3", "volume": 80}}
 {"name": "set_display_mode", "arguments": {"mode": "presentation"}}
+{"name": "move_mouse", "arguments": {"x": 0.5, "y": 0.5}}
+{"name": "click_mouse", "arguments": {}}
 ```
+
+`move_mouse` 使用 `0..1` 的归一化坐标，设备端映射到当前 X11 屏幕并限制在边界内；`click_mouse` 只允许左键并带点击冷却。两条命令通过 XTest 适配器执行，不接受 Shell、按钮类型或原始坐标。
 
 `media_type` 只能是 `image` 或 `video`，音量范围为 `0..100`，显示模式只能是
 `on`、`presentation` 或 `off`。本地文件必须位于设备 `MEDIA_ROOT` 内；远程资源

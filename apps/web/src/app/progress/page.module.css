@@ -1,1 +1,59 @@
-.page { width: 100%; min-height: 100dvh; overflow: auto; background: var(--surface-subtle); }
+.page {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background:
+    linear-gradient(rgba(14, 23, 53, 0.96), rgba(15, 52, 56, 0.94)),
+    url("/assets/external/gothicvania/environment-preview.png") center bottom / auto 490px repeat-x;
+  scrollbar-color: #f4ca61 #11172e;
+  scrollbar-width: thin;
+}
+
+.page::before,
+.page::after {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.page::before {
+  inset: 0;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(90deg, rgba(133, 193, 180, 0.1) 1px, transparent 1px),
+    linear-gradient(rgba(133, 193, 180, 0.08) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.page::after {
+  right: 3vw;
+  bottom: 0;
+  width: min(36vw, 470px);
+  height: 220px;
+  opacity: 0.46;
+  background: url("/assets/external/gothicvania/environment-preview.png") right bottom / auto 220px no-repeat;
+  image-rendering: pixelated;
+}
+
+.page > * {
+  position: relative;
+  z-index: 1;
+}
+
+.page::-webkit-scrollbar {
+  width: 10px;
+}
+
+.page::-webkit-scrollbar-track {
+  background: #11172e;
+}
+
+.page::-webkit-scrollbar-thumb {
+  border: 2px solid #11172e;
+  background: #f4ca61;
+}
