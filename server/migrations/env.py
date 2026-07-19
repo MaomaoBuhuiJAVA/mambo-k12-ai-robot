@@ -9,7 +9,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from server.app.config import settings
+from server.app.config import _async_connect_args, settings
 from server.app.models import Base
 
 
@@ -60,6 +60,7 @@ async def run_async_migrations() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=_async_connect_args(settings.database_url),
     )
 
     async with connectable.connect() as connection:
