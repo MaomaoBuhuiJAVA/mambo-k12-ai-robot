@@ -4,6 +4,12 @@ import os
 from dataclasses import dataclass
 
 
+def _normalize_database_url(database_url: str) -> str:
+    if database_url.startswith("postgresql://"):
+        return f"postgresql+asyncpg://{database_url.removeprefix('postgresql://')}"
+    return database_url
+
+
 @dataclass(frozen=True)
 class Settings:
     device_auth_token: str
@@ -30,8 +36,8 @@ class Settings:
             device_stale_after_seconds=max(
                 10, int(os.getenv("DEVICE_STALE_AFTER_SECONDS", "20"))
             ),
-            database_url=os.getenv(
-                "DATABASE_URL", "sqlite+aiosqlite:///./data/mambo.db"
+            database_url=_normalize_database_url(
+                os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./data/mambo.db")
             ),
             auto_create_schema=os.getenv("AUTO_CREATE_SCHEMA", "false").lower()
             in {"1", "true", "yes", "on"},
