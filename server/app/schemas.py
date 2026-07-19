@@ -114,6 +114,48 @@ class MessageRead(ORMModel):
     created_at: datetime
 
 
+class StarbaoConversationRead(ORMModel):
+    conversation_id: str
+    device_id: str
+    speak_on_orangepi: bool
+    latest_sequence: int
+
+
+class StarbaoSettingsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    speak_on_orangepi: bool
+
+
+class StarbaoMessageCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    client_message_id: str = Field(min_length=1, max_length=128)
+    role: Literal["user", "assistant", "system"]
+    origin: Literal["web", "orangepi", "asr", "starbao"]
+    content: str = Field(min_length=1, max_length=20_000)
+    reply_to_message_id: str | None = Field(default=None, min_length=1, max_length=36)
+    announce_on_orangepi: bool = False
+
+
+class StarbaoMessageRead(ORMModel):
+    message_id: str
+    conversation_id: str
+    sequence: int
+    client_message_id: str
+    role: Literal["user", "assistant", "system"]
+    origin: Literal["web", "orangepi", "asr", "starbao"]
+    content: str
+    reply_to_message_id: str | None
+    announce_on_orangepi: bool
+    created_at: datetime
+
+
+class StarbaoMessageListRead(BaseModel):
+    messages: list[StarbaoMessageRead]
+    latest_sequence: int
+
+
 class ExerciseAttemptCreate(BaseModel):
     knowledge_point: str = Field(min_length=1, max_length=160)
     question_data: dict[str, Any]
