@@ -644,8 +644,8 @@ export default function PreviewPage() {
           </div>
           <div className={styles.pathLine} aria-hidden="true"><span></span><span></span><span></span></div>
           <div className={styles.floorHint}><span className={styles.hintDot}></span> 点击楼层，进入对应的学习屋</div>
-          <a className={styles.houseExploreLink} href="#classroom">看看里面有什么 <ArrowDown size={16} /></a>
         </div>
+        <a className={styles.heroExploreLink} href="#classroom">看看里面有什么 <ArrowDown size={16} /></a>
       </section>
 
       <section className={styles.floorDetail} aria-live="polite">
