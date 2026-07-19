@@ -26,11 +26,10 @@ describe("isolated lab runtime assets", () => {
     expect(worker).toContain('from "https://cdn.jsdelivr.net/npm/pyodide@314.0.2/pyodide.mjs"');
   });
 
-  it("compiles the inline bridge and declares the opaque-runtime CSP", () => {
+  it("declares the opaque-runtime CSP", () => {
     const html = readFileSync(htmlPath, "utf8");
-    const inlineScript = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
-    if (!inlineScript) throw new Error("runtime bridge script is missing");
-    expect(() => new Function(inlineScript)).not.toThrow();
+    const moduleScript = /<script type="module">([\s\S]*?)<\/script>/.exec(html)?.[1];
+    if (!moduleScript) throw new Error("runtime module bridge is missing");
     expect(html).toContain("default-src 'none'");
     expect(html).toContain("'wasm-unsafe-eval'");
     expect(html).toContain("'unsafe-eval'");
@@ -39,6 +38,17 @@ describe("isolated lab runtime assets", () => {
       "connect-src https://cdn.jsdelivr.net/npm/pyodide@314.0.2/",
     );
     expect(html).not.toContain("connect-src https://cdn.jsdelivr.net;");
+    expect(html).not.toContain("allow-same-origin");
+  });
+
+  it("loads Pyodide directly in the opaque iframe instead of a module worker", () => {
+    const html = readFileSync(htmlPath, "utf8");
+
+    expect(html).toContain('<script type="module">');
+    expect(html).toContain(
+      'import { loadPyodide } from "https://cdn.jsdelivr.net/npm/pyodide@314.0.2/pyodide.mjs";',
+    );
+    expect(html).not.toContain("new Worker(");
     expect(html).not.toContain("allow-same-origin");
   });
 

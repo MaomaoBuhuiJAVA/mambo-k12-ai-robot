@@ -7,13 +7,11 @@ const RUNTIME_PROTOCOL = "mambo-lab-runtime-v1";
 const RUNTIME_ASSET_URLS = {
   html: "/lab-runtime.html",
   core: "/lab-execution-core.mjs",
-  worker: "/lab-runtime-worker.mjs",
 } as const;
 
 export interface LabRuntimeSources {
   html: string;
   core: string;
-  worker: string;
 }
 
 interface IframeRuntimeTransportOptions {
@@ -55,8 +53,7 @@ export class IframeRuntimeTransport implements LabRuntimeTransport {
       Promise.all([
         fetchAsset(this.fetcher, RUNTIME_ASSET_URLS.html),
         fetchAsset(this.fetcher, RUNTIME_ASSET_URLS.core),
-        fetchAsset(this.fetcher, RUNTIME_ASSET_URLS.worker),
-      ]).then(([html, core, worker]) => ({ html, core, worker })));
+      ]).then(([html, core]) => ({ html, core })));
   }
 
   start(handlers: RuntimeTransportHandlers): void {
@@ -130,7 +127,6 @@ export class IframeRuntimeTransport implements LabRuntimeTransport {
           type: "initialize",
           token: this.token,
           coreSource: this.sources?.core ?? "",
-          workerSource: this.sources?.worker ?? "",
         },
         "*",
       );
