@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from .config import settings
+from .config import _async_connect_args, settings
 from .models import Base
 
 
@@ -29,6 +29,7 @@ _prepare_sqlite_directory(settings.database_url)
 engine = create_async_engine(
     settings.database_url,
     pool_pre_ping=True,
+    connect_args=_async_connect_args(settings.database_url),
 )
 
 if make_url(settings.database_url).get_backend_name() == "sqlite":

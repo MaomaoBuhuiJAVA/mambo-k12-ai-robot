@@ -10,6 +10,12 @@ def _normalize_database_url(database_url: str) -> str:
     return database_url
 
 
+def _async_connect_args(database_url: str) -> dict[str, int]:
+    if database_url.startswith("postgresql+asyncpg://"):
+        return {"timeout": 10}
+    return {}
+
+
 @dataclass(frozen=True)
 class Settings:
     device_auth_token: str
