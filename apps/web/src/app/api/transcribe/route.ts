@@ -1,6 +1,6 @@
 import { generateText } from "ai";
 
-import { getGoogleModel } from "@/lib/ai/provider";
+import { getChatModel } from "@/lib/ai/provider";
 import { acquireRequestLease, requestGuardRejectionResponse } from "@/lib/ai/request-guard";
 import { AI_ROUTE_DEADLINE_MS, createRouteDeadline } from "@/lib/ai/route-deadline";
 
@@ -90,7 +90,7 @@ function isAudioFile(value: FormDataEntryValue | null): value is File {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!process.env.DEEPSEEK_API_KEY) {
     return Response.json({ error: "AI_NOT_CONFIGURED" }, { status: 503, headers: NO_STORE_HEADERS });
   }
 
@@ -122,7 +122,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const result = await generateText({
-      model: getGoogleModel(),
+      model: getChatModel(),
       instructions: TRANSCRIPTION_INSTRUCTIONS,
       messages: [{
         role: "user",

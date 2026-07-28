@@ -5,10 +5,10 @@ vi.mock("ai", () => ({
   Output: { object: vi.fn((value) => value) },
 }));
 
-vi.mock("@/lib/ai/provider", () => ({ getGoogleModel: vi.fn() }));
+vi.mock("@/lib/ai/provider", () => ({ getChatModel: vi.fn() }));
 
 import { generateText, Output } from "ai";
-import { getGoogleModel } from "@/lib/ai/provider";
+import { getChatModel } from "@/lib/ai/provider";
 import { resetRequestGuardForTests } from "@/lib/ai/request-guard";
 import { createSeedStorybook, storybookSchema } from "@/features/storybook/storybook";
 import { getCourseById } from "@/data/curriculum";
@@ -69,7 +69,7 @@ describe("POST /api/storybook", () => {
   });
 
   it("rejects oversized request bodies without contacting the model", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     const response = await POST(request({ ...input, padding: "x".repeat(9 * 1024) }));
     expect(response.status).toBe(400);
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -77,7 +77,7 @@ describe("POST /api/storybook", () => {
   });
 
   it("fails closed before parsing when durable protection is unavailable", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     vi.stubEnv("VERCEL", "1");
     const unread = unreadRequest();
 
@@ -92,7 +92,7 @@ describe("POST /api/storybook", () => {
 
   it("cancels a stalled AI body at the route deadline and releases its lease", async () => {
     vi.useFakeTimers();
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     const stalled = stalledRequest();
     const pending = POST(stalled.request);
     await vi.advanceTimersByTimeAsync(0);
@@ -112,7 +112,7 @@ describe("POST /api/storybook", () => {
   });
 
   it("uses an original curriculum fallback when AI is not configured", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "");
+    vi.stubEnv("DEEPSEEK_API_KEY", "");
     const response = await POST(request(input));
     const body = await response.json();
 
@@ -124,11 +124,11 @@ describe("POST /api/storybook", () => {
   });
 
   it("generates structured output using trusted curriculum context", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     const course = getCourseById(input.courseId);
     if (!course) throw new Error("fixture course missing");
     const generated = createSeedStorybook(course);
-    vi.mocked(getGoogleModel).mockReturnValue("model" as never);
+    vi.mocked(getChatModel).mockReturnValue("model" as never);
     vi.mocked(generateText).mockResolvedValue({ output: generated } as never);
 
     const response = await POST(request(input));
@@ -147,7 +147,7 @@ describe("POST /api/storybook", () => {
   });
 
   it("returns a stable timeout when the client aborts before body parsing", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     const controller = new AbortController();
     controller.abort(new DOMException("client left", "AbortError"));
 
@@ -161,7 +161,7 @@ describe("POST /api/storybook", () => {
 
   it("uses the seed fallback at the storybook generation deadline", async () => {
     vi.useFakeTimers();
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     vi.mocked(generateText).mockImplementation((options) => new Promise((_resolve, reject) => {
       options.abortSignal?.addEventListener("abort", () => reject(options.abortSignal?.reason), { once: true });
     }) as never);
@@ -178,8 +178,8 @@ describe("POST /api/storybook", () => {
   });
 
   it("falls back when generation fails or returns invalid output", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
-    vi.mocked(getGoogleModel).mockReturnValue("model" as never);
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
+    vi.mocked(getChatModel).mockReturnValue("model" as never);
 
     for (const result of [Promise.reject(new Error("provider down")), Promise.resolve({ output: { pages: [] } })]) {
       vi.mocked(generateText).mockReturnValueOnce(result as never);
@@ -191,7 +191,7 @@ describe("POST /api/storybook", () => {
   });
 
   it("keeps the AI lease until storybook generation settles", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     const course = getCourseById(input.courseId);
     if (!course) throw new Error("fixture course missing");
     const generated = createSeedStorybook(course);

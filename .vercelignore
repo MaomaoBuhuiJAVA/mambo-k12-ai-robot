@@ -1,0 +1,22 @@
+# Local development and build output. Vercel performs its own clean build.
+apps/web/.next/
+.runtime/
+.venv/
+node_modules/
+
+# The Core service and Orange Pi runtime are deployed separately from the web app.
+/server/
+/device/
+/deploy/
+/data/
+/logs/
+
+# Local working artifacts and agent notes.
+.tmp-assets/
+.superpowers/
+.pytest_cache/
+
+# Local environment values and source control internals.
+.env
+.env.local
+.git/

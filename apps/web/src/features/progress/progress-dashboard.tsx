@@ -8,6 +8,7 @@ import { ArrowRight, BookOpenCheck, CalendarClock, ClipboardList } from "lucide-
 import type { Attempt, LearningState, MasteryRecord } from "@/lib/domain";
 import { createDefaultLearningState, loadLearningState, saveLearningState } from "@/lib/learning-store";
 import { announceLearningStateChanged, LEARNING_STATE_CHANGED_EVENT } from "@/lib/learning-events";
+import { workspaceHref } from "@/lib/workspace-route";
 import { readSavedStorybooks, type SavedStorybook } from "@/features/storybook/storybook-storage";
 import { recommendNextCourse } from "./recommendation";
 import { INTEREST_OPTIONS } from "./interest-options";
@@ -144,7 +145,7 @@ export function ProgressDashboard({ now }: { now?: Date }) {
             <span>推荐下一课</span>
             <h2>{recommendation.course.title}</h2>
             <p>{recommendation.reason}</p>
-            <Link href={`/?course=${encodeURIComponent(recommendation.course.id)}#workspace`}>
+            <Link href={workspaceHref({ course: recommendation.course.id, hash: "workspace" })}>
               去学习推荐课程 <ArrowRight size={16} aria-hidden="true" />
             </Link>
           </section>
@@ -155,7 +156,12 @@ export function ProgressDashboard({ now }: { now?: Date }) {
               <ul className={styles.workList}>
                 {savedWorks.slice(0, 5).map((work) => (
                   <li key={work.id}>
-                    <Link href={`/?course=${encodeURIComponent(work.courseId)}&tab=storybook&work=${encodeURIComponent(work.id)}#teaching-canvas`}>
+                    <Link href={workspaceHref({
+                      course: work.courseId,
+                      tab: "storybook",
+                      work: work.id,
+                      hash: "teaching-canvas",
+                    })}>
                       <strong>{work.storybook.title}</strong>
                       <span>保存于 {formatDate(work.savedAt)}</span>
                     </Link>

@@ -5,34 +5,23 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  Activity,
-  ArrowDown,
   ArrowLeft,
   ArrowRight,
-  BookOpen,
-  Camera,
-  Check,
-  ChevronRight,
+  ArrowUpRight,
   Cloud,
-  Code2,
-  Cpu,
-  FlaskConical,
-  Headphones,
-  MessageCircle,
-  Mic,
-  MonitorCog,
-  Radio,
   Send,
-  Settings2,
   Sparkles,
   Star,
-  Volume2,
   X,
 } from "lucide-react";
 
 import styles from "./page.module.css";
+import StarJourneyCard from "@/components/star-journey-card/StarJourneyCard";
 import { resolvePetPanelLeft } from "./pet-panel-position";
+import { GESTURE_NAVIGATE_EVENT, type GestureNavigationDirection } from "@/components/robot/robot-gesture-provider";
+import { useSharedStarbaoConversation } from "@/features/starbao/use-shared-starbao-conversation";
 import type { Stage } from "@/lib/domain";
+import { workspaceHref } from "@/lib/workspace-route";
 
 type FloorId = "explore" | "create" | "future";
 type PetMood = "idle" | "running-right" | "running-left" | "waving" | "jumping" | "waiting" | "running" | "review";
@@ -53,6 +42,18 @@ type PetDrag = {
   width: number;
   height: number;
   moved: boolean;
+  cleanup?: () => void;
+};
+type PetPanelDrag = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  offsetX: number;
+  offsetY: number;
+  width: number;
+  height: number;
+  moved: boolean;
+  element: HTMLDivElement;
   cleanup?: () => void;
 };
 
@@ -139,38 +140,84 @@ const homepageFeatureTargets: Record<HomepageFeature, string> = {
   coding: "coding-practice",
 };
 
-const petReplies = [
-  "我在这里！我们可以先选一层学习屋。",
-  "想做一个会动的动画，还是试试第一段 Python？",
-  "你的 OrangePi 现在是演示在线状态，可以随时叫醒我。",
-];
-
-const starScenes = [
+const schoolStages = [
   {
-    id: "rain",
-    label: "雨夜街道",
-    title: "把好奇心点亮",
-    detail: "雨水、霓虹和一颗会挥手的星星。",
-    image: "/assets/star-scene-rain.jpg",
-    tone: "rain",
+    id: "primary",
+    image: "/assets/learning-stages/primary-reading.png",
+    buttonLabel: "小学",
+    hoverLabel: "进入学习",
+    ariaLabel: "Open primary learning path",
   },
   {
-    id: "moon",
-    label: "月球观测",
-    title: "从远处看世界",
-    detail: "在月面停一会儿，再想一个更大的问题。",
-    image: "/assets/star-scene-moon.jpg",
-    tone: "moon",
+    id: "middle",
+    image: "/assets/learning-stages/middle-writing.png",
+    buttonLabel: "初中",
+    hoverLabel: "进入学习",
+    ariaLabel: "Open middle school learning path",
   },
   {
-    id: "rooftop",
-    label: "城市屋顶",
-    title: "今晚也要挥手",
-    detail: "站在城市上方，给下一次冒险打个招呼。",
-    image: "/assets/star-scene-rooftop.jpg",
-    tone: "rooftop",
+    id: "high",
+    image: "/assets/learning-stages/high-coding.png",
+    buttonLabel: "高中",
+    hoverLabel: "进入学习",
+    ariaLabel: "Open high school learning path",
   },
 ] as const;
+
+type SchoolStageId = (typeof schoolStages)[number]["id"];
+
+const thinkingGhostCells = [
+  "top0",
+  "top1",
+  "top2",
+  "top3",
+  "top4",
+  "st0",
+  "st1",
+  "st2",
+  "st3",
+  "st4",
+  "st5",
+  "an1",
+  "an2",
+  "an3",
+  "an4",
+  "an5",
+  "an6",
+  "an7",
+  "an8",
+  "an9",
+  "an10",
+  "an11",
+  "an12",
+  "an13",
+  "an14",
+  "an15",
+  "an16",
+  "an17",
+  "an18",
+] as const;
+
+function StarbaoThinkingIndicator() {
+  return (
+    <div className={styles.starbaoThinking} role="status" aria-live="polite" aria-label="Starbao is thinking">
+      <span className={styles.starbaoThinkingGhost} data-testid="starbao-thinking-ghost" aria-hidden="true">
+        <span className={styles.starbaoThinkingGhostShadow} />
+        <span className={styles.starbaoThinkingGhostScale}>
+          <span className={styles.starbaoThinkingGhostBody}>
+            {thinkingGhostCells.map((cell) => (
+              <span className={styles.starbaoThinkingGhostCell} data-cell={cell} key={cell} style={{ gridArea: cell }} />
+            ))}
+            <span className={styles.starbaoThinkingGhostEye} />
+            <span className={`${styles.starbaoThinkingGhostEye} ${styles.starbaoThinkingGhostEyeRight}`} />
+            <span className={styles.starbaoThinkingGhostPupil} />
+            <span className={`${styles.starbaoThinkingGhostPupil} ${styles.starbaoThinkingGhostPupilRight}`} />
+          </span>
+        </span>
+      </span>
+    </div>
+  );
+}
 
 export default function PreviewPage() {
   const router = useRouter();
@@ -181,19 +228,29 @@ export default function PreviewPage() {
   const [petPosition, setPetPosition] = useState<PetPosition | null>(null);
   const [petDragging, setPetDragging] = useState(false);
   const [petPanelPosition, setPetPanelPosition] = useState<PetPanelPosition | null>(null);
-  const [petTab, setPetTab] = useState<"chat" | "device">("chat");
+  const [petPanelDragging, setPetPanelDragging] = useState(false);
+  const [petPanelDetached, setPetPanelDetached] = useState(false);
   const [draft, setDraft] = useState("");
+  const {
+    messages: starbaoMessages,
+    isLoading: starbaoLoading,
+    isSending: starbaoSending,
+    error: starbaoError,
+    sendTurn: sendStarbaoTurn,
+  } = useSharedStarbaoConversation();
   const [entryDialog, setEntryDialog] = useState<EntryDialog>(null);
   const [labStage, setLabStage] = useState<Stage>("lower_primary");
   const [labFamiliarity, setLabFamiliarity] = useState<LabFamiliarity>("first_steps");
   const [activeFeature, setActiveFeature] = useState<HomepageFeature>("voice");
+  const [activeExhibitStage, setActiveExhibitStage] = useState<SchoolStageId | null>(null);
   const [storyPreviewPage, setStoryPreviewPage] = useState(0);
-  const [voicePreviewActive, setVoicePreviewActive] = useState(false);
   const [codingMatched, setCodingMatched] = useState(false);
   const petDragRef = useRef<PetDrag | null>(null);
+  const petPanelDragRef = useRef<PetPanelDrag | null>(null);
   const petLauncherRef = useRef<HTMLButtonElement>(null);
   const referencePetRef = useRef<HTMLButtonElement>(null);
   const petPanelRef = useRef<HTMLElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
   const petPanelOffsetXRef = useRef<number | null>(null);
   const petMotionFrameRef = useRef<number | null>(null);
   const pendingPetPositionRef = useRef<PetPosition | null>(null);
@@ -201,11 +258,6 @@ export default function PreviewPage() {
   const petMoodTimerRef = useRef<number | null>(null);
   const petWaitingTimerRef = useRef<number | null>(null);
   const petMoodRef = useRef<PetMood>("idle");
-  const [messages, setMessages] = useState([
-    { from: "pet", text: "你好，我是星星。今天想去哪一层？" },
-    { from: "user", text: "我想先看看这座学习屋。" },
-  ]);
-
   const setPetMoodIfChanged = useCallback((mood: PetMood) => {
     if (petMoodRef.current === mood) return;
     petMoodRef.current = mood;
@@ -229,6 +281,26 @@ export default function PreviewPage() {
     window.addEventListener("keydown", dismissOnEscape);
     return () => window.removeEventListener("keydown", dismissOnEscape);
   }, [entryDialog]);
+
+  useEffect(() => {
+    const navigateStorybook = (event: Event) => {
+      const direction = (event as CustomEvent<{ direction?: GestureNavigationDirection }>).detail?.direction;
+      if (direction === "previous") {
+        setStoryPreviewPage((page) => Math.max(0, page - 1));
+      } else if (direction === "next") {
+        setStoryPreviewPage((page) => Math.min(storyPreviewPages.length - 1, page + 1));
+      }
+    };
+    window.addEventListener(GESTURE_NAVIGATE_EVENT, navigateStorybook);
+    return () => window.removeEventListener(GESTURE_NAVIGATE_EVENT, navigateStorybook);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!petOpen) return;
+    const messageList = messageListRef.current;
+    if (!messageList) return;
+    messageList.scrollTop = messageList.scrollHeight;
+  }, [petOpen, starbaoMessages.length, starbaoSending]);
 
   const getPetPanelPosition = useCallback((position: PetPosition, petWidth: number, petHeight: number) => {
     const panel = petPanelRef.current;
@@ -263,7 +335,7 @@ export default function PreviewPage() {
     pet.style.right = "auto";
     pet.style.bottom = "auto";
 
-    if (!petOpen || petChatAnchor !== "launcher") return null;
+    if (!petOpen || petChatAnchor !== "launcher" || petPanelDetached) return null;
     const panel = petPanelRef.current;
     const panelPosition = getPetPanelPosition(position, petWidth, petHeight);
     if (!panel || !panelPosition) return null;
@@ -286,9 +358,26 @@ export default function PreviewPage() {
     panel.style.transform = panelPosition.placement === "above" ? "translateY(-100%)" : "none";
 
     return panelPosition;
-  }, [getPetPanelPosition, petChatAnchor, petOpen]);
+  }, [getPetPanelPosition, petChatAnchor, petOpen, petPanelDetached]);
 
   const updatePetPanelPosition = useCallback(() => {
+    if (petPanelDetached) {
+      const panel = petPanelRef.current;
+      if (!panel) return;
+
+      setPetPanelPosition((previous) => {
+        if (!previous) return previous;
+        const maxLeft = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
+        const maxTop = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
+        const left = Math.min(maxLeft, Math.max(8, previous.left));
+        const top = Math.min(maxTop, Math.max(8, previous.top));
+        return previous.left === left && previous.top === top && previous.placement === "below"
+          ? previous
+          : { left, top, placement: "below" };
+      });
+      return;
+    }
+
     const pet = petChatAnchor === "reference" ? referencePetRef.current : petLauncherRef.current;
     if (!petOpen || !pet) return;
 
@@ -309,7 +398,7 @@ export default function PreviewPage() {
     setPetPanelPosition((previous) => {
       return previous && previous.left === next.left && previous.top === next.top && previous.placement === next.placement ? previous : next;
     });
-  }, [getPetPanelPosition, petChatAnchor, petOpen]);
+  }, [getPetPanelPosition, petChatAnchor, petOpen, petPanelDetached]);
 
   useLayoutEffect(() => {
     if (!petOpen) return;
@@ -338,24 +427,17 @@ export default function PreviewPage() {
     const nextOpen = !petOpen || petChatAnchor !== anchor;
     if (nextOpen) {
       setPetChatAnchor(anchor);
-      setPetTab("chat");
+      setPetPanelDetached(false);
       if (anchor !== "launcher") petPanelOffsetXRef.current = null;
     }
     setPetOpen(nextOpen);
     if (!nextOpen) {
       setPetPanelPosition(null);
       setPetChatAnchor("launcher");
+      setPetPanelDetached(false);
       petPanelOffsetXRef.current = null;
     }
     playPetMood(nextOpen ? "waving" : "idle", nextOpen ? 1200 : 0);
-  }
-
-  function openPetPanel(tab: "chat" | "device", anchor: PetChatAnchor = "launcher") {
-    setPetChatAnchor(anchor);
-    setPetTab(tab);
-    setPetOpen(true);
-    if (anchor !== "launcher") petPanelOffsetXRef.current = null;
-    playPetMood("waving", 1200);
   }
 
   function handlePetClick() {
@@ -475,6 +557,74 @@ export default function PreviewPage() {
     finishPetDrag(typeof event.pointerId === "number" ? event.pointerId : undefined);
   }
 
+  function handlePetPanelPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+    const panel = petPanelRef.current;
+    if (!panel) return;
+
+    const rect = panel.getBoundingClientRect();
+    const onWindowMove = (moveEvent: MouseEvent) => updatePetPanelDrag(moveEvent.clientX, moveEvent.clientY);
+    const onWindowUp = () => finishPetPanelDrag();
+    petPanelDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      width: rect.width,
+      height: rect.height,
+      moved: false,
+      element: event.currentTarget,
+      cleanup: () => {
+        window.removeEventListener("mousemove", onWindowMove);
+        window.removeEventListener("mouseup", onWindowUp);
+      },
+    };
+    window.addEventListener("mousemove", onWindowMove);
+    window.addEventListener("mouseup", onWindowUp);
+    setPetPanelDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function updatePetPanelDrag(clientX: number, clientY: number, pointerId?: number) {
+    const drag = petPanelDragRef.current;
+    if (!drag || (typeof pointerId === "number" && drag.pointerId !== pointerId)) return;
+
+    const distance = Math.hypot(clientX - drag.startX, clientY - drag.startY);
+    if (distance <= 3) return;
+
+    drag.moved = true;
+    const maxLeft = Math.max(8, window.innerWidth - drag.width - 8);
+    const maxTop = Math.max(8, window.innerHeight - drag.height - 8);
+    setPetPanelDetached(true);
+    setPetPanelPosition({
+      left: Math.min(maxLeft, Math.max(8, clientX - drag.offsetX)),
+      top: Math.min(maxTop, Math.max(8, clientY - drag.offsetY)),
+      placement: "below",
+    });
+  }
+
+  function finishPetPanelDrag(pointerId?: number) {
+    const drag = petPanelDragRef.current;
+    if (!drag || (typeof pointerId === "number" && drag.pointerId !== pointerId)) return;
+
+    petPanelDragRef.current = null;
+    setPetPanelDragging(false);
+    drag.cleanup?.();
+    if (typeof pointerId === "number" && drag.element.hasPointerCapture(pointerId)) {
+      drag.element.releasePointerCapture(pointerId);
+    }
+  }
+
+  function handlePetPanelPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    updatePetPanelDrag(event.clientX, event.clientY, event.pointerId);
+  }
+
+  function handlePetPanelPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    finishPetPanelDrag(typeof event.pointerId === "number" ? event.pointerId : undefined);
+  }
+
   const petLauncherStyle = petPosition ? {
     left: `${petPosition.x}px`,
     top: `${petPosition.y}px`,
@@ -489,24 +639,29 @@ export default function PreviewPage() {
     transform: petPanelPosition.placement === "above" ? "translateY(-100%)" : "none",
   } : undefined;
 
-  function previewFloor(id: FloorId) {
-    setActiveFloor(id);
-  }
-
   function openFloor(id: FloorId) {
-    previewFloor(id);
+    setActiveFloor(id);
     if (id === "future") {
       setEntryDialog("future");
       return;
     }
     const floor = floors.find((item) => item.id === id);
-    if (floor) router.push(`/?course=${floor.courseId}#workspace`);
+    if (floor) router.push(workspaceHref({ course: floor.courseId, hash: "workspace" }));
   }
 
   function openFutureStage(stage: "middle_school" | "high_school") {
     setEntryDialog(null);
     const courseId = stage === "middle_school" ? "middle-neural-signals" : "high-bubble-analysis";
-    router.push(`/?course=${courseId}#workspace`);
+    router.push(workspaceHref({ course: courseId, hash: "workspace" }));
+  }
+
+  function openSchoolStage(stage: SchoolStageId) {
+    setActiveExhibitStage(stage);
+    if (stage === "primary") {
+      openFloor("explore");
+      return;
+    }
+    openFutureStage(stage === "middle" ? "middle_school" : "high_school");
   }
 
   function scrollToFeature(feature: HomepageFeature) {
@@ -520,42 +675,33 @@ export default function PreviewPage() {
     scrollToFeature("storybook");
   }
 
-  function openProgrammingDialog() {
-    setEntryDialog("programming");
-  }
-
   function enterProgrammingLab() {
     setCodingMatched(true);
     setEntryDialog(null);
     router.push(`/lab?stage=${labStage}&familiarity=${labFamiliarity}`);
   }
 
-  function startVoiceDialogue() {
-    const nextActive = !voicePreviewActive;
-    setVoicePreviewActive(nextActive);
-    setActiveFeature("voice");
-    if (nextActive) {
-      openPetPanel("chat");
-      return;
-    }
-    setPetOpen(false);
-    setPetPanelPosition(null);
-    setPetChatAnchor("launcher");
-  }
-
-  function showRobotDeviceStatus() {
-    openPetPanel("device", "reference");
-  }
-
-  function sendMessage() {
+  async function sendMessage() {
     const value = draft.trim();
-    if (!value) return;
-    setMessages((current) => [
-      ...current,
-      { from: "user", text: value },
-      { from: "pet", text: petReplies[current.length % petReplies.length] },
-    ]);
+    if (!value || starbaoSending) return;
+    const floor = floors.find((item) => item.id === activeFloor) ?? floors[0];
+    const stage: Stage = floor.id === "explore"
+      ? "lower_primary"
+      : floor.id === "create"
+        ? "upper_primary"
+        : "middle_school";
     setDraft("");
+    try {
+      await sendStarbaoTurn({
+        text: value,
+        stage,
+        courseId: floor.courseId,
+        origin: "web",
+      });
+      playPetMood("waving", 850);
+    } catch {
+      // The hook exposes a compact error state inside the pet panel.
+    }
   }
 
   const activeStory = storyPreviewPages[storyPreviewPage]!;
@@ -589,100 +735,50 @@ export default function PreviewPage() {
 
       <section className={styles.hero} id="top">
         <div className={styles.heroCopy}>
-          <div className={styles.heroKicker}><span></span> 给每个好奇心一间房</div>
-          <h1>一座会长大的<br /><em>星云学习屋</em></h1>
-          <p>从认识世界，到创造作品，再到研究未来。选择适合你的楼层，和星星一起开始今天的探索。</p>
-          <div className={styles.heroActions}>
-            <button className={styles.primaryAction} type="button" onClick={() => openFloor("explore")}>
-              开始探索 <ArrowRight size={18} />
-            </button>
-          </div>
-          <div className={styles.heroNote}><Radio size={14} /> 星星机器人 · 演示在线</div>
+          <h1 className={styles.heroTitle}>
+            <span className={styles.heroTitleOutline}>从小教到大</span>
+            <span className={styles.heroTitleSolid}>Ai学习伙伴-星宝</span>
+          </h1>
+          <p>从认识世界，到创造作品，再到研究未来。选择适合你的学习阶段，和星星一起开始今天的探索。</p>
         </div>
-
-        <div className={styles.houseScene} id="house">
-          <div className={styles.houseBackdrop} aria-hidden="true">
-            <Image className={styles.houseSprite} src="/assets/external/gothicvania/house-b.png" alt="" width={210} height={244} loading="eager" unoptimized />
-          </div>
-          <div className={styles.houseGlow} aria-hidden="true"></div>
-          <div className={styles.moon}><Star size={23} fill="currentColor" /></div>
-          <div className={styles.houseRoof} aria-hidden="true">
-            <div className={styles.roofStar}><Star size={38} fill="currentColor" /></div>
-            <span className={styles.roofLine}></span>
-          </div>
-          <div className={`${styles.floorStack} ${styles[`active-${activeFloor}`]}`}>
-            {floors.slice().reverse().map((floor) => {
-              return (
-                <button
-                  className={`${styles.floor} ${styles[floor.accent]} ${activeFloor === floor.id ? styles.floorActive : ""}`}
-                  key={floor.id}
-                  type="button"
-                  onClick={() => openFloor(floor.id)}
-                  onFocus={() => previewFloor(floor.id)}
-                  onMouseEnter={() => previewFloor(floor.id)}
-                  aria-label={`${floor.title}，${floor.subtitle}，${floor.cardFocus}`}
-                >
-                  <span className={styles.floorCard}>
-                    <span className={styles.floorLevel}>{floor.level}</span>
-                    <span className={`${styles.floorIcon} ${styles[`floorIcon-${floor.id}`]}`} aria-hidden="true" />
-                    <span className={styles.floorWords}>
-                      <strong>{floor.title}</strong>
-                      <small>{floor.subtitle}</small>
-                      <em>{floor.cardFocus}</em>
-                    </span>
-                    <span className={`${styles.roomScene} ${styles[`room-${floor.id}`]}`} aria-hidden="true" />
-                    <span className={styles.floorArrow}><ChevronRight size={20} /></span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className={styles.houseBase} aria-hidden="true">
-            <span className={styles.window}><span></span><span></span></span>
-            <span className={styles.door}><span></span></span>
-            <span className={styles.flowerFlower}><Star size={20} fill="currentColor" /></span>
-          </div>
-          <div className={styles.pathLine} aria-hidden="true"><span></span><span></span><span></span></div>
-          <div className={styles.floorHint}><span className={styles.hintDot}></span> 点击楼层，进入对应的学习屋</div>
-        </div>
-        <a className={styles.heroExploreLink} href="#classroom">看看里面有什么 <ArrowDown size={16} /></a>
-      </section>
-
-      <section className={styles.floorDetail} aria-live="polite">
-        <div>
-          <span className={styles.detailNumber}>当前选择 · {floors.find((floor) => floor.id === activeFloor)?.level}</span>
-          <h2>{floors.find((floor) => floor.id === activeFloor)?.title}</h2>
-          <p>{floors.find((floor) => floor.id === activeFloor)?.description}</p>
-        </div>
-        <div className={styles.moduleLine}>
-          {floors.find((floor) => floor.id === activeFloor)?.modules.map((module) => <span key={module}><Check size={13} /> {module}</span>)}
-          <button type="button" onClick={() => openFloor(activeFloor)}>进入学习屋 <ArrowRight size={15} /></button>
-          <button className={styles.moduleChatButton} type="button" onClick={() => togglePetChat("launcher")}><MessageCircle size={15} /> 问问星宝</button>
+        <div className={styles.heroJourney}>
+          <StarJourneyCard />
         </div>
       </section>
 
       <section className={styles.sceneGallery} aria-labelledby="scene-gallery-title">
         <div className={styles.sceneGalleryHeader}>
-          <div>
-            <span className={styles.sectionKicker}><Star size={13} fill="currentColor" /> 星宝的像素旅程</span>
-            <h2 id="scene-gallery-title">同一个星星人，<em>在不同地方继续发光</em></h2>
-          </div>
-          <span className={styles.galleryCounter}>03 / SCENES</span>
+          <h2 id="scene-gallery-title">从绘本到编程，星宝如影随形</h2>
         </div>
-        <div className={styles.sceneGalleryGrid}>
-          {starScenes.map((scene, index) => (
-            <article className={`${styles.sceneCard} ${styles[`sceneCard-${scene.tone}`]}`} key={scene.id}>
-              <div className={styles.sceneCardMedia}>
-                <Image src={scene.image} alt={`${scene.label}中的星宝`} width={384} height={480} loading="lazy" />
-                <span className={styles.sceneCardIndex}>0{index + 1}</span>
-                <span className={styles.sceneCardSticker}><Star size={12} fill="currentColor" /> 星宝</span>
-              </div>
-              <div className={styles.sceneCardBody}>
-                <span>{scene.label}</span>
-                <h3>{scene.title}</h3>
-                <p>{scene.detail}</p>
-                <button className={styles.sceneCardAction} type="button" onClick={() => openPetPanel("chat", "launcher")}>
-                  <MessageCircle size={13} /> 问问星宝 <ArrowRight size={13} />
+        <div className={styles.exhibitHall} role="region" aria-label="成长展厅">
+          {schoolStages.map((stage, index) => (
+            <article
+              className={styles.exhibitBay}
+              data-active={activeExhibitStage === stage.id}
+              data-stage={stage.id}
+              key={stage.id}
+              onMouseEnter={() => setActiveExhibitStage(stage.id)}
+              onMouseLeave={() => setActiveExhibitStage(null)}
+              onFocusCapture={() => setActiveExhibitStage(stage.id)}
+              onBlurCapture={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setActiveExhibitStage(null);
+              }}
+            >
+              <span className={styles.exhibitArtwork} aria-hidden="true">
+                <Image src={stage.image} alt="" width={982} height={1024} sizes="(max-width: 680px) 72vw, 420px" loading={stage.id === "primary" ? "eager" : "lazy"} />
+              </span>
+              <div className={styles.exhibitFooter}>
+                <div className={styles.exhibitMeta}>
+                  <span className={styles.exhibitBayNumber}>0{index + 1}</span>
+                </div>
+                <button className={styles.exhibitStageLink} type="button" aria-label={stage.ariaLabel} onClick={() => openSchoolStage(stage.id)}>
+                  <span className={styles.exhibitStageLinkText} aria-hidden="true">
+                    {Array.from(stage.buttonLabel).map((character, characterIndex) => <span key={`${stage.id}-text-${characterIndex}`}>{character}</span>)}
+                  </span>
+                  <span className={styles.exhibitStageLinkClone} aria-hidden="true">
+                    {Array.from(stage.hoverLabel).map((character, characterIndex) => <span key={`${stage.id}-clone-${characterIndex}`}>{character}</span>)}
+                  </span>
+                  <ArrowUpRight aria-hidden="true" />
                 </button>
               </div>
             </article>
@@ -692,7 +788,6 @@ export default function PreviewPage() {
 
       <section className={styles.featureIntro} id="classroom">
         <div>
-          <span className={styles.sectionKicker}>网站功能</span>
           <h2>学习不是一张卡片<br /><em>而是一段会发生的旅程</em></h2>
           <p>声音、故事和动手实验在同一座学习屋里接力发生。往下走，每一站都可以直接开始，不需要离开首页。</p>
         </div>
@@ -706,23 +801,17 @@ export default function PreviewPage() {
       <section className={`${styles.featureModule} ${styles.voiceModule}`} id="voice-dialogue">
         <div className={styles.featureModuleInner}>
           <div className={styles.moduleCopy}>
-            <span className={styles.sectionKicker}>01 · 智能语音对话</span>
             <h2>一句话开门，<br /><em>星宝就开始陪你想</em></h2>
             <p>把不懂的地方说出来，星宝会沿着你正在学的内容继续追问、解释，或带你回到刚才的故事。</p>
-            <div className={styles.moduleTags}><span><Mic size={15} /> 听见问题</span><span><MessageCircle size={15} /> 接着追问</span><span><Volume2 size={15} /> 讲给你听</span></div>
-            <div className={styles.moduleActions}>
-              <button className={styles.modulePrimary} type="button" onClick={startVoiceDialogue}><Mic size={17} /> {voicePreviewActive ? "正在和星宝对话" : "和星宝开始对话"} <ArrowRight size={15} /></button>
-              <button className={styles.moduleSecondary} type="button" onClick={() => scrollToFeature("storybook")}><BookOpen size={17} /> 去听一个故事</button>
-            </div>
           </div>
-          <div className={`${styles.featureScene} ${styles.voiceScene}`} role="group" aria-label="星宝语音对话预览">
-            <div className={styles.sceneTopbar}><span>VOICE STATION</span><strong data-active={voicePreviewActive}>在线</strong></div>
-            <div className={styles.voiceTerminal}>
-              <div className={styles.voiceLine}><span>星宝</span><p>今天想先从哪一个问题开始？</p></div>
-              <div className={`${styles.voiceLine} ${styles.voiceLineUser}`}><span>我</span><p>为什么数字要排队？</p></div>
-              <div className={`${styles.voiceWave} ${voicePreviewActive ? styles.voiceWaveActive : ""}`} aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-            </div>
-            <span className={`${styles.scenePet} ${styles.petSprite} ${voicePreviewActive ? styles.petSpriteWaving : styles.petSpriteIdle}`} aria-hidden="true" />
+          <div className={`${styles.featureScene} ${styles.voiceScene}`} role="group" aria-label="星宝聊天窗口预览">
+            <Image
+              className={styles.featureScreenshot}
+              src="/assets/chat/mambo-continuous-voice.png"
+              alt="星宝聊天窗口截图"
+              width={800}
+              height={480}
+            />
           </div>
         </div>
       </section>
@@ -730,14 +819,8 @@ export default function PreviewPage() {
       <section className={`${styles.featureModule} ${styles.storyModule}`} id="storybook-reading">
         <div className={`${styles.featureModuleInner} ${styles.featureModuleInnerReverse}`}>
           <div className={styles.moduleCopy}>
-            <span className={styles.sectionKicker}>02 · 绘本动画阅读</span>
             <h2>把抽象的知识，<br /><em>读成会动的故事</em></h2>
             <p>一页只讲一个动作：观察、比较、交换。读到关键处，角色会停下来等你说出下一步。</p>
-            <div className={styles.moduleTags}><span><BookOpen size={15} /> 分幕阅读</span><span><Sparkles size={15} /> 动作提示</span><span><Headphones size={15} /> 朗读陪伴</span></div>
-            <div className={styles.moduleActions}>
-              <button className={styles.modulePrimary} type="button" onClick={() => setStoryPreviewPage((page) => (page + 1) % storyPreviewPages.length)}><BookOpen size={17} /> 翻到下一页 <ArrowRight size={15} /></button>
-              <button className={styles.moduleSecondary} type="button" onClick={() => scrollToFeature("coding")}><Code2 size={17} /> 把故事变成代码</button>
-            </div>
           </div>
           <div className={`${styles.featureScene} ${styles.storyScene}`} role="group" aria-label="互动绘本预览">
             <div className={styles.sceneTopbar}><span>STORY BOOK</span><strong>第 {storyPreviewPage + 1} / {storyPreviewPages.length} 页</strong></div>
@@ -757,48 +840,33 @@ export default function PreviewPage() {
       <section className={`${styles.featureModule} ${styles.codingModule}`} id="coding-practice">
         <div className={styles.featureModuleInner}>
           <div className={styles.moduleCopy}>
-            <span className={styles.sectionKicker}>03 · 编程实操训练</span>
             <h2>把刚刚想明白的事，<br /><em>变成能运行的代码</em></h2>
             <p>先选好年级和熟悉程度，学习屋会把同一个问题换成适合现在的提示、任务和挑战。</p>
-            <div className={styles.moduleTags}><span><Code2 size={15} /> 分级练习</span><span><FlaskConical size={15} /> 立即运行</span><span><Check size={15} /> 留下作品</span></div>
-            <div className={styles.moduleActions}>
-              <button className={styles.modulePrimary} type="button" onClick={openProgrammingDialog}><Code2 size={17} /> {codingMatched ? "重新匹配练习" : "选择我的练习"} <ArrowRight size={15} /></button>
-              <button className={styles.moduleSecondary} type="button" onClick={() => scrollToFeature("voice")}><MessageCircle size={17} /> 先问问星宝</button>
-            </div>
           </div>
-          <div className={`${styles.featureScene} ${styles.codingScene}`} role="group" aria-label="编程练习预览">
-            <div className={styles.sceneTopbar}><span>PIXEL LAB</span><strong>{codingMatched ? "已匹配" : "待匹配"}</strong></div>
+          <div className={`${styles.featureScene} ${styles.codingScene}`} role="group" aria-label="Python 终端预览">
+            <div className={`${styles.sceneTopbar} ${styles.terminalTopbar}`}><span><i></i><i></i><i></i>TERMINAL</span><strong>Python 3.12</strong></div>
             <div className={styles.codeWorkbench}>
               <div className={styles.codeGutter}>{codingLines.map((_, index) => <span key={index}>{index + 1}</span>)}</div>
               <code>{codingLines.map((line, index) => <span key={index}>{line}</span>)}</code>
             </div>
-            <div className={styles.codingMatch} data-ready={codingMatched}><span>{codingMatched ? `${selectedStage.label} · ${codingTemplate}` : "还没有选择学习阶段"}</span><strong>{codingMatched ? "开始今天的小实验" : "先告诉学习屋你现在会什么"}</strong></div>
+            <div className={styles.codingMatch} data-ready={codingMatched}><span>{codingMatched ? `>>> ready: ${selectedStage.label} · ${codingTemplate}` : ">>> waiting for stage selection"}</span><strong>{codingMatched ? "run exercise" : "idle"}</strong></div>
           </div>
         </div>
       </section>
 
       <section className={styles.robotSection} id="robot">
         <div className={styles.robotCopy}>
-          <span className={styles.sectionKicker}>桌面上的小伙伴</span>
           <h2>星星不只是一个头像，<br /><em>它住在你的学习桌上</em></h2>
           <p>它会留在这张首页里。你可以随时打开对话、查看 OrangePi 的在线状态，或者继续刚才停下来的学习。</p>
-          <div className={styles.robotTags}><span><MessageCircle size={15} /> 对话</span><span><MonitorCog size={15} /> 设备状态</span><span><Camera size={15} /> 观察世界</span></div>
-          <div className={styles.robotActions}>
-            <button className={styles.introPrimary} type="button" onClick={handleReferencePetClick}><MessageCircle size={17} /> 和星宝聊天</button>
-            <button className={styles.introSecondary} type="button" onClick={showRobotDeviceStatus}><MonitorCog size={17} /> 查看设备状态</button>
-          </div>
         </div>
         <div className={styles.robotStage}>
-          <div className={styles.robotHalo}></div>
-          <button className={styles.referencePet} type="button" ref={referencePetRef} onClick={handleReferencePetClick} aria-expanded={petOpen} aria-label={petOpen ? "关闭星宝对话" : "打开星宝对话"}>
-            <span className={styles.petSprite + " " + styles.petSpriteSparkle} aria-hidden="true" />
-          </button>
-          <button className={styles.robotBubble} type="button" onClick={handleReferencePetClick} aria-expanded={petOpen}><span>我在这里！</span><small>点击星宝和我聊聊</small></button>
-          <div className={styles.robotCloud}><Cloud size={80} fill="currentColor" /></div>
+          <div className={styles.pixelWoodFrame}>
+            <button className={styles.referencePet} type="button" ref={referencePetRef} onClick={handleReferencePetClick} aria-expanded={petOpen} aria-label={petOpen ? "关闭星宝对话" : "打开星宝对话"}>
+              <span className={styles.petSprite + " " + styles.petSpriteSparkle} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </section>
-
-      <footer className={styles.footer}><span>© Mambo 星云学习屋 · 让好奇心有地方长大</span><span>声音、绘本、实验和机器人都在这一页</span></footer>
 
       {entryDialog ? (
         <div className={styles.entryBackdrop} role="presentation" onClick={() => setEntryDialog(null)}>
@@ -871,32 +939,37 @@ export default function PreviewPage() {
       </button>
 
       {petOpen ? (
-        <aside className={`${styles.petPanel} ${petPanelPosition ? styles.petPanelAttached : ""} ${petDragging ? styles.petPanelDragging : ""}`} style={petPanelStyle} ref={petPanelRef} aria-label="星星智能体面板">
-          <div className={styles.petPanelHeader}>
-            <div className={`${styles.petIdentity} ${styles.petIdentityStar}`}><span className={`${styles.petMini} ${styles.petMiniSprite}`}><span className={`${styles.petSprite} ${styles.petSpriteIdle}`} aria-hidden="true" /></span><span><strong>Twinkle Twinkle</strong><small>Star study companion - Online</small></span></div>
-            <button className={styles.iconButton} type="button" onClick={() => { setPetOpen(false); setPetPanelPosition(null); }} aria-label="关闭"><X size={18} /></button>
+        <aside className={`${styles.petPanel} ${petPanelPosition ? styles.petPanelAttached : ""} ${petPanelDragging ? styles.petPanelDragging : ""}`} style={petPanelStyle} ref={petPanelRef} aria-label="星星智能体面板">
+          <div
+            className={styles.petPanelHeader}
+            data-testid="starbao-chat-drag-handle"
+            onPointerDown={handlePetPanelPointerDown}
+            onPointerMove={handlePetPanelPointerMove}
+            onPointerUp={handlePetPanelPointerUp}
+            onPointerCancel={handlePetPanelPointerUp}
+            onLostPointerCapture={() => finishPetPanelDrag()}
+            title="拖动聊天窗口"
+          >
+            <div className={`${styles.petIdentity} ${styles.petIdentityStar}`}><span className={`${styles.petMini} ${styles.petMiniSprite}`}><span className={`${styles.petSprite} ${styles.petSpriteIdle}`} aria-hidden="true" /></span><span><strong>星宝</strong><small>学习伙伴 · 在线</small></span></div>
+            <button className={styles.iconButton} type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => { setPetOpen(false); setPetPanelPosition(null); setPetPanelDetached(false); }} aria-label="关闭"><X size={18} /></button>
           </div>
-          <div className={styles.petTabs} role="tablist">
-            <button className={petTab === "chat" ? styles.tabActive : ""} type="button" role="tab" aria-selected={petTab === "chat"} onClick={() => setPetTab("chat")}><MessageCircle size={15} /> 和我聊聊</button>
-            <button className={petTab === "device" ? styles.tabActive : ""} type="button" role="tab" aria-selected={petTab === "device"} onClick={() => setPetTab("device")}><Settings2 size={15} /> 设备信息</button>
-          </div>
-          {petTab === "chat" ? (
-            <>
-              <div className={styles.messageList}>
-                {messages.map((message, index) => <div className={`${styles.message} ${message.from === "user" ? styles.messageUser : ""}`} key={`${message.text}-${index}`}>{message.text}</div>)}
+          <div className={styles.messageList} ref={messageListRef}>
+            {starbaoLoading ? <p className={styles.petChatStatus}>正在连接星宝...</p> : null}
+            {starbaoMessages.map((message) => (
+              <div
+                className={`${styles.message} ${message.role === "user" ? styles.messageUser : ""}`}
+                key={message.messageId}
+              >
+                <span className={styles.petMessageMeta}>
+                  {message.origin === "web" ? "网页输入" : message.origin === "asr" ? "香橙派语音" : message.origin === "orangepi" ? "香橙派输入" : "星宝"}
+                </span>
+                {message.content}
               </div>
-              <div className={styles.quickReplies}><button type="button" onClick={() => setDraft("我想学习图像分类")}>图像分类</button><button type="button" onClick={() => setDraft("带我去二楼")}>去二楼</button></div>
-              <div className={styles.petComposer}><input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") sendMessage(); }} placeholder="和星星说点什么" aria-label="和星星说点什么" /><button type="button" onClick={sendMessage} aria-label="发送"><Send size={16} /></button></div>
-            </>
-          ) : (
-            <div className={styles.devicePanel}>
-              <div className={styles.deviceOnline}><span><span className={styles.liveDot}></span> OrangePi 4 Pro</span><strong>在线</strong></div>
-              <div className={styles.deviceMetrics}><div><Cpu size={16} /><span>CPU</span><strong>18%</strong></div><div><Activity size={16} /><span>温度</span><strong>42°</strong></div><div><Headphones size={16} /><span>音频</span><strong>可用</strong></div></div>
-              <button className={styles.deviceAction} type="button" onClick={() => router.push("/#workspace")}><MonitorCog size={17} /> 唤醒学习屏幕 <ArrowRight size={15} /></button>
-              <button className={styles.deviceAction} type="button" onClick={() => router.push("/robot")}><Camera size={17} /> 拍一张学习快照 <ArrowRight size={15} /></button>
-              <p className={styles.deviceHint}>静态预览中的按钮只展示交互状态，后续再接入 Core API。</p>
-            </div>
-          )}
+            ))}
+            {starbaoSending ? <StarbaoThinkingIndicator /> : null}
+            {starbaoError ? <p className={styles.petChatStatus} role="alert">星宝暂时无法同步，请稍后再试。</p> : null}
+          </div>
+          <div className={styles.petComposer}><input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void sendMessage(); }} placeholder="和星宝说点什么" aria-label="和星宝说点什么" /><button type="button" onClick={() => void sendMessage()} aria-label="发送" disabled={starbaoSending || !draft.trim()}><Send size={16} /></button></div>
         </aside>
       ) : null}
     </main>

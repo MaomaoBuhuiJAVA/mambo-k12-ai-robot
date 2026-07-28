@@ -1,0 +1,21 @@
+[Unit]
+Description=Mambo local hand landmark vision
+After=network.target
+
+[Service]
+Type=simple
+Environment=MAMBO_HAND_CAMERA=/dev/video0
+Environment=MAMBO_HAND_MODEL=/opt/mambo-k12-ai-robot/apps/web/public/models/hand/hand_landmarker.task
+Environment=MAMBO_HAND_WIDTH=320
+Environment=MAMBO_HAND_HEIGHT=240
+Environment=MAMBO_HAND_FPS=12
+ExecStart=%h/.local/share/mambo-hand-vision/venv/bin/python /opt/mambo-k12-ai-robot/deploy/mambo-hand-vision.py
+Restart=on-failure
+RestartSec=3
+MemoryHigh=350M
+MemoryMax=550M
+CPUQuota=150%
+Nice=10
+
+[Install]
+WantedBy=default.target

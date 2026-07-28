@@ -3,8 +3,8 @@ import { createTextStreamResponse, streamText, toTextStream } from "ai";
 import { getCourseById } from "@/data/curriculum";
 import { chatRequestSchema, toModelMessages } from "@/lib/ai/chat-schema";
 import { buildCourseFallback } from "@/lib/ai/course-fallback";
-import { getGoogleModel } from "@/lib/ai/provider";
-import { buildSystemPrompt } from "@/lib/ai/prompt";
+import { getChatModel } from "@/lib/ai/provider";
+import { buildSystemPrompt, getChatMaxOutputTokens } from "@/lib/ai/prompt";
 import {
   acquireRequestLease,
   leaseReadableStream,
@@ -15,6 +15,7 @@ import { withTextStreamFallback } from "@/lib/ai/text-stream-fallback";
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 const MAX_CHAT_BODY_BYTES = 6 * 1024 * 1024;
+const DEEPSEEK_NON_THINKING_MODE = { deepseek: { thinking: { type: "disabled" as const } } };
 
 async function readJsonBody(request: Request, signal: AbortSignal): Promise<unknown> {
   if (!request.body) throw new Error("Missing request body");
@@ -73,7 +74,7 @@ async function readJsonBody(request: Request, signal: AbortSignal): Promise<unkn
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!process.env.DEEPSEEK_API_KEY) {
     return Response.json({ error: "AI_NOT_CONFIGURED" }, { status: 503, headers: NO_STORE_HEADERS });
   }
 
@@ -105,11 +106,13 @@ export async function POST(request: Request): Promise<Response> {
 
     try {
       const result = streamText({
-        model: getGoogleModel(),
+        model: getChatModel(),
         instructions: buildSystemPrompt({ stage: parsed.data.stage, course }),
         messages: toModelMessages(parsed.data),
         abortSignal: deadline.signal,
+        maxOutputTokens: getChatMaxOutputTokens(parsed.data.stage),
         maxRetries: 0,
+        providerOptions: DEEPSEEK_NON_THINKING_MODE,
       });
       const textStream = toTextStream({ stream: result.stream });
       const resilientStream = withTextStreamFallback(textStream, buildCourseFallback(course));

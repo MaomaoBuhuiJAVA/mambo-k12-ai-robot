@@ -1,0 +1,22 @@
+[Unit]
+Description=Mambo OrangePi Robot Kiosk Browser
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mambo-k12-ai-robot
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/orangepi/.Xauthority
+Environment=ROBOT_BROWSER=webkit
+Environment=ROBOT_LOCAL_PROXY=1
+Environment=ROBOT_PROXY_UPSTREAM=http://192.168.1.18:3001
+ExecStartPre=/usr/bin/test -S /tmp/.X11-unix/X0
+ExecStartPre=/usr/bin/test -r /home/orangepi/.Xauthority
+ExecStart=/opt/mambo-k12-ai-robot/deploy/launch-robot-browser.sh
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+
+[Install]
+WantedBy=graphical-session.target

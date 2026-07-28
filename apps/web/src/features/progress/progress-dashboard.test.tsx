@@ -19,7 +19,10 @@ describe("ProgressDashboard", () => {
     expect(screen.getByRole("link", { name: "返回首页" })).toHaveAttribute("href", "/preview");
     expect(screen.getByRole("complementary", { name: "下一步学习" })).toHaveAttribute("id", "works");
     expect(screen.getByText(/当前学段/)).toBeVisible();
-    expect(screen.getByRole("link", { name: /去学习推荐课程/ })).toHaveAttribute("href", expect.stringContaining("course="));
+    expect(screen.getByRole("link", { name: /去学习推荐课程/ })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/workspace\?course=/),
+    );
   });
 
   it("shows persisted mastery, due review, and recent attempts without fabricated totals", async () => {
@@ -87,7 +90,7 @@ describe("ProgressDashboard", () => {
     expect(screen.getByText(/保存于/)).toBeVisible();
     expect(screen.getByRole("link", { name: /冒泡排序探险记/ })).toHaveAttribute(
       "href",
-      "/?course=lower-bubble-sort&tab=storybook&work=storybook-1#teaching-canvas",
+      "/workspace?course=lower-bubble-sort&tab=storybook&work=storybook-1#teaching-canvas",
     );
     expect(screen.queryByText(/功能启用后/)).not.toBeInTheDocument();
   });
