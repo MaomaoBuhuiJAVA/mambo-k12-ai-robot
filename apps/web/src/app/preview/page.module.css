@@ -1079,7 +1079,7 @@
 
 @media (max-width: 1024px) {
   .heroCopy { left: 27px; width: 42vw; }
-  .heroJourney { top: 96px; right: 24px; width: 54vw; }
+  .heroJourney { right: 24px; width: 54vw; }
   .houseScene { right: 4px; width: 59vw; }
   .floorStack { right: 5%; left: 7%; }
   .floorCard { grid-template-columns: 27px 35px minmax(82px, 1fr) minmax(105px, 1.14fr) 24px; gap: 6px; }
@@ -1162,7 +1162,7 @@
 .heroJourney {
   position: absolute;
   z-index: 3;
-  top: clamp(72px, 11vh, 116px);
+  top: calc(clamp(172px, 25vh, 222px) + 20px);
   right: clamp(18px, 4.8vw, 78px);
   width: min(49.7vw, 640px);
 }

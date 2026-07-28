@@ -71,6 +71,11 @@ describe("Starbao chat visual styling", () => {
     expect(stylesheet).toMatch(/\.exhibitBay\[data-stage="primary"\]\s+\.exhibitArtwork img\s*\{[\s\S]*?width:\s*90%[\s\S]*?height:\s*90%[\s\S]*?\}/);
   });
 
+  it("aligns the desktop journey panel with the first line of the hero title", () => {
+    expect(stylesheet).toContain("top: calc(clamp(172px, 25vh, 222px) + 20px);");
+    expect(stylesheet).not.toContain(".heroJourney { top: 96px;");
+  });
+
   it("uses an image-backed chat preview and a compact dark terminal treatment", () => {
     expect(rule("featureScreenshot")).toContain("object-fit: cover");
     expect(lastRule("codingScene")).toContain("background: #0d1117");
