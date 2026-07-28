@@ -23,9 +23,12 @@ server/migrations/      Alembic 数据库迁移
 docs/protocol.md        WebSocket 消息协议
 docs/architecture.md    架构边界与后续路线
 docs/product-technical-design.md  产品与完整技术设计
+docs/quick-start-orangepi.md      Windows 与香橙派快速启动
 deploy/                 OrangePi systemd 配置
 scripts/                服务端启动脚本
 ```
+
+当前演示环境的 Windows 服务端、转发代理与香橙派 Kiosk 启动顺序，见 [Windows 服务端与香橙派硬件端快速启动](docs/quick-start-orangepi.md)。
 
 ## 启动服务端
 
