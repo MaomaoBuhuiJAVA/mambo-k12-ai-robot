@@ -1,34 +1,43 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@ai-sdk/google", () => ({
-  google: vi.fn((modelId: string) => ({ modelId })),
+vi.mock("@ai-sdk/openai-compatible", () => ({
+  createOpenAICompatible: vi.fn(() => ({
+    chatModel: vi.fn((modelId: string) => ({ modelId })),
+  })),
 }));
 
-import { google } from "@ai-sdk/google";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
-import { getGoogleModel } from "./provider";
+import { getChatModel } from "./provider";
 
-describe("getGoogleModel", () => {
+describe("getChatModel", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.clearAllMocks();
   });
 
-  it("uses the current stable Flash model by default", () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
-    vi.stubEnv("GEMINI_MODEL", undefined);
+  it("uses DeepSeek's current Flash model by default", () => {
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_MODEL", undefined);
 
-    getGoogleModel();
+    getChatModel();
 
-    expect(google).toHaveBeenCalledWith("gemini-3.5-flash");
+    expect(createOpenAICompatible).toHaveBeenCalledWith(expect.objectContaining({
+      name: "deepseek",
+      apiKey: "test-key",
+      baseURL: "https://api.deepseek.com",
+    }));
+    const provider = vi.mocked(createOpenAICompatible).mock.results[0]?.value as { chatModel: ReturnType<typeof vi.fn> };
+    expect(provider.chatModel).toHaveBeenCalledWith("deepseek-v4-flash");
   });
 
   it("allows the deployment to override the model", () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
-    vi.stubEnv("GEMINI_MODEL", "gemini-custom");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_MODEL", "deepseek-custom");
 
-    getGoogleModel();
+    getChatModel();
 
-    expect(google).toHaveBeenCalledWith("gemini-custom");
+    const provider = vi.mocked(createOpenAICompatible).mock.results[0]?.value as { chatModel: ReturnType<typeof vi.fn> };
+    expect(provider.chatModel).toHaveBeenCalledWith("deepseek-custom");
   });
 });

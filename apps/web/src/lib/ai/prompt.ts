@@ -9,6 +9,17 @@ const STAGE_GUIDANCE: Record<Stage, { label: string; depth: string; length: stri
   high_school: { label: "高中", depth: "严谨分析", length: "不超过 360 字", instruction: "可使用代码与算法，讨论复杂度、边界条件和证据。" },
 };
 
+const MAX_OUTPUT_TOKENS_BY_STAGE: Record<Stage, number> = {
+  lower_primary: 120,
+  upper_primary: 180,
+  middle_school: 280,
+  high_school: 440,
+};
+
+export function getChatMaxOutputTokens(stage: Stage): number {
+  return MAX_OUTPUT_TOKENS_BY_STAGE[stage];
+}
+
 export function buildSystemPrompt({ stage, course }: { stage: Stage; course: CurriculumCourse }): string {
   const guidance = STAGE_GUIDANCE[stage];
   const knowledgeContext = formatKnowledgeContextForPrompt(course.id);

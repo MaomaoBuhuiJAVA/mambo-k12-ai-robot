@@ -7,7 +7,7 @@ import {
   createSeedStorybook,
   storybookSchema,
 } from "@/features/storybook/storybook";
-import { getGoogleModel } from "@/lib/ai/provider";
+import { getChatModel } from "@/lib/ai/provider";
 import { acquireRequestLease, requestGuardRejectionResponse } from "@/lib/ai/request-guard";
 import { AI_ROUTE_DEADLINE_MS, createRouteDeadline } from "@/lib/ai/route-deadline";
 import { readBoundedJson } from "@/lib/bounded-json";
@@ -24,7 +24,7 @@ async function parseBody(request: Request, signal?: AbortSignal) {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const aiConfigured = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+  const aiConfigured = Boolean(process.env.DEEPSEEK_API_KEY);
   const access = aiConfigured ? await acquireRequestLease(request, "storybook") : null;
   if (access && !access.ok) return requestGuardRejectionResponse(access);
   const deadline = access?.ok ? createRouteDeadline(request.signal, AI_ROUTE_DEADLINE_MS.storybook) : null;
@@ -55,7 +55,7 @@ export async function POST(request: Request): Promise<Response> {
 
     try {
       const result = await generateText({
-        model: getGoogleModel(),
+        model: getChatModel(),
         output: Output.object({ schema: storybookSchema }),
         instructions: [
           "你是 Mambo K12 人工智能通识课的绘本编剧。",
