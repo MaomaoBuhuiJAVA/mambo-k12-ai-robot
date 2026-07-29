@@ -71,10 +71,6 @@
   background: #292b7fcc;
 }
 
-.navPet { position: absolute; z-index: 2; top: 2px; left: 20px; display: block; width: 92px; height: auto; transform-origin: 32% 100%; transition: transform 180ms ease; }
-.navPet img { display: block; width: 100%; height: auto; }
-.navPet:hover { transform: translateY(-3px) rotate(-2deg); }
-.navPet:focus-visible { outline: 2px solid #fff0b1; outline-offset: 4px; }
 .navLinks { display: flex; align-items: center; gap: 33px; margin-left: auto; margin-right: 0; }
 .navLinks a, .navLinks button { padding: 0; border: 0; color: #ece9db; background: transparent; font-family: inherit; font-size: 13px; font-weight: 750; text-decoration: none; text-shadow: 2px 2px 0 #28265d; cursor: pointer; }
 .navLinks a:hover, .navLinks button:hover { color: #f9d469; }
@@ -463,8 +459,7 @@
 }
 
 @media (max-width: 680px) {
-  .navbar { padding: 0 14px 0 88px; }
-  .navPet { top: 0; left: 13px; width: 62px; }
+  .navbar { padding: 0 14px; }
   .navLinks { display: flex; gap: 12px; margin-right: 0; }
   .navLinks a, .navLinks button { font-size: 10px; white-space: nowrap; }
   .floor { min-width: 0; }
@@ -775,16 +770,10 @@
 
 .navbar {
   min-height: 66px;
-  padding: 0 32px 0 95px;
+  padding: 0 32px;
   border-bottom: 2px solid #515daa;
   background: #242967ed;
   box-shadow: 0 2px 0 #161a48;
-}
-
-.navPet {
-  top: 2px;
-  left: 22px;
-  width: 52px;
 }
 
 .navLinks { gap: 29px; }
@@ -1092,8 +1081,7 @@
     height: 830px;
     background-position: 57% center;
   }
-  .navbar { min-height: 62px; padding: 0 14px 0 78px; }
-  .navPet { top: 2px; left: 13px; width: 45px; }
+  .navbar { min-height: 62px; padding: 0 14px; }
   .navLinks { gap: 11px; }
   .navLinks a,
   .navLinks button { font-size: 10px; }
@@ -1688,35 +1676,33 @@
 }
 
 .voiceScene {
-  background: #07111a;
+  background: #1b4760;
 }
 
-.voiceScene::before { background: transparent; }
+.voiceScene::before {
+  background: url("/assets/chat/starbao-dialogue-preview.png") center / cover no-repeat;
+  opacity: .34;
+  filter: blur(10px) saturate(.82);
+  transform: scale(1.06);
+}
 
 .featureScreenshot {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
 }
 
 .voiceScene .featureScreenshot {
   position: absolute;
-  top: 0;
-  left: 74%;
-  width: 270%;
-  max-width: none;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  max-width: 100%;
   height: 100%;
-  object-fit: cover;
-  transform: translateX(-50%);
-}
-
-@media (min-width: 600px) {
-  .voiceScene .featureScreenshot {
-    left: 90%;
-    width: 310%;
-  }
+  object-fit: contain;
+  transform: none;
 }
 
 /* The reference pet reads as an interactive portrait, not a floating notification. */

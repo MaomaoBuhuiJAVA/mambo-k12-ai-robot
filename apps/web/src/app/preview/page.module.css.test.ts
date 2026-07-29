@@ -77,7 +77,10 @@ describe("Starbao chat visual styling", () => {
   });
 
   it("uses an image-backed chat preview and a compact dark terminal treatment", () => {
-    expect(rule("featureScreenshot")).toContain("object-fit: cover");
+    expect(rule("featureScreenshot")).toContain("object-fit: contain");
+    expect(lastRule("voiceScene")).toContain("background: #1b4760");
+    expect(stylesheet).toContain('background: url("/assets/chat/starbao-dialogue-preview.png") center / cover no-repeat;');
+    expect(stylesheet).toMatch(/\.voiceScene\s+\.featureScreenshot\s*\{[\s\S]*?inset:\s*0[\s\S]*?transform:\s*none[\s\S]*?\}/);
     expect(lastRule("codingScene")).toContain("background: #0d1117");
     expect(lastRule("petPanel")).toContain("min-height: 382px");
     expect(lastRule("petPanelHeader")).toContain("padding: 8px 12px");

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { Children, useEffect, useMemo, useState } from 'react';
-import navConnectorImage from './assets/nav-connector.png';
+import forestChoiceButtonImage from './assets/forest-choice-button.png';
+import forestNextButtonImage from './assets/forest-next-button.png';
+import forestPineconeStepImage from './assets/forest-pinecone-step.png';
+import forestVineConnectorImage from './assets/forest-vine-connector.png';
 import navSelectedStarImage from './assets/nav-selected-star.png';
-import navStepBaseImage from './assets/nav-step-base.png';
-import nextStepButtonImage from './assets/next-step-button.png';
 
 const assetSrc = (asset) => (typeof asset === 'string' ? asset : asset.src);
 
@@ -87,14 +88,14 @@ export default function Stepper({
                       aria-hidden="true"
                       style={styles.stepAsset}
                     >
-                      <img src={assetSrc(navStepBaseImage)} alt="" style={styles.stepAssetImage} />
+                      <img src={assetSrc(forestPineconeStepImage)} alt="" style={styles.stepAssetImage} />
                       <span style={styles.stepAssetNumber}>{stepNumber}</span>
                     </span>
                   )}
                 </button>
                 {stepNumber < totalSteps && (
                   <img
-                    src={assetSrc(navConnectorImage)}
+                    src={assetSrc(forestVineConnectorImage)}
                     alt=""
                     style={{
                       ...styles.progressLine,
@@ -129,7 +130,7 @@ export default function Stepper({
           onClick={handleNext}
           style={{ ...styles.button, ...styles.nextButton, ...(isFinalStep ? styles.finalButton : {}) }}
         >
-          {useNextArtwork ? <img src={assetSrc(nextStepButtonImage)} alt="" style={styles.nextButtonArtwork} /> : finalButtonText}
+          {useNextArtwork ? <img src={assetSrc(forestNextButtonImage)} alt="" style={styles.nextButtonArtwork} /> : finalButtonText}
         </button>
       </div>
     </section>
@@ -145,9 +146,10 @@ const styles = {
   },
   progressTrack: {
     position: 'absolute',
-    top: '10%',
-    left: '7.5%',
-    right: '7.5%',
+    zIndex: 2,
+    top: '7%',
+    left: '6.5%',
+    right: '6.5%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -155,9 +157,9 @@ const styles = {
   progressStep: {
     display: 'grid',
     placeItems: 'center',
-    width: '8.8cqw',
-    height: '8.8cqw',
-    flex: '0 0 8.8cqw',
+    width: '8.3cqw',
+    height: '9.4cqw',
+    flex: '0 0 8.3cqw',
     padding: 0,
     border: 0,
     backgroundColor: 'transparent',
@@ -170,20 +172,20 @@ const styles = {
   },
   starMark: {
     display: 'block',
-    width: '8.8cqw',
-    height: '8.8cqw',
+    width: '7.7cqw',
+    height: '7.7cqw',
     objectFit: 'contain',
-    filter: 'drop-shadow(0 0 0.7rem rgba(255, 249, 199, 0.92))',
+    filter: 'drop-shadow(0 0 0.58cqw rgba(255, 239, 136, 0.92))',
   },
   starMarkActive: {
-    filter: 'drop-shadow(0 0 1rem rgba(255, 249, 199, 1))',
+    filter: 'drop-shadow(0 0 0.82cqw rgba(255, 239, 136, 1))',
   },
   stepAsset: {
     position: 'relative',
     display: 'grid',
     placeItems: 'center',
-    width: '7.5cqw',
-    height: '7.5cqw',
+    width: '8.3cqw',
+    height: '9.4cqw',
   },
   stepAssetImage: {
     display: 'block',
@@ -193,66 +195,73 @@ const styles = {
   },
   stepAssetNumber: {
     position: 'absolute',
-    top: '50%',
+    top: '78%',
     left: '50%',
+    marginTop: '0.8cqw',
+    marginLeft: '-0.65cqw',
     display: 'grid',
     placeItems: 'center',
-    width: '52%',
-    aspectRatio: '1',
+    width: '50%',
+    aspectRatio: '1.08',
     transform: 'translate(-50%, -50%)',
     borderRadius: '50%',
-    backgroundColor: '#eab12d',
-    color: '#fffbea',
+    background: 'radial-gradient(ellipse at 50% 45%, #a56d3f 0 53%, #704326 57% 70%, transparent 72%)',
+    color: '#fff9dc',
     fontFamily: '"YouYuan", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
-    fontSize: '3.3cqw',
+    fontSize: '2.65cqw',
     fontWeight: 800,
     lineHeight: 1,
-    textShadow: '0 0.12rem 0 #a36a0d',
+    textShadow: '0 0.14cqw 0 #4b2d1e',
   },
   progressLine: {
     display: 'block',
     flex: '1 1 0',
     width: '100%',
     minWidth: 0,
-    height: '0.8cqw',
-    margin: '0 1.2cqw',
+    height: '2.35cqw',
+    margin: '0 -0.35cqw',
     objectFit: 'fill',
   },
   progressLineComplete: {
-    filter: 'brightness(0.88) saturate(0.9)',
+    filter: 'brightness(1.08) saturate(1.2) drop-shadow(0 0 0.38cqw rgba(156, 224, 106, 0.45))',
   },
   content: {
     position: 'absolute',
+    zIndex: 1,
     inset: 0,
     display: 'block',
   },
   actions: {
     position: 'absolute',
-    right: '7.5%',
-    bottom: '10%',
-    left: '7.5%',
+    zIndex: 3,
+    right: '6.5%',
+    bottom: '7.5%',
+    left: '6.5%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '1.5cqw',
   },
   button: {
-    minHeight: '5.5cqw',
-    padding: '1cqw 2cqw',
-    border: '0.6cqw solid #965f06',
+    minHeight: '5.6cqw',
+    padding: '0.75cqw 1.55cqw',
+    border: 0,
     borderRadius: '999px',
     font: 'inherit',
-    fontSize: '3.2cqw',
+    fontSize: '2.4cqw',
     fontWeight: 800,
     cursor: 'pointer',
-    boxShadow: 'inset 0 2px 0 rgba(255, 224, 117, 0.5), 0 4px 0 #7a4e08',
+    transition: 'transform 160ms ease, filter 160ms ease',
   },
   backButton: {
-    backgroundColor: '#d99a18',
-    color: '#fff7cf',
+    border: '0.16cqw solid rgba(221, 238, 198, 0.46)',
+    color: '#e8f4dc',
+    backgroundColor: 'rgba(29, 58, 42, 0.7)',
+    boxShadow: '0 0.32cqw 0 rgba(12, 25, 17, 0.5)',
+    textShadow: '0 0.12cqw 0 rgba(14, 31, 19, 0.94)',
   },
   nextButton: {
-    width: '17cqw',
+    width: '16.5cqw',
     minHeight: 0,
     padding: 0,
     border: 0,
@@ -263,17 +272,23 @@ const styles = {
     display: 'block',
     width: '100%',
     height: 'auto',
+    filter: 'drop-shadow(0 0.5cqw 0 rgba(27, 21, 12, 0.64))',
   },
   finalButton: {
-    width: '17cqw',
-    minHeight: '6.2cqw',
-    padding: '0 1.8cqw',
-    border: '0.5cqw solid #6f3b93',
-    color: '#fff9d7',
-    backgroundColor: '#653793',
-    boxShadow: 'inset 0 0.35cqw 0 #a879cf, 0 0.65cqw 0 #3e1f5c',
-    fontSize: '3cqw',
-    textShadow: '0 0.2cqw 0 #3e1f5c',
+    width: '19cqw',
+    minHeight: '7.2cqw',
+    padding: '0 2.1cqw',
+    border: 0,
+    color: '#fff7db',
+    backgroundColor: 'transparent',
+    backgroundImage: `url(${assetSrc(forestChoiceButtonImage)})`,
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: '100% 140%',
+    boxShadow: 'none',
+    fontSize: 'clamp(15px, 2.65cqw, 17px)',
+    fontWeight: 900,
+    textShadow: '0 0.16cqw 0 #4a2e1b, 0 0 0.65cqw rgba(16, 14, 8, 0.65)',
   },
   disabledButton: {
     visibility: 'hidden',

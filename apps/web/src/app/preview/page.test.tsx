@@ -126,6 +126,13 @@ describe("PreviewPage Starbao chat", () => {
     expect(panel).not.toHaveTextContent("Star study companion - Online");
   });
 
+  it("does not render the removed header mascot link", () => {
+    render(<PreviewPage />);
+
+    expect(screen.queryByRole("link", { name: "\u661f\u5b9d" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "\u6325\u624b\u7684\u661f\u5b9d" })).not.toBeInTheDocument();
+  });
+
   it("moves the open Starbao chat window from its header drag handle", () => {
     render(<PreviewPage />);
 
@@ -148,22 +155,25 @@ describe("PreviewPage Starbao chat", () => {
     expect(panel).toHaveStyle({ left: "180px", top: "220px", transform: "none" });
   });
 
-  it("keeps the hero journey card at its declared aspect ratio without a fixed minimum height", () => {
+  it("uses the woodland glass card shell at its declared aspect ratio without a fixed minimum height", () => {
     expect(journeyCardSource).toContain("aspectRatio: '86 / 55'");
     expect(journeyCardSource).not.toContain("minHeight: '32rem'");
+    expect(journeyCardSource).toContain("forest-vine-frame.png");
+    expect(journeyCardSource).toContain("cardStyles.glassPanel");
+    expect(journeyCardStylesSource).toContain("backdrop-filter: blur(0.7cqw) saturate(0.78);");
+    expect(journeyCardStylesSource).toContain("background: rgba(25, 48, 37, 0.54);");
   });
 
-  it("uses the reference card's relative layout for the progress row, copy, mascot, and action", () => {
-    expect(stepperSource).toContain("top: '10%'");
-    expect(stepperSource).toContain("width: '17cqw'");
-    expect(journeyCardSource).toContain("fontSize: '4.65cqw'");
-    expect(journeyCardSource).toContain("top: '57%'");
-    expect(journeyCardSource).toContain("height: '33%'");
+  it("uses the supplied woodland artwork for the frame, route, step markers, options, and next action", () => {
+    expect(stepperSource).toContain("forest-vine-connector.png");
+    expect(stepperSource).toContain("forest-pinecone-step.png");
+    expect(stepperSource).toContain("forest-next-button.png");
+    expect(journeyCardStylesSource).toContain("forest-choice-button.png");
+    expect(journeyCardSource).toContain("textAlign: 'center'");
+    expect(journeyCardSource).not.toContain("backgroundColor: 'rgba(202, 181, 112, 0.84)'");
     expect(journeyCardSource).toContain('src="/assets/starbao-nav-peek.png"');
-    expect(journeyCardStylesSource).toContain("top: 34%;");
-    expect(journeyCardStylesSource).toContain("left: 7.5%;");
-    expect(journeyCardStylesSource).not.toContain("margin-left: 36%");
-    expect(journeyCardStylesSource).not.toContain("display: none");
+    expect(journeyCardStylesSource).toContain("top: 50%;");
+    expect(journeyCardStylesSource).toContain("left: 50%;");
   });
 
   it("shows the chat screenshot and a dark Python terminal in the learning previews", () => {
@@ -177,14 +187,13 @@ describe("PreviewPage Starbao chat", () => {
     expect(terminalPreview).toHaveTextContent("Python 3.12");
   });
 
-  it("crops the voice preview to the AI conversation instead of the surrounding control panels", () => {
+  it("uses the supplied full chat screenshot without cropping", () => {
+    expect(previewPageSource).toContain('src="/assets/chat/starbao-dialogue-preview.png"');
     expect(previewStylesSource).toContain(".voiceScene .featureScreenshot");
-    expect(previewStylesSource).toContain("width: 270%");
-    expect(previewStylesSource).toContain("left: 74%");
-    expect(previewStylesSource).toContain("@media (min-width: 600px)");
-    expect(previewStylesSource).toContain("width: 310%");
-    expect(previewStylesSource).toContain("left: 90%");
-    expect(previewStylesSource).toContain("transform: translateX(-50%)");
+    expect(previewStylesSource).toContain("inset: 0;");
+    expect(previewStylesSource).toContain("object-fit: contain;");
+    expect(previewStylesSource).toContain("transform: none;");
+    expect(previewStylesSource).toContain('background: url("/assets/chat/starbao-dialogue-preview.png") center / cover no-repeat;');
   });
 
   it("shows the gold pixel ghost in the chat message list while Starbao is sending", () => {
@@ -236,6 +245,48 @@ describe("PreviewPage Starbao chat", () => {
     expect(screen.getByRole("button", { name: "前往第 2 步" })).toHaveAttribute("aria-current", "step");
   });
 
+  it("keeps the woodland path in sync across next, direct-path, and previous navigation", () => {
+    render(<PreviewPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "下一步" }));
+    expect(screen.getByRole("button", { name: "前往第 2 步" })).toHaveAttribute("aria-current", "step");
+
+    fireEvent.click(screen.getByRole("button", { name: "前往第 4 步" }));
+    expect(screen.getByRole("button", { name: "前往第 4 步" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("button", { name: "开始" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "上一步" }));
+    expect(screen.getByRole("button", { name: "前往第 3 步" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("heading", { name: "你对AI了解多少？" })).toBeInTheDocument();
+  });
+
+  it("keeps the clickable woodland path above the changing step content", () => {
+    expect(stepperSource).toMatch(/progressTrack: \{[\s\S]*?zIndex: 2,/);
+    expect(stepperSource).toMatch(/content: \{[\s\S]*?zIndex: 1,/);
+  });
+
+  it("uses centered concise choice labels and centers each pinecone number", () => {
+    expect(journeyCardSource).toContain("label: '新人'");
+    expect(journeyCardSource).toContain("label: '高手'");
+    expect(journeyCardSource).toContain("label: '程序员'");
+    expect(journeyCardStylesSource).toContain("place-items: center;");
+    expect(journeyCardStylesSource).toContain("margin-right: 10px;");
+    expect(journeyCardStylesSource).toContain("margin-right: 20px;");
+    expect(journeyCardStylesSource).toContain("font-size: 2.95cqw;");
+    expect(stepperSource).toContain("top: '78%'");
+    expect(stepperSource).toContain("marginTop: '0.8cqw'");
+    expect(stepperSource).toContain("marginLeft: '-0.65cqw'");
+    expect(stepperSource).toContain("fontSize: 'clamp(15px, 2.65cqw, 17px)'");
+    expect(stepperSource).toContain("fontWeight: 900");
+  });
+
+  it("uses a Hello World preview in the coding terminal", () => {
+    render(<PreviewPage />);
+
+    expect(screen.getByText('print("Hello, World!")')).toBeInTheDocument();
+    expect(screen.queryByText("def classify_image(features):")).not.toBeInTheDocument();
+  });
+
   it("guides a learner through stage, AI familiarity, and learning-format choices", () => {
     render(<PreviewPage />);
 
@@ -245,19 +296,23 @@ describe("PreviewPage Starbao chat", () => {
     const primary = screen.getByRole("radio", { name: "\u5c0f\u5b66" });
     fireEvent.click(primary);
     expect(primary).toBeChecked();
+    expect(screen.queryByText("\u4ece\u6545\u4e8b\u3001\u89c2\u5bdf\u548c\u4e92\u52a8\u5f00\u59cb")).not.toBeInTheDocument();
+    expect(screen.queryByText("\u9009\u62e9\u5b66\u6bb5")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "\u4e0b\u4e00\u6b65" }));
     expect(screen.getByRole("heading", { name: "\u4f60\u5bf9AI\u4e86\u89e3\u591a\u5c11\uff1f" })).toBeInTheDocument();
-    const familiar = screen.getByRole("radio", { name: "\u6211\u5df2\u7ecf\u7528\u8fc7AI\u5de5\u5177" });
+    expect(screen.getByRole("radio", { name: "\u65b0\u4eba" })).toBeInTheDocument();
+    const familiar = screen.getByRole("radio", { name: "\u9ad8\u624b" });
+    expect(screen.getByRole("radio", { name: "\u7a0b\u5e8f\u5458" })).toBeInTheDocument();
     fireEvent.click(familiar);
     expect(familiar).toBeChecked();
 
     fireEvent.click(screen.getByRole("button", { name: "\u4e0b\u4e00\u6b65" }));
     expect(screen.getByRole("heading", { name: "\u4f60\u60f3\u5148\u4ece\u54ea\u4e00\u90e8\u5206\u5f00\u59cb\u5b66\u4e60\uff1f" })).toBeInTheDocument();
-    const coding = screen.getByRole("radio", { name: "\u76f4\u63a5\u5b9e\u8df5\u7f16\u7a0b" });
+    const coding = screen.getByRole("radio", { name: "\u7f16\u7a0b" });
     fireEvent.click(coding);
     expect(coding).toBeChecked();
-    expect(screen.getByRole("button", { name: "\u5f00\u59cb\u5b66\u4e60" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "\u5f00\u59cb" })).toBeInTheDocument();
   });
 
   it("keeps the voice preview focused on chat and presents the reference pet in a pixel wood frame", () => {

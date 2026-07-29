@@ -706,10 +706,8 @@ export default function PreviewPage() {
 
   const activeStory = storyPreviewPages[storyPreviewPage]!;
   const selectedStage = labStageOptions.find((option) => option.id === labStage)!;
-  const codingTemplate = labFamiliarity === "first_steps" ? "图像分类" : "冒泡排序";
-  const codingLines = labFamiliarity === "first_steps"
-    ? ["def classify_image(features):", "    scores = {\"leaf\": 0, \"ball\": 0}", "    # 找到图像里的线索", "    return max(scores, key=scores.get)"]
-    : ["def bubble_sort(values):", "    result = values[:]", "    # 比较相邻的两个数字", "    return result"];
+  const codingTemplate = "Hello World";
+  const codingLines = ['print("Hello, World!")'];
 
   return (
     <main className={styles.page}>
@@ -723,9 +721,6 @@ export default function PreviewPage() {
       </div>
 
       <header className={styles.navbar}>
-        <a className={styles.navPet} href="#robot" aria-label="星宝">
-          <Image src="/assets/starbao-nav-peek.png" alt="挥手的星宝" width={426} height={693} priority />
-        </a>
         <nav className={styles.navLinks} aria-label="首页导航">
           <button className={activeFeature === "coding" ? styles.navLinkActive : ""} type="button" onClick={() => scrollToFeature("coding")}>编程实验室</button>
           <button className={activeFeature === "storybook" ? styles.navLinkActive : ""} type="button" onClick={openStorybook}>动漫绘本</button>
@@ -807,10 +802,10 @@ export default function PreviewPage() {
           <div className={`${styles.featureScene} ${styles.voiceScene}`} role="group" aria-label="星宝聊天窗口预览">
             <Image
               className={styles.featureScreenshot}
-              src="/assets/chat/mambo-continuous-voice.png"
+              src="/assets/chat/starbao-dialogue-preview.png"
               alt="星宝聊天窗口截图"
-              width={800}
-              height={480}
+              width={446}
+              height={477}
             />
           </div>
         </div>
