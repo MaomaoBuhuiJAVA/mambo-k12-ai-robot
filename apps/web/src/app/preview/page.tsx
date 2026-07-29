@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   Cloud,
   Send,
   Sparkles,
@@ -31,19 +30,6 @@ type LabFamiliarity = "first_steps" | "guided" | "ready";
 type HomepageFeature = "voice" | "storybook" | "coding";
 type PetPosition = { x: number; y: number };
 type PetPanelPosition = { left: number; top: number; placement: "above" | "below" };
-type PetDrag = {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  lastX: number;
-  lastY: number;
-  offsetX: number;
-  offsetY: number;
-  width: number;
-  height: number;
-  moved: boolean;
-  cleanup?: () => void;
-};
 type PetPanelDrag = {
   pointerId: number;
   startX: number;
@@ -145,26 +131,18 @@ const schoolStages = [
     id: "primary",
     image: "/assets/learning-stages/primary-reading.png",
     buttonLabel: "小学",
-    hoverLabel: "进入学习",
-    ariaLabel: "Open primary learning path",
   },
   {
     id: "middle",
     image: "/assets/learning-stages/middle-writing.png",
     buttonLabel: "初中",
-    hoverLabel: "进入学习",
-    ariaLabel: "Open middle school learning path",
   },
   {
     id: "high",
     image: "/assets/learning-stages/high-coding.png",
     buttonLabel: "高中",
-    hoverLabel: "进入学习",
-    ariaLabel: "Open high school learning path",
   },
 ] as const;
-
-type SchoolStageId = (typeof schoolStages)[number]["id"];
 
 const thinkingGhostCells = [
   "top0",
@@ -221,12 +199,10 @@ function StarbaoThinkingIndicator() {
 
 export default function PreviewPage() {
   const router = useRouter();
-  const [activeFloor, setActiveFloor] = useState<FloorId>("explore");
+  const activeFloor: FloorId = "explore";
   const [petOpen, setPetOpen] = useState(false);
   const [petChatAnchor, setPetChatAnchor] = useState<PetChatAnchor>("launcher");
   const [petMood, setPetMood] = useState<PetMood>("idle");
-  const [petPosition, setPetPosition] = useState<PetPosition | null>(null);
-  const [petDragging, setPetDragging] = useState(false);
   const [petPanelPosition, setPetPanelPosition] = useState<PetPanelPosition | null>(null);
   const [petPanelDragging, setPetPanelDragging] = useState(false);
   const [petPanelDetached, setPetPanelDetached] = useState(false);
@@ -242,19 +218,13 @@ export default function PreviewPage() {
   const [labStage, setLabStage] = useState<Stage>("lower_primary");
   const [labFamiliarity, setLabFamiliarity] = useState<LabFamiliarity>("first_steps");
   const [activeFeature, setActiveFeature] = useState<HomepageFeature>("voice");
-  const [activeExhibitStage, setActiveExhibitStage] = useState<SchoolStageId | null>(null);
   const [storyPreviewPage, setStoryPreviewPage] = useState(0);
   const [codingMatched, setCodingMatched] = useState(false);
-  const petDragRef = useRef<PetDrag | null>(null);
   const petPanelDragRef = useRef<PetPanelDrag | null>(null);
   const petLauncherRef = useRef<HTMLButtonElement>(null);
   const referencePetRef = useRef<HTMLButtonElement>(null);
   const petPanelRef = useRef<HTMLElement>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
-  const petPanelOffsetXRef = useRef<number | null>(null);
-  const petMotionFrameRef = useRef<number | null>(null);
-  const pendingPetPositionRef = useRef<PetPosition | null>(null);
-  const petSuppressClickRef = useRef(false);
   const petMoodTimerRef = useRef<number | null>(null);
   const petWaitingTimerRef = useRef<number | null>(null);
   const petMoodRef = useRef<PetMood>("idle");
@@ -269,7 +239,6 @@ export default function PreviewPage() {
     return () => {
       if (petMoodTimerRef.current) window.clearTimeout(petMoodTimerRef.current);
       if (petWaitingTimerRef.current) window.clearTimeout(petWaitingTimerRef.current);
-      if (petMotionFrameRef.current !== null) window.cancelAnimationFrame(petMotionFrameRef.current);
     };
   }, [setPetMoodIfChanged]);
 
@@ -316,49 +285,17 @@ export default function PreviewPage() {
       viewportWidth: window.innerWidth,
     });
     const canOpenAbove = position.y >= panelHeight + gap;
-    const canOpenBelow = window.innerHeight - (position.y + petHeight) >= panelHeight + gap;
-    const placement: PetPanelPosition["placement"] = canOpenAbove || !canOpenBelow ? "above" : "below";
+    const placement: PetPanelPosition["placement"] = canOpenAbove ? "above" : "below";
+    const maxTop = Math.max(8, window.innerHeight - panelHeight - 8);
 
     return {
       left,
-      top: placement === "above" ? position.y - gap : position.y + petHeight + gap,
+      top: placement === "above"
+        ? position.y - gap
+        : Math.min(maxTop, Math.max(8, position.y + petHeight + gap)),
       placement,
     };
   }, []);
-
-  const applyPetPosition = useCallback((position: PetPosition, petWidth: number, petHeight: number) => {
-    const pet = petLauncherRef.current;
-    if (!pet) return null;
-
-    pet.style.left = `${position.x}px`;
-    pet.style.top = `${position.y}px`;
-    pet.style.right = "auto";
-    pet.style.bottom = "auto";
-
-    if (!petOpen || petChatAnchor !== "launcher" || petPanelDetached) return null;
-    const panel = petPanelRef.current;
-    const panelPosition = getPetPanelPosition(position, petWidth, petHeight);
-    if (!panel || !panelPosition) return null;
-
-    const panelOffsetX = petPanelOffsetXRef.current;
-    if (typeof panelOffsetX === "number") {
-      panelPosition.left = resolvePetPanelLeft({
-        petX: position.x,
-        petWidth,
-        panelWidth: panel.offsetWidth,
-        viewportWidth: window.innerWidth,
-        offsetX: panelOffsetX,
-      });
-    }
-
-    panel.style.left = `${panelPosition.left}px`;
-    panel.style.top = `${panelPosition.top}px`;
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
-    panel.style.transform = panelPosition.placement === "above" ? "translateY(-100%)" : "none";
-
-    return panelPosition;
-  }, [getPetPanelPosition, petChatAnchor, petOpen, petPanelDetached]);
 
   const updatePetPanelPosition = useCallback(() => {
     if (petPanelDetached) {
@@ -385,16 +322,6 @@ export default function PreviewPage() {
     const next = getPetPanelPosition({ x: petRect.left, y: petRect.top }, petRect.width, petRect.height);
     if (!next) return;
 
-    if (petChatAnchor === "launcher" && petPanelOffsetXRef.current !== null) {
-      next.left = resolvePetPanelLeft({
-        petX: petRect.left,
-        petWidth: petRect.width,
-        panelWidth: petPanelRef.current?.offsetWidth ?? 0,
-        viewportWidth: window.innerWidth,
-        offsetX: petPanelOffsetXRef.current,
-      });
-    }
-
     setPetPanelPosition((previous) => {
       return previous && previous.left === next.left && previous.top === next.top && previous.placement === next.placement ? previous : next;
     });
@@ -405,12 +332,12 @@ export default function PreviewPage() {
     updatePetPanelPosition();
     window.addEventListener("resize", updatePetPanelPosition);
     return () => window.removeEventListener("resize", updatePetPanelPosition);
-  }, [petOpen, petPosition, updatePetPanelPosition]);
+  }, [petOpen, updatePetPanelPosition]);
 
   function schedulePetWaiting() {
     if (petWaitingTimerRef.current) window.clearTimeout(petWaitingTimerRef.current);
     petWaitingTimerRef.current = window.setTimeout(() => {
-      if (!petDragRef.current) setPetMoodIfChanged("waiting");
+      setPetMoodIfChanged("waiting");
     }, 6500);
   }
 
@@ -428,133 +355,22 @@ export default function PreviewPage() {
     if (nextOpen) {
       setPetChatAnchor(anchor);
       setPetPanelDetached(false);
-      if (anchor !== "launcher") petPanelOffsetXRef.current = null;
     }
     setPetOpen(nextOpen);
     if (!nextOpen) {
       setPetPanelPosition(null);
       setPetChatAnchor("launcher");
       setPetPanelDetached(false);
-      petPanelOffsetXRef.current = null;
     }
     playPetMood(nextOpen ? "waving" : "idle", nextOpen ? 1200 : 0);
   }
 
   function handlePetClick() {
-    if (petSuppressClickRef.current) {
-      petSuppressClickRef.current = false;
-      return;
-    }
     togglePetChat("launcher");
   }
 
   function handleReferencePetClick() {
     togglePetChat("reference");
-  }
-
-  function handlePetPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    if (event.button !== 0) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const panelRect = petOpen && petChatAnchor === "launcher"
-      ? petPanelRef.current?.getBoundingClientRect()
-      : null;
-    const panelOffsetX = panelRect ? panelRect.left - rect.left : undefined;
-    petPanelOffsetXRef.current = panelOffsetX ?? null;
-    const onWindowMove = (moveEvent: MouseEvent) => updatePetDrag(moveEvent.clientX, moveEvent.clientY);
-    const onWindowUp = () => finishPetDrag();
-    pendingPetPositionRef.current = { x: rect.left, y: rect.top };
-    petDragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      lastX: event.clientX,
-      lastY: event.clientY,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top,
-      width: rect.width,
-      height: rect.height,
-      moved: false,
-      cleanup: () => {
-        window.removeEventListener("mousemove", onWindowMove);
-        window.removeEventListener("mouseup", onWindowUp);
-      },
-    };
-    window.addEventListener("mousemove", onWindowMove);
-    window.addEventListener("mouseup", onWindowUp);
-    setPetDragging(true);
-    if (petMoodTimerRef.current) window.clearTimeout(petMoodTimerRef.current);
-    if (petWaitingTimerRef.current) window.clearTimeout(petWaitingTimerRef.current);
-    setPetMoodIfChanged("running-right");
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.preventDefault();
-  }
-
-  function updatePetDrag(clientX: number, clientY: number, pointerId?: number) {
-    const drag = petDragRef.current;
-    if (!drag || (typeof pointerId === "number" && drag.pointerId !== pointerId)) return;
-    if (clientX === drag.lastX && clientY === drag.lastY) return;
-    const distance = Math.hypot(clientX - drag.startX, clientY - drag.startY);
-    if (distance > 7) drag.moved = true;
-    if (!drag.moved) return;
-
-    const maxX = Math.max(8, window.innerWidth - drag.width - 8);
-    const maxY = Math.max(8, window.innerHeight - drag.height - 8);
-    pendingPetPositionRef.current = {
-      x: Math.min(maxX, Math.max(8, clientX - drag.offsetX)),
-      y: Math.min(maxY, Math.max(8, clientY - drag.offsetY)),
-    };
-
-    if (petMotionFrameRef.current === null) {
-      petMotionFrameRef.current = window.requestAnimationFrame(() => {
-        petMotionFrameRef.current = null;
-        const position = pendingPetPositionRef.current;
-        if (position) applyPetPosition(position, drag.width, drag.height);
-      });
-    }
-
-    const dx = clientX - drag.lastX;
-    const dy = clientY - drag.lastY;
-    if (Math.abs(dx) > Math.abs(dy) * 1.12) setPetMoodIfChanged(dx >= 0 ? "running-right" : "running-left");
-    else setPetMoodIfChanged(dy < 0 ? "jumping" : "waving");
-    drag.lastX = clientX;
-    drag.lastY = clientY;
-  }
-
-  function handlePetPointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
-    updatePetDrag(event.clientX, event.clientY, event.pointerId);
-    event.preventDefault();
-  }
-
-  function finishPetDrag(pointerId?: number) {
-    const drag = petDragRef.current;
-    const element = petLauncherRef.current;
-    if (!drag || (typeof pointerId === "number" && drag.pointerId !== pointerId)) return;
-    petDragRef.current = null;
-    if (petMotionFrameRef.current !== null) {
-      window.cancelAnimationFrame(petMotionFrameRef.current);
-      petMotionFrameRef.current = null;
-    }
-    const finalPosition = pendingPetPositionRef.current;
-    pendingPetPositionRef.current = null;
-    if (drag.moved && finalPosition) {
-      const panelPosition = applyPetPosition(finalPosition, drag.width, drag.height);
-      setPetPosition(finalPosition);
-      if (panelPosition) setPetPanelPosition(panelPosition);
-    }
-    setPetDragging(false);
-    drag.cleanup?.();
-    if (element && typeof pointerId === "number" && element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
-    if (drag.moved) {
-      petSuppressClickRef.current = true;
-      window.setTimeout(() => { petSuppressClickRef.current = false; }, 250);
-      playPetMood("idle", 0);
-    } else {
-      schedulePetWaiting();
-    }
-  }
-
-  function handlePetPointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
-    finishPetDrag(typeof event.pointerId === "number" ? event.pointerId : undefined);
   }
 
   function handlePetPanelPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
@@ -625,12 +441,6 @@ export default function PreviewPage() {
     finishPetPanelDrag(typeof event.pointerId === "number" ? event.pointerId : undefined);
   }
 
-  const petLauncherStyle = petPosition ? {
-    left: `${petPosition.x}px`,
-    top: `${petPosition.y}px`,
-    right: "auto",
-    bottom: "auto",
-  } : undefined;
   const petPanelStyle = petPanelPosition ? {
     left: `${petPanelPosition.left}px`,
     top: `${petPanelPosition.top}px`,
@@ -639,29 +449,10 @@ export default function PreviewPage() {
     transform: petPanelPosition.placement === "above" ? "translateY(-100%)" : "none",
   } : undefined;
 
-  function openFloor(id: FloorId) {
-    setActiveFloor(id);
-    if (id === "future") {
-      setEntryDialog("future");
-      return;
-    }
-    const floor = floors.find((item) => item.id === id);
-    if (floor) router.push(workspaceHref({ course: floor.courseId, hash: "workspace" }));
-  }
-
   function openFutureStage(stage: "middle_school" | "high_school") {
     setEntryDialog(null);
     const courseId = stage === "middle_school" ? "middle-neural-signals" : "high-bubble-analysis";
     router.push(workspaceHref({ course: courseId, hash: "workspace" }));
-  }
-
-  function openSchoolStage(stage: SchoolStageId) {
-    setActiveExhibitStage(stage);
-    if (stage === "primary") {
-      openFloor("explore");
-      return;
-    }
-    openFutureStage(stage === "middle" ? "middle_school" : "high_school");
   }
 
   function scrollToFeature(feature: HomepageFeature) {
@@ -736,6 +527,22 @@ export default function PreviewPage() {
           </h1>
           <p>从认识世界，到创造作品，再到研究未来。选择适合你的学习阶段，和星星一起开始今天的探索。</p>
         </div>
+        <div className={`${styles.heroPetPatrol} ${petOpen && petChatAnchor === "launcher" ? styles.heroPetPatrolPaused : ""}`}>
+          <button
+            className={`${styles.petLauncher} ${petOpen ? styles.petLauncherOpen : ""}`}
+            ref={petLauncherRef}
+            type="button"
+            onClick={handlePetClick}
+            onMouseEnter={() => playPetMood("waving", 850)}
+            onMouseLeave={() => { if (!petOpen) playPetMood("idle", 0); }}
+            aria-label={petOpen ? "Close star chat" : "Open star chat"}
+            title="点击和星宝聊天"
+          >
+            <span className={styles.petPatrolSprite} aria-hidden="true">
+              <span className={`${styles.petSprite} ${styles[`petSprite-${petMood}`]}`} />
+            </span>
+          </button>
+        </div>
         <div className={styles.heroJourney}>
           <StarJourneyCard />
         </div>
@@ -749,15 +556,8 @@ export default function PreviewPage() {
           {schoolStages.map((stage, index) => (
             <article
               className={styles.exhibitBay}
-              data-active={activeExhibitStage === stage.id}
               data-stage={stage.id}
               key={stage.id}
-              onMouseEnter={() => setActiveExhibitStage(stage.id)}
-              onMouseLeave={() => setActiveExhibitStage(null)}
-              onFocusCapture={() => setActiveExhibitStage(stage.id)}
-              onBlurCapture={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setActiveExhibitStage(null);
-              }}
             >
               <span className={styles.exhibitArtwork} aria-hidden="true">
                 <Image src={stage.image} alt="" width={982} height={1024} sizes="(max-width: 680px) 72vw, 420px" loading={stage.id === "primary" ? "eager" : "lazy"} />
@@ -766,15 +566,7 @@ export default function PreviewPage() {
                 <div className={styles.exhibitMeta}>
                   <span className={styles.exhibitBayNumber}>0{index + 1}</span>
                 </div>
-                <button className={styles.exhibitStageLink} type="button" aria-label={stage.ariaLabel} onClick={() => openSchoolStage(stage.id)}>
-                  <span className={styles.exhibitStageLinkText} aria-hidden="true">
-                    {Array.from(stage.buttonLabel).map((character, characterIndex) => <span key={`${stage.id}-text-${characterIndex}`}>{character}</span>)}
-                  </span>
-                  <span className={styles.exhibitStageLinkClone} aria-hidden="true">
-                    {Array.from(stage.hoverLabel).map((character, characterIndex) => <span key={`${stage.id}-clone-${characterIndex}`}>{character}</span>)}
-                  </span>
-                  <ArrowUpRight aria-hidden="true" />
-                </button>
+                <span className={styles.exhibitStageLabel}>{stage.buttonLabel}</span>
               </div>
             </article>
           ))}
@@ -912,26 +704,6 @@ export default function PreviewPage() {
           )}
         </div>
       ) : null}
-
-      <button
-        className={`${styles.petLauncher} ${petOpen ? styles.petLauncherOpen : ""} ${petDragging ? styles.petLauncherDragging : ""}`}
-        style={petLauncherStyle}
-        ref={petLauncherRef}
-        type="button"
-        onClick={handlePetClick}
-        onPointerDown={handlePetPointerDown}
-        onPointerMove={handlePetPointerMove}
-        onPointerUp={handlePetPointerUp}
-        onPointerCancel={handlePetPointerUp}
-        onLostPointerCapture={() => finishPetDrag()}
-        onMouseEnter={() => { if (!petDragging) playPetMood("waving", 850); }}
-        onMouseLeave={() => { if (!petDragging && !petOpen) playPetMood("idle", 0); }}
-        aria-label={petOpen ? "Close star chat" : "Open star chat"}
-        aria-grabbed={petDragging}
-        title="拖动星星人，点击和它聊天"
-      >
-        <span className={`${styles.petSprite} ${styles[`petSprite-${petMood}`]}`} aria-hidden="true" />
-      </button>
 
       {petOpen ? (
         <aside className={`${styles.petPanel} ${petPanelPosition ? styles.petPanelAttached : ""} ${petPanelDragging ? styles.petPanelDragging : ""}`} style={petPanelStyle} ref={petPanelRef} aria-label="星星智能体面板">

@@ -327,13 +327,14 @@ describe("PreviewPage Starbao chat", () => {
     expect(previewPageSource).toContain("styles.pixelWoodFrame");
   });
 
-  it("renders the open growth exhibition without duplicating school-stage entries in the hero", () => {
+  it("renders the growth exhibition with static school-stage labels", () => {
     const { container } = render(<PreviewPage />);
 
-    expect(screen.getByRole("button", { name: "Open primary learning path" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open middle school learning path" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open high school learning path" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open primary learning path" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open middle school learning path" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open high school learning path" })).not.toBeInTheDocument();
     expect(container.querySelectorAll("img[src*='assets/learning-stages/']")).toHaveLength(3);
+    expect(Array.from(container.querySelectorAll("[class*='exhibitStageLabel']")).map((label) => label.textContent)).toEqual(["小学", "初中", "高中"]);
     expect(screen.getByRole("region", { name: "成长展厅" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "从绘本到编程，星宝如影随形" })).toBeInTheDocument();
     expect(screen.getByText("从小教到大")).toBeInTheDocument();
@@ -352,39 +353,16 @@ describe("PreviewPage Starbao chat", () => {
     expect(screen.queryByText("桌面上的小伙伴")).not.toBeInTheDocument();
   });
 
-  it("keeps the exhibition uncluttered and reveals the same enter-learning label on every stage hover", () => {
+  it("keeps the exhibit artwork and labels free of hover routing behavior", () => {
     const { container } = render(<PreviewPage />);
 
     expect(screen.queryByText("读写启蒙")).not.toBeInTheDocument();
     expect(screen.queryByText("思考进阶")).not.toBeInTheDocument();
     expect(screen.queryByText("编程创造")).not.toBeInTheDocument();
     expect(container.querySelectorAll("[class*='exhibitBayDetail']")).toHaveLength(0);
-
-    const hoverLabels = Array.from(container.querySelectorAll("[class*='exhibitStageLinkClone']"));
-    expect(hoverLabels).toHaveLength(3);
-    expect(hoverLabels.map((label) => label.textContent)).toEqual(["进入学习", "进入学习", "进入学习"]);
-  });
-
-  it("returns exhibition artwork to its resting state after the pointer or keyboard focus leaves", () => {
-    const { container } = render(<PreviewPage />);
-    const exhibitBays = Array.from(container.querySelectorAll("article[class*='exhibitBay']"));
-    const middleBay = exhibitBays[1]!;
-
-    expect(exhibitBays).toHaveLength(3);
-    expect(exhibitBays.every((bay) => bay.getAttribute("data-active") === "false")).toBe(true);
-
-    fireEvent.mouseEnter(middleBay);
-    expect(middleBay).toHaveAttribute("data-active", "true");
-
-    fireEvent.mouseLeave(middleBay);
-    expect(middleBay).toHaveAttribute("data-active", "false");
-
-    const middleEntry = screen.getByRole("button", { name: "Open middle school learning path" });
-    fireEvent.focus(middleEntry);
-    expect(middleBay).toHaveAttribute("data-active", "true");
-
-    fireEvent.blur(middleEntry, { relatedTarget: document.body });
-    expect(middleBay).toHaveAttribute("data-active", "false");
+    expect(container.querySelectorAll("[class*='exhibitStageLink']")).toHaveLength(0);
+    expect(previewPageSource).not.toContain("openSchoolStage");
+    expect(previewPageSource).not.toContain("activeExhibitStage");
   });
 
   it("uses intrinsic image dimensions for school-stage art instead of fill positioning", () => {
@@ -395,16 +373,20 @@ describe("PreviewPage Starbao chat", () => {
     expect(stageImages[0]).toContain('loading={stage.id === "primary" ? "eager" : "lazy"}');
   });
 
-  it("routes each school-stage entry to its matching learning path", () => {
-    render(<PreviewPage />);
+  it("keeps the floating Starbao inside the hero patrol while preserving chat access", () => {
+    const { container } = render(<PreviewPage />);
+    const launcher = screen.getByRole("button", { name: "Open star chat" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Open primary learning path" }));
-    fireEvent.click(screen.getByRole("button", { name: "Open middle school learning path" }));
-    fireEvent.click(screen.getByRole("button", { name: "Open high school learning path" }));
+    expect(container.querySelector("#top")).toContainElement(launcher);
+    expect(launcher).not.toHaveAttribute("aria-grabbed");
+    expect(previewPageSource).toContain("styles.heroPetPatrol");
+    expect(previewPageSource).toContain("styles.petPatrolSprite");
+    expect(previewStylesSource).toContain("@keyframes heroPetPatrolMotion");
+    expect(previewStylesSource).toContain("@keyframes heroPetPatrolFacing");
+    expect(previewStylesSource).toContain("animation-play-state: paused");
 
-    expect(push).toHaveBeenNthCalledWith(1, "/workspace?course=lower-bubble-sort#workspace");
-    expect(push).toHaveBeenNthCalledWith(2, "/workspace?course=middle-neural-signals#workspace");
-    expect(push).toHaveBeenNthCalledWith(3, "/workspace?course=high-bubble-analysis#workspace");
+    fireEvent.click(launcher);
+    expect(screen.getByRole("complementary", { name: "星星智能体面板" })).toBeInTheDocument();
   });
 
   it("uses the pixel ghost instead of the previous cube and loading dots", () => {

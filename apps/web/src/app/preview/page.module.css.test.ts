@@ -54,12 +54,22 @@ describe("Starbao chat visual styling", () => {
     expect(stylesheet).not.toContain('.exhibitBay[data-stage="primary"] { background:');
   });
 
-  it("uses the requested clone-text underline interaction for exhibition buttons", () => {
-    expect(rule("exhibitStageLink")).toContain("width: 140px");
-    expect(rule("exhibitStageLink")).toContain("height: 56px");
-    expect(stylesheet).toContain(".exhibitStageLink::before");
-    expect(stylesheet).toContain(".exhibitStageLink:hover .exhibitStageLinkClone > span");
-    expect(stylesheet).toContain(".exhibitStageLink:hover svg");
+  it("keeps the exhibition stage labels static", () => {
+    expect(rule("exhibitStageLabel")).toContain("width: 140px");
+    expect(rule("exhibitStageLabel")).toContain("min-height: 56px");
+    expect(stylesheet).not.toContain(".exhibitStageLink");
+    expect(stylesheet).not.toContain("@keyframes exhibitFloat");
+  });
+
+  it("moves the floating Starbao within the hero and pauses it while chat is open", () => {
+    expect(rule("heroPetPatrol")).toContain("animation: heroPetPatrolMotion 16s");
+    expect(rule("heroPetPatrol")).toContain("left: clamp(58px, 5.8vw, 75px)");
+    expect(rule("heroPetPatrolPaused")).toContain("animation-play-state: paused");
+    expect(rule("petLauncher")).toContain("margin-top: 111px");
+    expect(rule("petPatrolSprite")).toContain("animation: heroPetPatrolFacing 16s");
+    expect(stylesheet).toContain("@keyframes heroPetPatrolMotion");
+    expect(stylesheet).toContain("@keyframes heroPetPatrolFacing");
+    expect(stylesheet).toContain("56.01%, 70% { transform: scaleX(-1);");
   });
 
   it("keeps the mobile exhibition swipeable without exposing a native scrollbar", () => {
