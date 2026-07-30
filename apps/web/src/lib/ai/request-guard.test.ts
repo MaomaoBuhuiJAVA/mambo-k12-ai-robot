@@ -153,6 +153,19 @@ describe("in-memory request guard", () => {
 });
 
 describe("durable Vercel request guard", () => {
+  it("uses the local in-memory guard when explicitly enabled for development", async () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("LOCAL_AI_CHAT", "true");
+    vi.stubEnv("NODE_ENV", "development");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    const result = await acquireRequestLease(request(), "chat");
+
+    expect(result.ok).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    if (result.ok) await result.lease.release();
+  });
+
   it("uses one atomic Redis EVAL to increment and expire minute/day tickets", async () => {
     vi.stubEnv("VERCEL", "1");
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com/");

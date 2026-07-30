@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -17,7 +17,8 @@ import {
 import styles from "./page.module.css";
 import { StarbaoSprite, type StarbaoMood } from "@/components/starbao/starbao-sprite";
 import StarJourneyCard from "@/components/star-journey-card/StarJourneyCard";
-import { resolvePetPanelLeft } from "./pet-panel-position";
+import { resolvePetPanelPosition, type PetPanelPosition } from "./pet-panel-position";
+import { resolvePatrolMotionState, type PatrolMotionState } from "./patrol-motion";
 import { GESTURE_NAVIGATE_EVENT, type GestureNavigationDirection } from "@/components/robot/robot-gesture-provider";
 import { useSharedStarbaoConversation } from "@/features/starbao/use-shared-starbao-conversation";
 import type { Stage } from "@/lib/domain";
@@ -30,7 +31,7 @@ type EntryDialog = "programming" | "future" | null;
 type LabFamiliarity = "first_steps" | "guided" | "ready";
 type HomepageFeature = "voice" | "storybook" | "coding";
 type PetPosition = { x: number; y: number };
-type PetPanelPosition = { left: number; top: number; placement: "above" | "below" };
+type PatrolPlayback = "running" | "paused" | "stopped";
 type PetPanelDrag = {
   pointerId: number;
   startX: number;
@@ -42,6 +43,17 @@ type PetPanelDrag = {
   moved: boolean;
   element: HTMLDivElement;
   cleanup?: () => void;
+};
+type PetPatrolDrag = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startLeft: number;
+  startTop: number;
+  width: number;
+  height: number;
+  moved: boolean;
+  element: HTMLButtonElement;
 };
 
 const floors: Array<{
@@ -127,6 +139,9 @@ const homepageFeatureTargets: Record<HomepageFeature, string> = {
   coding: "coding-practice",
 };
 
+const PET_PANEL_PREFERRED_HEIGHT = 382;
+const PET_SLEEP_DELAY_MS = 30_000;
+
 const schoolStages = [
   {
     id: "primary",
@@ -198,6 +213,52 @@ function StarbaoThinkingIndicator() {
   );
 }
 
+function usePatrolMotionState(
+  patrolRef: RefObject<HTMLDivElement | null>,
+  playback: PatrolPlayback,
+): PatrolMotionState {
+  const [motionState, setMotionState] = useState<PatrolMotionState>({ state: "idle", direction: "right" });
+  const motionStateRef = useRef<PatrolMotionState>(motionState);
+  const fallbackStartedAtRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const patrol = patrolRef.current;
+    const applyMotionState = (next: PatrolMotionState) => {
+      const previous = motionStateRef.current;
+      if (previous.state === next.state && previous.direction === next.direction) return;
+
+      motionStateRef.current = next;
+      patrol?.setAttribute("data-patrol-state", next.state);
+      patrol?.setAttribute("data-patrol-direction", next.direction);
+      setMotionState(next);
+    };
+
+    if (playback !== "running") {
+      fallbackStartedAtRef.current = null;
+      applyMotionState({ state: "idle", direction: "right" });
+      return;
+    }
+
+    fallbackStartedAtRef.current = window.performance.now();
+    let animationFrame = 0;
+    const syncMotionState = () => {
+      const animation = patrol?.getAnimations?.()[0];
+      const currentTime = animation?.currentTime;
+      const elapsedMs = typeof currentTime === "number" && Number.isFinite(currentTime)
+        ? currentTime
+        : window.performance.now() - (fallbackStartedAtRef.current ?? window.performance.now());
+
+      applyMotionState(resolvePatrolMotionState(elapsedMs));
+      animationFrame = window.requestAnimationFrame(syncMotionState);
+    };
+
+    syncMotionState();
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [patrolRef, playback]);
+
+  return motionState;
+}
+
 export default function PreviewPage() {
   const router = useRouter();
   const activeFloor: FloorId = "explore";
@@ -207,6 +268,8 @@ export default function PreviewPage() {
   const [petPanelPosition, setPetPanelPosition] = useState<PetPanelPosition | null>(null);
   const [petPanelDragging, setPetPanelDragging] = useState(false);
   const [petPanelDetached, setPetPanelDetached] = useState(false);
+  const [petPatrolPosition, setPetPatrolPosition] = useState<PetPosition | null>(null);
+  const [petPatrolDragging, setPetPatrolDragging] = useState(false);
   const [draft, setDraft] = useState("");
   const {
     messages: starbaoMessages,
@@ -222,6 +285,10 @@ export default function PreviewPage() {
   const [storyPreviewPage, setStoryPreviewPage] = useState(0);
   const [codingMatched, setCodingMatched] = useState(false);
   const petPanelDragRef = useRef<PetPanelDrag | null>(null);
+  const petPatrolDragRef = useRef<PetPatrolDrag | null>(null);
+  const petPatrolDidDragRef = useRef(false);
+  const heroRef = useRef<HTMLElement>(null);
+  const heroPetPatrolRef = useRef<HTMLDivElement>(null);
   const petLauncherRef = useRef<HTMLButtonElement>(null);
   const referencePetRef = useRef<HTMLButtonElement>(null);
   const petPanelRef = useRef<HTMLElement>(null);
@@ -229,6 +296,13 @@ export default function PreviewPage() {
   const petMoodTimerRef = useRef<number | null>(null);
   const petWaitingTimerRef = useRef<number | null>(null);
   const petMoodRef = useRef<PetMood>("idle");
+  const patrolPlayback: PatrolPlayback = petMood === "sleep"
+    ? "stopped"
+    : petPatrolDragging || (petOpen && petChatAnchor === "launcher")
+      ? "paused"
+      : "running";
+  const heroPetPatrolPaused = patrolPlayback !== "running";
+  const { state: heroPetPatrolState, direction: heroPetPatrolDirection } = usePatrolMotionState(heroPetPatrolRef, patrolPlayback);
   const setPetMoodIfChanged = useCallback((mood: PetMood) => {
     if (petMoodRef.current === mood) return;
     petMoodRef.current = mood;
@@ -236,7 +310,7 @@ export default function PreviewPage() {
   }, []);
 
   useEffect(() => {
-    petWaitingTimerRef.current = window.setTimeout(() => setPetMoodIfChanged("sleep"), 6500);
+    petWaitingTimerRef.current = window.setTimeout(() => setPetMoodIfChanged("sleep"), PET_SLEEP_DELAY_MS);
     return () => {
       if (petMoodTimerRef.current) window.clearTimeout(petMoodTimerRef.current);
       if (petWaitingTimerRef.current) window.clearTimeout(petWaitingTimerRef.current);
@@ -277,25 +351,16 @@ export default function PreviewPage() {
     if (!panel) return null;
 
     const panelWidth = panel.offsetWidth;
-    const panelHeight = panel.offsetHeight;
-    const gap = 12;
-    const left = resolvePetPanelLeft({
+    return resolvePetPanelPosition({
       petX: position.x,
+      petY: position.y,
       petWidth,
+      petHeight,
       panelWidth,
+      panelHeight: PET_PANEL_PREFERRED_HEIGHT,
       viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
     });
-    const canOpenAbove = position.y >= panelHeight + gap;
-    const placement: PetPanelPosition["placement"] = canOpenAbove ? "above" : "below";
-    const maxTop = Math.max(8, window.innerHeight - panelHeight - 8);
-
-    return {
-      left,
-      top: placement === "above"
-        ? position.y - gap
-        : Math.min(maxTop, Math.max(8, position.y + petHeight + gap)),
-      placement,
-    };
   }, []);
 
   const updatePetPanelPosition = useCallback(() => {
@@ -306,12 +371,13 @@ export default function PreviewPage() {
       setPetPanelPosition((previous) => {
         if (!previous) return previous;
         const maxLeft = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
-        const maxTop = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
+        const height = Math.min(previous.height, Math.max(0, window.innerHeight - 16));
+        const maxTop = Math.max(8, window.innerHeight - height - 8);
         const left = Math.min(maxLeft, Math.max(8, previous.left));
         const top = Math.min(maxTop, Math.max(8, previous.top));
-        return previous.left === left && previous.top === top && previous.placement === "below"
+        return previous.left === left && previous.top === top && previous.height === height && previous.placement === "below"
           ? previous
-          : { left, top, placement: "below" };
+          : { left, top, height, placement: "below" };
       });
       return;
     }
@@ -324,7 +390,7 @@ export default function PreviewPage() {
     if (!next) return;
 
     setPetPanelPosition((previous) => {
-      return previous && previous.left === next.left && previous.top === next.top && previous.placement === next.placement ? previous : next;
+      return previous && previous.left === next.left && previous.top === next.top && previous.height === next.height && previous.placement === next.placement ? previous : next;
     });
   }, [getPetPanelPosition, petChatAnchor, petOpen, petPanelDetached]);
 
@@ -340,7 +406,7 @@ export default function PreviewPage() {
     petWaitingTimerRef.current = window.setTimeout(() => {
       petWaitingTimerRef.current = null;
       setPetMoodIfChanged("sleep");
-    }, 6500);
+    }, PET_SLEEP_DELAY_MS);
   }
 
   function playPetMood(mood: PetMood, duration = 900, resumeSleep = true) {
@@ -376,7 +442,81 @@ export default function PreviewPage() {
   }
 
   function handlePetClick() {
+    if (petPatrolDidDragRef.current) {
+      petPatrolDidDragRef.current = false;
+      return;
+    }
     togglePetChat("launcher");
+  }
+
+  function handlePetPatrolPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0 || event.isPrimary === false) return;
+
+    const patrol = heroPetPatrolRef.current;
+    const hero = heroRef.current;
+    if (!patrol || !hero) return;
+
+    const heroRect = hero.getBoundingClientRect();
+    const patrolRect = patrol.getBoundingClientRect();
+    const startPosition = { x: patrolRect.left - heroRect.left, y: patrolRect.top - heroRect.top };
+    petPatrolDidDragRef.current = false;
+    petPatrolDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: startPosition.x,
+      startTop: startPosition.y,
+      width: patrol.offsetWidth,
+      height: patrol.offsetHeight,
+      moved: false,
+      element: event.currentTarget,
+    };
+    // Freeze the patrol at its visible position before any pointer movement.
+    setPetPatrolPosition(startPosition);
+    setPetPatrolDragging(true);
+    playPetMood("idle", 0);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function updatePetPatrolDrag(clientX: number, clientY: number, pointerId: number) {
+    const drag = petPatrolDragRef.current;
+    const hero = heroRef.current;
+    if (!drag || drag.pointerId !== pointerId || !hero) return;
+
+    const distance = Math.hypot(clientX - drag.startX, clientY - drag.startY);
+    if (distance <= 3) return;
+
+    drag.moved = true;
+    petPatrolDidDragRef.current = true;
+    const edgeGap = 8;
+    const maxLeft = Math.max(edgeGap, hero.clientWidth - drag.width - edgeGap);
+    const maxTop = Math.max(edgeGap, hero.clientHeight - drag.height - edgeGap);
+    setPetPatrolPosition({
+      x: Math.min(maxLeft, Math.max(edgeGap, drag.startLeft + clientX - drag.startX)),
+      y: Math.min(maxTop, Math.max(edgeGap, drag.startTop + clientY - drag.startY)),
+    });
+    schedulePetWaiting();
+    window.requestAnimationFrame(updatePetPanelPosition);
+  }
+
+  function finishPetPatrolDrag(pointerId: number) {
+    const drag = petPatrolDragRef.current;
+    if (!drag || drag.pointerId !== pointerId) return;
+
+    petPatrolDragRef.current = null;
+    setPetPatrolDragging(false);
+    if (drag.element.hasPointerCapture(pointerId)) {
+      drag.element.releasePointerCapture(pointerId);
+    }
+    window.requestAnimationFrame(updatePetPanelPosition);
+  }
+
+  function handlePetPatrolPointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    updatePetPatrolDrag(event.clientX, event.clientY, event.pointerId);
+  }
+
+  function handlePetPatrolPointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
+    finishPetPatrolDrag(event.pointerId);
   }
 
   function handleReferencePetClick() {
@@ -422,11 +562,13 @@ export default function PreviewPage() {
 
     drag.moved = true;
     const maxLeft = Math.max(8, window.innerWidth - drag.width - 8);
-    const maxTop = Math.max(8, window.innerHeight - drag.height - 8);
+    const height = Math.min(drag.height, Math.max(0, window.innerHeight - 16));
+    const maxTop = Math.max(8, window.innerHeight - height - 8);
     setPetPanelDetached(true);
     setPetPanelPosition({
       left: Math.min(maxLeft, Math.max(8, clientX - drag.offsetX)),
       top: Math.min(maxTop, Math.max(8, clientY - drag.offsetY)),
+      height,
       placement: "below",
     });
   }
@@ -454,9 +596,15 @@ export default function PreviewPage() {
   const petPanelStyle = petPanelPosition ? {
     left: `${petPanelPosition.left}px`,
     top: `${petPanelPosition.top}px`,
+    height: `${petPanelPosition.height}px`,
+    minHeight: "0",
     right: "auto",
     bottom: "auto",
-    transform: petPanelPosition.placement === "above" ? "translateY(-100%)" : "none",
+    transform: "none",
+  } : undefined;
+  const heroPetPatrolStyle = petPatrolPosition ? {
+    left: `${petPatrolPosition.x}px`,
+    top: `${petPatrolPosition.y}px`,
   } : undefined;
 
   function openFutureStage(stage: "middle_school" | "high_school") {
@@ -501,7 +649,7 @@ export default function PreviewPage() {
         courseId: floor.courseId,
         origin: "web",
       });
-      playPetMood("cheer", 1200);
+      playPetMood("idle", 0);
     } catch {
       playPetMood("idle", 0);
     }
@@ -511,7 +659,6 @@ export default function PreviewPage() {
   const selectedStage = labStageOptions.find((option) => option.id === labStage)!;
   const codingTemplate = "Hello World";
   const codingLines = ['print("Hello, World!")'];
-  const heroPetPatrolPaused = (petOpen && petChatAnchor === "launcher") || petMood === "sleep";
 
   return (
     <main className={styles.page}>
@@ -532,7 +679,7 @@ export default function PreviewPage() {
         </nav>
       </header>
 
-      <section className={styles.hero} id="top">
+      <section className={styles.hero} id="top" ref={heroRef}>
         <div className={styles.heroCopy}>
           <h1 className={styles.heroTitle}>
             <span className={styles.heroTitleOutline}>从小教到大</span>
@@ -540,12 +687,23 @@ export default function PreviewPage() {
           </h1>
           <p>从认识世界，到创造作品，再到研究未来。选择适合你的学习阶段，和星星一起开始今天的探索。</p>
         </div>
-        <div className={`${styles.heroPetPatrol} ${heroPetPatrolPaused ? styles.heroPetPatrolPaused : ""}`} data-pet-mood={petMood}>
+        <div
+          className={`${styles.heroPetPatrol} ${heroPetPatrolPaused ? styles.heroPetPatrolPaused : ""} ${petPatrolDragging ? styles.heroPetPatrolDragging : ""}`}
+          data-pet-mood={petMood}
+          data-patrol-state={heroPetPatrolState}
+          data-patrol-direction={heroPetPatrolDirection}
+          ref={heroPetPatrolRef}
+          style={heroPetPatrolStyle}
+        >
           <button
-            className={`${styles.petLauncher} ${petOpen ? styles.petLauncherOpen : ""}`}
+            className={`${styles.petLauncher} ${petOpen ? styles.petLauncherOpen : ""} ${petPatrolDragging ? styles.petLauncherDragging : ""}`}
             ref={petLauncherRef}
             type="button"
             onClick={handlePetClick}
+            onPointerDown={handlePetPatrolPointerDown}
+            onPointerMove={handlePetPatrolPointerMove}
+            onPointerUp={handlePetPatrolPointerUp}
+            onPointerCancel={handlePetPatrolPointerUp}
             onMouseEnter={() => { if (!petOpen) playPetMood("idle", 0); }}
             aria-label={petOpen ? "Close star chat" : "Open star chat"}
             title="点击和星宝聊天"

@@ -156,6 +156,84 @@ describe("PreviewPage Starbao chat", () => {
     expect(panel).toHaveStyle({ left: "180px", top: "220px", transform: "none" });
   });
 
+  it("moves the hero Starbao without opening chat, then preserves regular click behavior", () => {
+    const { container } = render(<PreviewPage />);
+    const hero = container.querySelector("#top") as HTMLElement;
+    const patrol = container.querySelector("#top [data-patrol-state]") as HTMLDivElement;
+    const launcher = screen.getByRole("button", { name: "Open star chat" });
+    Object.defineProperty(hero, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 0, top: 0, width: 1280, height: 620 }),
+    });
+    Object.defineProperty(hero, "clientWidth", { configurable: true, value: 1280 });
+    Object.defineProperty(hero, "clientHeight", { configurable: true, value: 620 });
+    Object.defineProperty(patrol, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 80, top: 240, width: 96, height: 215 }),
+    });
+    Object.defineProperty(patrol, "offsetWidth", { configurable: true, value: 96 });
+    Object.defineProperty(patrol, "offsetHeight", { configurable: true, value: 215 });
+    Object.defineProperty(launcher, "setPointerCapture", { configurable: true, value: vi.fn() });
+    Object.defineProperty(launcher, "hasPointerCapture", { configurable: true, value: vi.fn(() => true) });
+    Object.defineProperty(launcher, "releasePointerCapture", { configurable: true, value: vi.fn() });
+
+    fireEvent.pointerDown(launcher, { button: 0, clientX: 100, clientY: 270, pointerId: 11, isPrimary: true });
+    fireEvent.pointerMove(launcher, { clientX: 250, clientY: 340, pointerId: 11, isPrimary: true });
+    fireEvent.pointerUp(launcher, { clientX: 250, clientY: 340, pointerId: 11, isPrimary: true });
+    fireEvent.click(launcher);
+
+    expect(patrol).toHaveStyle({ left: "230px", top: "310px" });
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+
+    fireEvent.click(launcher);
+    expect(screen.getByRole("complementary")).toBeInTheDocument();
+  });
+
+  it("keeps the attached chat window inside a shorter viewport without covering its anchor", () => {
+    const originalInnerHeight = Object.getOwnPropertyDescriptor(window, "innerHeight");
+    const originalInnerWidth = Object.getOwnPropertyDescriptor(window, "innerWidth");
+    let unmount: (() => void) | undefined;
+
+    try {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1440 });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: 900 });
+
+      const rendered = render(<PreviewPage />);
+      unmount = rendered.unmount;
+
+      const launcher = screen.getByRole("button", { name: "Open star chat" });
+      Object.defineProperty(launcher, "getBoundingClientRect", {
+        configurable: true,
+        value: () => ({ left: 120, top: 50, width: 96, height: 104 }),
+      });
+
+      fireEvent.click(launcher);
+
+      const panel = screen.getByRole("complementary");
+      Object.defineProperty(panel, "offsetWidth", { configurable: true, value: 360 });
+
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+      expect(panel).toHaveStyle({ top: "166px", height: "382px" });
+
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: 400 });
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+
+      expect(panel).toHaveStyle({ left: "228px", top: "15px", height: "370px" });
+    } finally {
+      unmount?.();
+      if (originalInnerWidth) {
+        Object.defineProperty(window, "innerWidth", originalInnerWidth);
+      }
+      if (originalInnerHeight) {
+        Object.defineProperty(window, "innerHeight", originalInnerHeight);
+      }
+    }
+  });
+
   it("uses the woodland glass card shell at its declared aspect ratio without a fixed minimum height", () => {
     expect(journeyCardSource).toContain("aspectRatio: '86 / 55'");
     expect(journeyCardSource).not.toContain("minHeight: '32rem'");
@@ -384,10 +462,14 @@ describe("PreviewPage Starbao chat", () => {
     expect(previewPageSource).toContain("styles.petPatrolIdle");
     expect(previewPageSource).toContain("styles.petPatrolWalk");
     expect(previewPageSource).toContain("styles.petPatrolSprite");
+    expect(previewPageSource).toContain("data-patrol-state={heroPetPatrolState}");
+    expect(previewPageSource).toContain("data-patrol-direction={heroPetPatrolDirection}");
+    expect(previewPageSource).toContain("usePatrolMotionState");
     expect(previewPageSource).toContain("StarbaoSprite mood={petMood}");
     expect(previewPageSource).toContain('StarbaoSprite mood="walk"');
     expect(previewStylesSource).toContain("@keyframes heroPetPatrolMotion");
-    expect(previewStylesSource).toContain("@keyframes heroPetPatrolFacing");
+    expect(previewStylesSource).toContain('.heroPetPatrol[data-patrol-direction="left"]');
+    expect(previewStylesSource).not.toContain("@keyframes heroPetPatrolFacing");
     expect(previewStylesSource).toContain("17.28s linear");
     expect(starbaoSpriteStylesSource).toContain("walk-cycle.png");
     expect(starbaoSpriteStylesSource).toContain("starbaoEighteenFrameSequence");
@@ -411,11 +493,11 @@ describe("PreviewPage Starbao chat", () => {
     expect(thinkingStatus).not.toHaveTextContent("星宝正在思考");
   });
 
-  it("uses sleep after inactivity and celebrates when a Starbao reply completes", async () => {
+  it("uses sleep after inactivity and returns to idle when a Starbao reply completes", async () => {
     vi.useFakeTimers();
     try {
       const { container, unmount } = render(<PreviewPage />);
-      act(() => vi.advanceTimersByTime(6500));
+      act(() => vi.advanceTimersByTime(30_000));
       expect(container.querySelector('#top [data-starbao-mood="sleep"]')).toBeInTheDocument();
       unmount();
     } finally {
@@ -436,7 +518,7 @@ describe("PreviewPage Starbao chat", () => {
       resolveTurn?.();
       await Promise.resolve();
     });
-    expect(container.querySelector('#top [data-starbao-mood="cheer"]')).toBeInTheDocument();
+    expect(container.querySelector('#top [data-starbao-mood="idle"]')).toBeInTheDocument();
   });
 
   it("scrolls the open chat message list to the bottom while Starbao is sending", () => {

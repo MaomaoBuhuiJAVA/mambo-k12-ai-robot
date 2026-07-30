@@ -20,7 +20,7 @@
 .mood-thinking {
   background-image: url("/assets/pets/twinkle-twinkle/thinking-cycle.png");
   background-size: 1200% 100%;
-  animation: starbaoTwelveFrameSequence 1.2s linear infinite;
+  animation: starbaoTwelveFrameSequence 3.6s linear infinite;
 }
 
 .mood-cheer {

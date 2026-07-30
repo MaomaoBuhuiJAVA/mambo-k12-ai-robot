@@ -40,10 +40,10 @@ describe("Starbao chat visual styling", () => {
     expect(spriteStylesheet).toContain("94.444%, 100% { background-position: 100% 0; }");
   });
 
-  it("uses the supplied twelve-frame thinking sheet without sampling a blank frame", () => {
+  it("uses the supplied twelve-frame thinking sheet at a calm pace", () => {
     expect(spriteStylesheet).toContain(".mood-thinking {");
     expect(spriteStylesheet).toContain("background-size: 1200% 100%;");
-    expect(spriteStylesheet).toContain("animation: starbaoTwelveFrameSequence 1.2s linear infinite;");
+    expect(spriteStylesheet).toContain("animation: starbaoTwelveFrameSequence 3.6s linear infinite;");
     expect(spriteStylesheet).toContain("@keyframes starbaoTwelveFrameSequence");
     expect(spriteStylesheet).toContain("91.667%, 100% { background-position: 100% 0; }");
   });
@@ -102,27 +102,32 @@ describe("Starbao chat visual styling", () => {
     expect(rule("heroPetPatrol")).not.toContain("contain: layout paint;");
     expect(rule("heroPetPatrol")).toContain("left: clamp(58px, 5.8vw, 75px)");
     expect(rule("heroPetPatrolPaused")).toContain("animation-play-state: paused");
-    expect(rule("petLauncher")).toContain("margin-top: 111px");
-    expect(rule("petPatrolSprite")).toContain("animation: heroPetPatrolFacing 17.28s");
-    expect(rule("petPatrolWalk")).toContain("heroPetPatrolWalkVisibility 17.28s");
+    expect(rule("heroPetPatrol")).toContain("--pet-launcher-offset-y: 111px");
+    expect(rule("heroPetPatrol")).toContain("height: calc(var(--pet-launcher-offset-y) + 104px)");
+    expect(rule("petLauncher")).toContain("position: absolute");
+    expect(rule("petLauncher")).toContain("top: var(--pet-launcher-offset-y)");
+    expect(rule("petLauncher")).toContain("margin: 0");
+    expect(rule("petPatrolSprite")).toContain("will-change: transform");
     expect(stylesheet).toContain("@keyframes heroPetPatrolMotion");
-    expect(stylesheet).toContain("@keyframes heroPetPatrolFacing");
-    expect(stylesheet).toContain("@keyframes heroPetPatrolWalkVisibility");
-    expect(stylesheet).toContain("56.25%, 68.749% { transform: scaleX(-1);");
-    expect(stylesheet).toContain("24.999% { transform: translate3d(0, 0, 0);");
+    expect(stylesheet).not.toContain("@keyframes heroPetPatrolFacing");
+    expect(stylesheet).not.toContain("@keyframes heroPetPatrolIdleVisibility");
+    expect(stylesheet).not.toContain("@keyframes heroPetPatrolWalkVisibility");
+    expect(stylesheet).toContain('[data-patrol-direction="left"] .petPatrolSprite { transform: scaleX(-1); }');
+    expect(stylesheet).toContain('[data-patrol-state="moving"] .petPatrolIdle { opacity: 0; visibility: hidden; }');
+    expect(stylesheet).toContain('[data-patrol-state="moving"] .petPatrolWalk { opacity: 1; visibility: visible; }');
+    expect(stylesheet).toContain("0%, 25% { transform: translate3d(0, 0, 0);");
     expect(stylesheet).toContain('.heroPetPatrol[data-pet-mood="sleep"] { animation: none; transform: translate3d(0, 0, 0); }');
-    expect(stylesheet).toContain('.heroPetPatrolPaused .petPatrolSprite, .heroPetPatrol[data-pet-mood="sleep"] .petPatrolSprite { animation-play-state: paused; }');
-    expect(stylesheet).toContain('.heroPetPatrolPaused .petPatrolIdle, .heroPetPatrol[data-pet-mood="sleep"] .petPatrolIdle { animation-play-state: paused; opacity: 1 !important; }');
-    expect(stylesheet).toContain('.heroPetPatrolPaused .petPatrolWalk, .heroPetPatrol[data-pet-mood="sleep"] .petPatrolWalk { animation-play-state: paused; opacity: 0 !important; }');
+    expect(stylesheet).toContain('.heroPetPatrolPaused .petPatrolIdle { opacity: 1 !important; visibility: visible !important; }');
+    expect(stylesheet).toContain('.heroPetPatrolPaused .petPatrolWalk { opacity: 0 !important; visibility: hidden !important; }');
+    expect(stylesheet).toContain('.heroPetPatrol[data-pet-mood="sleep"] .petPatrolIdle { opacity: 1 !important; visibility: visible !important; }');
+    expect(stylesheet).toContain('.heroPetPatrol[data-pet-mood="sleep"] .petPatrolWalk { opacity: 0 !important; visibility: hidden !important; }');
   });
 
   it("keeps the patrol route and the valid eighteen-frame walk sequence aligned", () => {
     expect(rule("heroPetPatrol")).toContain("animation: heroPetPatrolMotion 17.28s linear infinite");
-    expect(rule("petPatrolSprite")).toContain("animation: heroPetPatrolFacing 17.28s");
-    expect(rule("petPatrolIdle")).toContain("animation: heroPetPatrolIdleVisibility 17.28s");
-    expect(rule("petPatrolWalk")).toContain("animation: heroPetPatrolWalkVisibility 17.28s");
-    expect(stylesheet).toContain("37.5%, 56.249% { transform: translate3d(var(--pet-patrol-distance), 0, 0);");
-    expect(stylesheet).toContain("56.25%, 68.749% { transform: scaleX(-1);");
+    expect(rule("petPatrolIdle")).not.toContain("animation:");
+    expect(rule("petPatrolWalk")).not.toContain("animation:");
+    expect(stylesheet).toContain("37.5%, 56.25% { transform: translate3d(var(--pet-patrol-distance), 0, 0);");
     expect(spriteStylesheet).toContain("@keyframes starbaoEighteenFrameSequence");
     expect(spriteStylesheet).not.toContain("105.8823529412% 0");
   });
@@ -147,7 +152,8 @@ describe("Starbao chat visual styling", () => {
     expect(stylesheet).toContain('background: url("/assets/chat/starbao-dialogue-preview.png") center / cover no-repeat;');
     expect(stylesheet).toMatch(/\.voiceScene\s+\.featureScreenshot\s*\{[\s\S]*?inset:\s*0[\s\S]*?transform:\s*none[\s\S]*?\}/);
     expect(lastRule("codingScene")).toContain("background: #0d1117");
-    expect(lastRule("petPanel")).toContain("min-height: 382px");
+    expect(lastRule("petPanel")).toContain("min-height: 0");
+    expect(lastRule("petPanel")).toContain("height: min(382px, calc(100dvh - 122px))");
     expect(lastRule("petPanelHeader")).toContain("padding: 8px 12px");
   });
 
