@@ -335,7 +335,9 @@ function unavailable(): AcquireResult {
 }
 
 export async function acquireRequestLease(request: Request, route: GuardRoute): Promise<AcquireResult> {
-  if (process.env.VERCEL !== "1") return memoryRequestGuard.acquire(request, route);
+  if (process.env.VERCEL !== "1" || (process.env.LOCAL_AI_CHAT === "true" && process.env.NODE_ENV !== "production")) {
+    return memoryRequestGuard.acquire(request, route);
+  }
   const config = redisConfig();
   if (!config) return unavailable();
   try {

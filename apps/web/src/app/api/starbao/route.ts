@@ -7,6 +7,11 @@ import {
   StarbaoCoreError,
   updateStarbaoSpeakerSetting,
 } from "@/lib/starbao-core";
+import {
+  getLocalStarbaoSnapshot,
+  isLocalStarbaoChatEnabled,
+  updateLocalStarbaoSpeakerSetting,
+} from "@/lib/local-starbao-chat";
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
@@ -61,7 +66,9 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const snapshot = await getStarbaoSnapshot(parsed.data);
+    const snapshot = await (isLocalStarbaoChatEnabled()
+      ? getLocalStarbaoSnapshot(parsed.data)
+      : getStarbaoSnapshot(parsed.data));
     return Response.json({
       conversation: toPublicConversation(snapshot.conversation),
       messages: snapshot.messages.map(toPublicMessage),
@@ -85,7 +92,9 @@ export async function PATCH(request: Request): Promise<Response> {
   }
 
   try {
-    const conversation = await updateStarbaoSpeakerSetting(parsed.data.speakOnOrangePi);
+    const conversation = await (isLocalStarbaoChatEnabled()
+      ? updateLocalStarbaoSpeakerSetting(parsed.data.speakOnOrangePi)
+      : updateStarbaoSpeakerSetting(parsed.data.speakOnOrangePi));
     return Response.json({ conversation: toPublicConversation(conversation) }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     return errorResponse(error);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -17,7 +17,8 @@ import {
 import styles from "./page.module.css";
 import { StarbaoSprite, type StarbaoMood } from "@/components/starbao/starbao-sprite";
 import StarJourneyCard from "@/components/star-journey-card/StarJourneyCard";
-import { resolvePetPanelLeft } from "./pet-panel-position";
+import { resolvePetPanelPosition, type PetPanelPosition } from "./pet-panel-position";
+import { resolvePatrolMotionState, type PatrolMotionState } from "./patrol-motion";
 import { GESTURE_NAVIGATE_EVENT, type GestureNavigationDirection } from "@/components/robot/robot-gesture-provider";
 import { useSharedStarbaoConversation } from "@/features/starbao/use-shared-starbao-conversation";
 import type { Stage } from "@/lib/domain";
@@ -30,7 +31,7 @@ type EntryDialog = "programming" | "future" | null;
 type LabFamiliarity = "first_steps" | "guided" | "ready";
 type HomepageFeature = "voice" | "storybook" | "coding";
 type PetPosition = { x: number; y: number };
-type PetPanelPosition = { left: number; top: number; placement: "above" | "below" };
+type PatrolPlayback = "running" | "paused" | "stopped";
 type PetPanelDrag = {
   pointerId: number;
   startX: number;
@@ -42,6 +43,17 @@ type PetPanelDrag = {
   moved: boolean;
   element: HTMLDivElement;
   cleanup?: () => void;
+};
+type PetPatrolDrag = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startLeft: number;
+  startTop: number;
+  width: number;
+  height: number;
+  moved: boolean;
+  element: HTMLButtonElement;
 };
 
 const floors: Array<{
@@ -58,66 +70,66 @@ const floors: Array<{
   {
     id: "explore",
     level: "01",
-    title: "小小探索家",
-    subtitle: "小学低年级",
-    description: "从故事、声音和颜色开始，发现身边的人工智能。",
+    title: "?????",
+    subtitle: "?????",
+    description: "??????????????????????",
     accent: "sun",
-    modules: ["绘本课堂", "声音游戏", "看图发现"],
-    cardFocus: "故事 · 声音 · 观察",
+    modules: ["????", "????", "????"],
+    cardFocus: "?? ? ?? ? ??",
     courseId: "lower-bubble-sort",
   },
   {
     id: "create",
     level: "02",
-    title: "创意实验室",
-    subtitle: "小学高年级",
-    description: "把好奇心变成动画、实验和第一段会运行的代码。",
+    title: "?????",
+    subtitle: "?????",
+    description: "??????????????????????",
     accent: "mint",
-    modules: ["动画课堂", "编程练习", "知识闯关"],
-    cardFocus: "动画 · 编程 · 实验",
+    modules: ["????", "????", "????"],
+    cardFocus: "?? ? ?? ? ??",
     courseId: "upper-loop-maze",
   },
   {
     id: "future",
     level: "03",
-    title: "未来研究所",
-    subtitle: "初中 · 高中",
-    description: "理解算法、模型和真实世界里的项目，做出自己的答案。",
+    title: "?????",
+    subtitle: "?? ? ??",
+    description: "?????????????????????????",
     accent: "violet",
-    modules: ["算法实验", "模型观察", "项目学习"],
-    cardFocus: "算法 · 模型 · 项目",
+    modules: ["????", "????", "????"],
+    cardFocus: "?? ? ?? ? ??",
     courseId: "middle-neural-signals",
   },
 ];
 
 const labStageOptions: Array<{ id: Stage; label: string; detail: string }> = [
-  { id: "lower_primary", label: "小学低年级", detail: "从图像、声音和小游戏开始" },
-  { id: "upper_primary", label: "小学高年级", detail: "把想法写成第一段代码" },
-  { id: "middle_school", label: "初中", detail: "理解算法和模型的规则" },
-  { id: "high_school", label: "高中", detail: "完成更完整的分析挑战" },
+  { id: "lower_primary", label: "?????", detail: "????????????" },
+  { id: "upper_primary", label: "?????", detail: "??????????" },
+  { id: "middle_school", label: "??", detail: "??????????" },
+  { id: "high_school", label: "??", detail: "??????????" },
 ];
 
 const labFamiliarityOptions: Array<{ id: LabFamiliarity; label: string; detail: string }> = [
-  { id: "first_steps", label: "第一次尝试", detail: "先用可视化线索理解步骤" },
-  { id: "guided", label: "会一点基础", detail: "带着分级提示完成练习" },
-  { id: "ready", label: "想独立挑战", detail: "直接进入算法或模型任务" },
+  { id: "first_steps", label: "?????", detail: "???????????" },
+  { id: "guided", label: "?????", detail: "??????????" },
+  { id: "ready", label: "?????", detail: "???????????" },
 ];
 
 const storyPreviewPages = [
   {
-    title: "数字泡泡出发了",
-    narration: "先看看谁和谁站在一起，再决定下一步。",
-    scene: "相邻比较",
+    title: "???????",
+    narration: "??????????????????",
+    scene: "????",
   },
   {
-    title: "换个位置试试看",
-    narration: "当左边更大时，让两颗泡泡交换位置。",
-    scene: "交换",
+    title: "???????",
+    narration: "?????????????????",
+    scene: "??",
   },
   {
-    title: "排好队的秘密",
-    narration: "重复观察，直到每颗泡泡都找到自己的位置。",
-    scene: "从小到大",
+    title: "??????",
+    narration: "????????????????????",
+    scene: "????",
   },
 ] as const;
 
@@ -127,21 +139,24 @@ const homepageFeatureTargets: Record<HomepageFeature, string> = {
   coding: "coding-practice",
 };
 
+const PET_PANEL_PREFERRED_HEIGHT = 382;
+const PET_SLEEP_DELAY_MS = 30_000;
+
 const schoolStages = [
   {
     id: "primary",
     image: "/assets/learning-stages/primary-reading.png",
-    buttonLabel: "小学",
+    buttonLabel: "??",
   },
   {
     id: "middle",
     image: "/assets/learning-stages/middle-writing.png",
-    buttonLabel: "初中",
+    buttonLabel: "??",
   },
   {
     id: "high",
     image: "/assets/learning-stages/high-coding.png",
-    buttonLabel: "高中",
+    buttonLabel: "??",
   },
 ] as const;
 
@@ -198,6 +213,52 @@ function StarbaoThinkingIndicator() {
   );
 }
 
+function usePatrolMotionState(
+  patrolRef: RefObject<HTMLDivElement | null>,
+  playback: PatrolPlayback,
+): PatrolMotionState {
+  const [motionState, setMotionState] = useState<PatrolMotionState>({ state: "idle", direction: "right" });
+  const motionStateRef = useRef<PatrolMotionState>(motionState);
+  const fallbackStartedAtRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const patrol = patrolRef.current;
+    const applyMotionState = (next: PatrolMotionState) => {
+      const previous = motionStateRef.current;
+      if (previous.state === next.state && previous.direction === next.direction) return;
+
+      motionStateRef.current = next;
+      patrol?.setAttribute("data-patrol-state", next.state);
+      patrol?.setAttribute("data-patrol-direction", next.direction);
+      setMotionState(next);
+    };
+
+    if (playback !== "running") {
+      fallbackStartedAtRef.current = null;
+      applyMotionState({ state: "idle", direction: "right" });
+      return;
+    }
+
+    fallbackStartedAtRef.current = window.performance.now();
+    let animationFrame = 0;
+    const syncMotionState = () => {
+      const animation = patrol?.getAnimations?.()[0];
+      const currentTime = animation?.currentTime;
+      const elapsedMs = typeof currentTime === "number" && Number.isFinite(currentTime)
+        ? currentTime
+        : window.performance.now() - (fallbackStartedAtRef.current ?? window.performance.now());
+
+      applyMotionState(resolvePatrolMotionState(elapsedMs));
+      animationFrame = window.requestAnimationFrame(syncMotionState);
+    };
+
+    syncMotionState();
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [patrolRef, playback]);
+
+  return motionState;
+}
+
 export default function PreviewPage() {
   const router = useRouter();
   const activeFloor: FloorId = "explore";
@@ -207,6 +268,8 @@ export default function PreviewPage() {
   const [petPanelPosition, setPetPanelPosition] = useState<PetPanelPosition | null>(null);
   const [petPanelDragging, setPetPanelDragging] = useState(false);
   const [petPanelDetached, setPetPanelDetached] = useState(false);
+  const [petPatrolPosition, setPetPatrolPosition] = useState<PetPosition | null>(null);
+  const [petPatrolDragging, setPetPatrolDragging] = useState(false);
   const [draft, setDraft] = useState("");
   const {
     messages: starbaoMessages,
@@ -222,6 +285,10 @@ export default function PreviewPage() {
   const [storyPreviewPage, setStoryPreviewPage] = useState(0);
   const [codingMatched, setCodingMatched] = useState(false);
   const petPanelDragRef = useRef<PetPanelDrag | null>(null);
+  const petPatrolDragRef = useRef<PetPatrolDrag | null>(null);
+  const petPatrolDidDragRef = useRef(false);
+  const heroRef = useRef<HTMLElement>(null);
+  const heroPetPatrolRef = useRef<HTMLDivElement>(null);
   const petLauncherRef = useRef<HTMLButtonElement>(null);
   const referencePetRef = useRef<HTMLButtonElement>(null);
   const petPanelRef = useRef<HTMLElement>(null);
@@ -229,6 +296,13 @@ export default function PreviewPage() {
   const petMoodTimerRef = useRef<number | null>(null);
   const petWaitingTimerRef = useRef<number | null>(null);
   const petMoodRef = useRef<PetMood>("idle");
+  const patrolPlayback: PatrolPlayback = petMood === "sleep"
+    ? "stopped"
+    : petPatrolDragging || (petOpen && petChatAnchor === "launcher")
+      ? "paused"
+      : "running";
+  const heroPetPatrolPaused = patrolPlayback !== "running";
+  const { state: heroPetPatrolState, direction: heroPetPatrolDirection } = usePatrolMotionState(heroPetPatrolRef, patrolPlayback);
   const setPetMoodIfChanged = useCallback((mood: PetMood) => {
     if (petMoodRef.current === mood) return;
     petMoodRef.current = mood;
@@ -236,7 +310,7 @@ export default function PreviewPage() {
   }, []);
 
   useEffect(() => {
-    petWaitingTimerRef.current = window.setTimeout(() => setPetMoodIfChanged("sleep"), 6500);
+    petWaitingTimerRef.current = window.setTimeout(() => setPetMoodIfChanged("sleep"), PET_SLEEP_DELAY_MS);
     return () => {
       if (petMoodTimerRef.current) window.clearTimeout(petMoodTimerRef.current);
       if (petWaitingTimerRef.current) window.clearTimeout(petWaitingTimerRef.current);
@@ -277,25 +351,16 @@ export default function PreviewPage() {
     if (!panel) return null;
 
     const panelWidth = panel.offsetWidth;
-    const panelHeight = panel.offsetHeight;
-    const gap = 12;
-    const left = resolvePetPanelLeft({
+    return resolvePetPanelPosition({
       petX: position.x,
+      petY: position.y,
       petWidth,
+      petHeight,
       panelWidth,
+      panelHeight: PET_PANEL_PREFERRED_HEIGHT,
       viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
     });
-    const canOpenAbove = position.y >= panelHeight + gap;
-    const placement: PetPanelPosition["placement"] = canOpenAbove ? "above" : "below";
-    const maxTop = Math.max(8, window.innerHeight - panelHeight - 8);
-
-    return {
-      left,
-      top: placement === "above"
-        ? position.y - gap
-        : Math.min(maxTop, Math.max(8, position.y + petHeight + gap)),
-      placement,
-    };
   }, []);
 
   const updatePetPanelPosition = useCallback(() => {
@@ -306,12 +371,13 @@ export default function PreviewPage() {
       setPetPanelPosition((previous) => {
         if (!previous) return previous;
         const maxLeft = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
-        const maxTop = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
+        const height = Math.min(previous.height, Math.max(0, window.innerHeight - 16));
+        const maxTop = Math.max(8, window.innerHeight - height - 8);
         const left = Math.min(maxLeft, Math.max(8, previous.left));
         const top = Math.min(maxTop, Math.max(8, previous.top));
-        return previous.left === left && previous.top === top && previous.placement === "below"
+        return previous.left === left && previous.top === top && previous.height === height && previous.placement === "below"
           ? previous
-          : { left, top, placement: "below" };
+          : { left, top, height, placement: "below" };
       });
       return;
     }
@@ -324,7 +390,7 @@ export default function PreviewPage() {
     if (!next) return;
 
     setPetPanelPosition((previous) => {
-      return previous && previous.left === next.left && previous.top === next.top && previous.placement === next.placement ? previous : next;
+      return previous && previous.left === next.left && previous.top === next.top && previous.height === next.height && previous.placement === next.placement ? previous : next;
     });
   }, [getPetPanelPosition, petChatAnchor, petOpen, petPanelDetached]);
 
@@ -340,7 +406,7 @@ export default function PreviewPage() {
     petWaitingTimerRef.current = window.setTimeout(() => {
       petWaitingTimerRef.current = null;
       setPetMoodIfChanged("sleep");
-    }, 6500);
+    }, PET_SLEEP_DELAY_MS);
   }
 
   function playPetMood(mood: PetMood, duration = 900, resumeSleep = true) {
@@ -376,7 +442,81 @@ export default function PreviewPage() {
   }
 
   function handlePetClick() {
+    if (petPatrolDidDragRef.current) {
+      petPatrolDidDragRef.current = false;
+      return;
+    }
     togglePetChat("launcher");
+  }
+
+  function handlePetPatrolPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0 || event.isPrimary === false) return;
+
+    const patrol = heroPetPatrolRef.current;
+    const hero = heroRef.current;
+    if (!patrol || !hero) return;
+
+    const heroRect = hero.getBoundingClientRect();
+    const patrolRect = patrol.getBoundingClientRect();
+    const startPosition = { x: patrolRect.left - heroRect.left, y: patrolRect.top - heroRect.top };
+    petPatrolDidDragRef.current = false;
+    petPatrolDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: startPosition.x,
+      startTop: startPosition.y,
+      width: patrol.offsetWidth,
+      height: patrol.offsetHeight,
+      moved: false,
+      element: event.currentTarget,
+    };
+    // Freeze the patrol at its visible position before any pointer movement.
+    setPetPatrolPosition(startPosition);
+    setPetPatrolDragging(true);
+    playPetMood("idle", 0);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function updatePetPatrolDrag(clientX: number, clientY: number, pointerId: number) {
+    const drag = petPatrolDragRef.current;
+    const hero = heroRef.current;
+    if (!drag || drag.pointerId !== pointerId || !hero) return;
+
+    const distance = Math.hypot(clientX - drag.startX, clientY - drag.startY);
+    if (distance <= 3) return;
+
+    drag.moved = true;
+    petPatrolDidDragRef.current = true;
+    const edgeGap = 8;
+    const maxLeft = Math.max(edgeGap, hero.clientWidth - drag.width - edgeGap);
+    const maxTop = Math.max(edgeGap, hero.clientHeight - drag.height - edgeGap);
+    setPetPatrolPosition({
+      x: Math.min(maxLeft, Math.max(edgeGap, drag.startLeft + clientX - drag.startX)),
+      y: Math.min(maxTop, Math.max(edgeGap, drag.startTop + clientY - drag.startY)),
+    });
+    schedulePetWaiting();
+    window.requestAnimationFrame(updatePetPanelPosition);
+  }
+
+  function finishPetPatrolDrag(pointerId: number) {
+    const drag = petPatrolDragRef.current;
+    if (!drag || drag.pointerId !== pointerId) return;
+
+    petPatrolDragRef.current = null;
+    setPetPatrolDragging(false);
+    if (drag.element.hasPointerCapture(pointerId)) {
+      drag.element.releasePointerCapture(pointerId);
+    }
+    window.requestAnimationFrame(updatePetPanelPosition);
+  }
+
+  function handlePetPatrolPointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    updatePetPatrolDrag(event.clientX, event.clientY, event.pointerId);
+  }
+
+  function handlePetPatrolPointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
+    finishPetPatrolDrag(event.pointerId);
   }
 
   function handleReferencePetClick() {
@@ -422,11 +562,13 @@ export default function PreviewPage() {
 
     drag.moved = true;
     const maxLeft = Math.max(8, window.innerWidth - drag.width - 8);
-    const maxTop = Math.max(8, window.innerHeight - drag.height - 8);
+    const height = Math.min(drag.height, Math.max(0, window.innerHeight - 16));
+    const maxTop = Math.max(8, window.innerHeight - height - 8);
     setPetPanelDetached(true);
     setPetPanelPosition({
       left: Math.min(maxLeft, Math.max(8, clientX - drag.offsetX)),
       top: Math.min(maxTop, Math.max(8, clientY - drag.offsetY)),
+      height,
       placement: "below",
     });
   }
@@ -454,9 +596,15 @@ export default function PreviewPage() {
   const petPanelStyle = petPanelPosition ? {
     left: `${petPanelPosition.left}px`,
     top: `${petPanelPosition.top}px`,
+    height: `${petPanelPosition.height}px`,
+    minHeight: "0",
     right: "auto",
     bottom: "auto",
-    transform: petPanelPosition.placement === "above" ? "translateY(-100%)" : "none",
+    transform: "none",
+  } : undefined;
+  const heroPetPatrolStyle = petPatrolPosition ? {
+    left: `${petPatrolPosition.x}px`,
+    top: `${petPatrolPosition.y}px`,
   } : undefined;
 
   function openFutureStage(stage: "middle_school" | "high_school") {
@@ -501,7 +649,7 @@ export default function PreviewPage() {
         courseId: floor.courseId,
         origin: "web",
       });
-      playPetMood("cheer", 1200);
+      playPetMood("idle", 0);
     } catch {
       playPetMood("idle", 0);
     }
@@ -511,7 +659,6 @@ export default function PreviewPage() {
   const selectedStage = labStageOptions.find((option) => option.id === labStage)!;
   const codingTemplate = "Hello World";
   const codingLines = ['print("Hello, World!")'];
-  const heroPetPatrolPaused = (petOpen && petChatAnchor === "launcher") || petMood === "sleep";
 
   return (
     <main className={styles.page}>
@@ -525,30 +672,41 @@ export default function PreviewPage() {
       </div>
 
       <header className={styles.navbar}>
-        <nav className={styles.navLinks} aria-label="首页导航">
-          <button className={activeFeature === "coding" ? styles.navLinkActive : ""} type="button" onClick={() => scrollToFeature("coding")}>编程实验室</button>
-          <button className={activeFeature === "storybook" ? styles.navLinkActive : ""} type="button" onClick={openStorybook}>动漫绘本</button>
-          <button className={activeFeature === "voice" ? styles.navLinkActive : ""} type="button" onClick={() => scrollToFeature("voice")}>星宝</button>
+        <nav className={styles.navLinks} aria-label="????">
+          <button className={activeFeature === "coding" ? styles.navLinkActive : ""} type="button" onClick={() => scrollToFeature("coding")}>?????</button>
+          <button className={activeFeature === "storybook" ? styles.navLinkActive : ""} type="button" onClick={openStorybook}>????</button>
+          <button className={activeFeature === "voice" ? styles.navLinkActive : ""} type="button" onClick={() => scrollToFeature("voice")}>??</button>
         </nav>
       </header>
 
-      <section className={styles.hero} id="top">
+      <section className={styles.hero} id="top" ref={heroRef}>
         <div className={styles.heroCopy}>
           <h1 className={styles.heroTitle}>
-            <span className={styles.heroTitleOutline}>从小教到大</span>
-            <span className={styles.heroTitleSolid}>Ai学习伙伴-星宝</span>
+            <span className={styles.heroTitleOutline}>?????</span>
+            <span className={styles.heroTitleSolid}>Ai????-??</span>
           </h1>
-          <p>从认识世界，到创造作品，再到研究未来。选择适合你的学习阶段，和星星一起开始今天的探索。</p>
+          <p>???????????????????????????????????????????</p>
         </div>
-        <div className={`${styles.heroPetPatrol} ${heroPetPatrolPaused ? styles.heroPetPatrolPaused : ""}`} data-pet-mood={petMood}>
+        <div
+          className={`${styles.heroPetPatrol} ${heroPetPatrolPaused ? styles.heroPetPatrolPaused : ""} ${petPatrolDragging ? styles.heroPetPatrolDragging : ""}`}
+          data-pet-mood={petMood}
+          data-patrol-state={heroPetPatrolState}
+          data-patrol-direction={heroPetPatrolDirection}
+          ref={heroPetPatrolRef}
+          style={heroPetPatrolStyle}
+        >
           <button
-            className={`${styles.petLauncher} ${petOpen ? styles.petLauncherOpen : ""}`}
+            className={`${styles.petLauncher} ${petOpen ? styles.petLauncherOpen : ""} ${petPatrolDragging ? styles.petLauncherDragging : ""}`}
             ref={petLauncherRef}
             type="button"
             onClick={handlePetClick}
+            onPointerDown={handlePetPatrolPointerDown}
+            onPointerMove={handlePetPatrolPointerMove}
+            onPointerUp={handlePetPatrolPointerUp}
+            onPointerCancel={handlePetPatrolPointerUp}
             onMouseEnter={() => { if (!petOpen) playPetMood("idle", 0); }}
             aria-label={petOpen ? "Close star chat" : "Open star chat"}
-            title="点击和星宝聊天"
+            title="???????"
           >
             <span className={styles.petPatrolSprite} aria-hidden="true">
               <span className={styles.petPatrolIdle}>
@@ -567,9 +725,9 @@ export default function PreviewPage() {
 
       <section className={styles.sceneGallery} aria-labelledby="scene-gallery-title">
         <div className={styles.sceneGalleryHeader}>
-          <h2 id="scene-gallery-title">从绘本到编程，星宝如影随形</h2>
+          <h2 id="scene-gallery-title">?????????????</h2>
         </div>
-        <div className={styles.exhibitHall} role="region" aria-label="成长展厅">
+        <div className={styles.exhibitHall} role="region" aria-label="????">
           {schoolStages.map((stage, index) => (
             <article
               className={styles.exhibitBay}
@@ -592,27 +750,27 @@ export default function PreviewPage() {
 
       <section className={styles.featureIntro} id="classroom">
         <div>
-          <h2>学习不是一张卡片<br /><em>而是一段会发生的旅程</em></h2>
-          <p>声音、故事和动手实验在同一座学习屋里接力发生。往下走，每一站都可以直接开始，不需要离开首页。</p>
+          <h2>????????<br /><em>??????????</em></h2>
+          <p>??????????????????????????????????????????????</p>
         </div>
-        <ol className={styles.featureIndex} aria-label="学习功能顺序">
-          <li><span>01</span><strong>智能语音对话</strong></li>
-          <li><span>02</span><strong>绘本动画阅读</strong></li>
-          <li><span>03</span><strong>编程实操训练</strong></li>
+        <ol className={styles.featureIndex} aria-label="??????">
+          <li><span>01</span><strong>??????</strong></li>
+          <li><span>02</span><strong>??????</strong></li>
+          <li><span>03</span><strong>??????</strong></li>
         </ol>
       </section>
 
       <section className={`${styles.featureModule} ${styles.voiceModule}`} id="voice-dialogue">
         <div className={styles.featureModuleInner}>
           <div className={styles.moduleCopy}>
-            <h2>一句话开门，<br /><em>星宝就开始陪你想</em></h2>
-            <p>把不懂的地方说出来，星宝会沿着你正在学的内容继续追问、解释，或带你回到刚才的故事。</p>
+            <h2>??????<br /><em>????????</em></h2>
+            <p>?????????????????????????????????????????</p>
           </div>
-          <div className={`${styles.featureScene} ${styles.voiceScene}`} role="group" aria-label="星宝聊天窗口预览">
+          <div className={`${styles.featureScene} ${styles.voiceScene}`} role="group" aria-label="????????">
             <Image
               className={styles.featureScreenshot}
               src="/assets/chat/starbao-dialogue-preview.png"
-              alt="星宝聊天窗口截图"
+              alt="????????"
               width={446}
               height={477}
             />
@@ -623,18 +781,18 @@ export default function PreviewPage() {
       <section className={`${styles.featureModule} ${styles.storyModule}`} id="storybook-reading">
         <div className={`${styles.featureModuleInner} ${styles.featureModuleInnerReverse}`}>
           <div className={styles.moduleCopy}>
-            <h2>把抽象的知识，<br /><em>读成会动的故事</em></h2>
-            <p>一页只讲一个动作：观察、比较、交换。读到关键处，角色会停下来等你说出下一步。</p>
+            <h2>???????<br /><em>???????</em></h2>
+            <p>??????????????????????????????????????</p>
           </div>
-          <div className={`${styles.featureScene} ${styles.storyScene}`} role="group" aria-label="互动绘本预览">
-            <div className={styles.sceneTopbar}><span>STORY BOOK</span><strong>第 {storyPreviewPage + 1} / {storyPreviewPages.length} 页</strong></div>
+          <div className={`${styles.featureScene} ${styles.storyScene}`} role="group" aria-label="??????">
+            <div className={styles.sceneTopbar}><span>STORY BOOK</span><strong>? {storyPreviewPage + 1} / {storyPreviewPages.length} ?</strong></div>
             <div className={styles.storyBookFrame}>
               <div className={styles.storyIllustration}><span>{activeStory.scene}</span><i>3</i><i>1</i><i>2</i></div>
-              <div className={styles.storyPageCopy}><small>冒泡排序探险记</small><h3>{activeStory.title}</h3><p>{activeStory.narration}</p></div>
+              <div className={styles.storyPageCopy}><small>???????</small><h3>{activeStory.title}</h3><p>{activeStory.narration}</p></div>
               <div className={styles.storyControls}>
-                <button type="button" onClick={() => setStoryPreviewPage((page) => Math.max(0, page - 1))} disabled={storyPreviewPage === 0} aria-label="上一页"><ArrowLeft size={16} /></button>
+                <button type="button" onClick={() => setStoryPreviewPage((page) => Math.max(0, page - 1))} disabled={storyPreviewPage === 0} aria-label="???"><ArrowLeft size={16} /></button>
                 <span>{activeStory.scene}</span>
-                <button type="button" onClick={() => setStoryPreviewPage((page) => Math.min(storyPreviewPages.length - 1, page + 1))} disabled={storyPreviewPage === storyPreviewPages.length - 1} aria-label="下一页"><ArrowRight size={16} /></button>
+                <button type="button" onClick={() => setStoryPreviewPage((page) => Math.min(storyPreviewPages.length - 1, page + 1))} disabled={storyPreviewPage === storyPreviewPages.length - 1} aria-label="???"><ArrowRight size={16} /></button>
               </div>
             </div>
           </div>
@@ -644,28 +802,28 @@ export default function PreviewPage() {
       <section className={`${styles.featureModule} ${styles.codingModule}`} id="coding-practice">
         <div className={styles.featureModuleInner}>
           <div className={styles.moduleCopy}>
-            <h2>把刚刚想明白的事，<br /><em>变成能运行的代码</em></h2>
-            <p>先选好年级和熟悉程度，学习屋会把同一个问题换成适合现在的提示、任务和挑战。</p>
+            <h2>?????????<br /><em>????????</em></h2>
+            <p>?????????????????????????????????????</p>
           </div>
-          <div className={`${styles.featureScene} ${styles.codingScene}`} role="group" aria-label="Python 终端预览">
+          <div className={`${styles.featureScene} ${styles.codingScene}`} role="group" aria-label="Python ????">
             <div className={`${styles.sceneTopbar} ${styles.terminalTopbar}`}><span><i></i><i></i><i></i>TERMINAL</span><strong>Python 3.12</strong></div>
             <div className={styles.codeWorkbench}>
               <div className={styles.codeGutter}>{codingLines.map((_, index) => <span key={index}>{index + 1}</span>)}</div>
               <code>{codingLines.map((line, index) => <span key={index}>{line}</span>)}</code>
             </div>
-            <div className={styles.codingMatch} data-ready={codingMatched}><span>{codingMatched ? `>>> ready: ${selectedStage.label} · ${codingTemplate}` : ">>> waiting for stage selection"}</span><strong>{codingMatched ? "run exercise" : "idle"}</strong></div>
+            <div className={styles.codingMatch} data-ready={codingMatched}><span>{codingMatched ? `>>> ready: ${selectedStage.label} ? ${codingTemplate}` : ">>> waiting for stage selection"}</span><strong>{codingMatched ? "run exercise" : "idle"}</strong></div>
           </div>
         </div>
       </section>
 
       <section className={styles.robotSection} id="robot">
         <div className={styles.robotCopy}>
-          <h2>星星不只是一个头像，<br /><em>它住在你的学习桌上</em></h2>
-          <p>它会留在这张首页里。你可以随时打开对话、查看 OrangePi 的在线状态，或者继续刚才停下来的学习。</p>
+          <h2>??????????<br /><em>?????????</em></h2>
+          <p>?????????????????????? OrangePi ???????????????????</p>
         </div>
         <div className={styles.robotStage}>
           <div className={styles.pixelWoodFrame}>
-            <button className={styles.referencePet} type="button" ref={referencePetRef} onClick={handleReferencePetClick} aria-expanded={petOpen} aria-label={petOpen ? "关闭星宝对话" : "打开星宝对话"}>
+            <button className={styles.referencePet} type="button" ref={referencePetRef} onClick={handleReferencePetClick} aria-expanded={petOpen} aria-label={petOpen ? "??????" : "??????"}>
               <StarbaoSprite mood="idle" />
             </button>
           </div>
@@ -677,12 +835,12 @@ export default function PreviewPage() {
           {entryDialog === "programming" ? (
             <section className={styles.entryDialog} role="dialog" aria-modal="true" aria-labelledby="programming-dialog-title" onClick={(event) => event.stopPropagation()}>
               <div className={styles.entryDialogHeader}>
-                <div><span>编程实验室</span><h2 id="programming-dialog-title">先认识你，再匹配练习</h2></div>
-                <button className={styles.entryClose} type="button" onClick={() => setEntryDialog(null)} aria-label="关闭"><X size={18} /></button>
+                <div><span>?????</span><h2 id="programming-dialog-title">??????????</h2></div>
+                <button className={styles.entryClose} type="button" onClick={() => setEntryDialog(null)} aria-label="??"><X size={18} /></button>
               </div>
-              <p className={styles.entryDialogLead}>选择学段和目前的熟悉程度，实验室会带你进入对应难度的 Python 练习。</p>
+              <p className={styles.entryDialogLead}>?????????????????????????? Python ???</p>
               <fieldset className={styles.choiceGroup}>
-                <legend>你现在在哪个学习阶段？</legend>
+                <legend>???????????</legend>
                 <div className={styles.stageChoices}>
                   {labStageOptions.map((option) => (
                     <button className={labStage === option.id ? styles.choiceActive : ""} type="button" key={option.id} aria-pressed={labStage === option.id} onClick={() => setLabStage(option.id)}>
@@ -692,7 +850,7 @@ export default function PreviewPage() {
                 </div>
               </fieldset>
               <fieldset className={styles.choiceGroup}>
-                <legend>你对编程的熟悉程度？</legend>
+                <legend>??????????</legend>
                 <div className={styles.familiarityChoices}>
                   {labFamiliarityOptions.map((option) => (
                     <button className={labFamiliarity === option.id ? styles.choiceActive : ""} type="button" key={option.id} aria-pressed={labFamiliarity === option.id} onClick={() => setLabFamiliarity(option.id)}>
@@ -702,20 +860,20 @@ export default function PreviewPage() {
                 </div>
               </fieldset>
               <div className={styles.entryDialogActions}>
-                <button className={styles.dialogCancel} type="button" onClick={() => setEntryDialog(null)}>稍后再说</button>
-                <button className={styles.dialogConfirm} type="button" onClick={enterProgrammingLab}>开始匹配练习 <ArrowRight size={16} /></button>
+                <button className={styles.dialogCancel} type="button" onClick={() => setEntryDialog(null)}>????</button>
+                <button className={styles.dialogConfirm} type="button" onClick={enterProgrammingLab}>?????? <ArrowRight size={16} /></button>
               </div>
             </section>
           ) : (
             <section className={styles.entryDialog} role="dialog" aria-modal="true" aria-labelledby="future-dialog-title" onClick={(event) => event.stopPropagation()}>
               <div className={styles.entryDialogHeader}>
-                <div><span>未来研究所</span><h2 id="future-dialog-title">选择你的学习阶段</h2></div>
-                <button className={styles.entryClose} type="button" onClick={() => setEntryDialog(null)} aria-label="关闭"><X size={18} /></button>
+                <div><span>?????</span><h2 id="future-dialog-title">????????</h2></div>
+                <button className={styles.entryClose} type="button" onClick={() => setEntryDialog(null)} aria-label="??"><X size={18} /></button>
               </div>
-              <p className={styles.entryDialogLead}>同一层里准备了不同深度的算法、模型和项目任务。选好后会直接进入你的专属学习页。</p>
+              <p className={styles.entryDialogLead}>???????????????????????????????????????</p>
               <div className={styles.futureStageChoices}>
-                <button type="button" onClick={() => openFutureStage("middle_school")}><span><strong>我是初中生</strong><small>从模型观察和算法实验开始</small></span><ArrowRight size={20} /></button>
-                <button type="button" onClick={() => openFutureStage("high_school")}><span><strong>我是高中生</strong><small>进入更完整的分析和项目挑战</small></span><ArrowRight size={20} /></button>
+                <button type="button" onClick={() => openFutureStage("middle_school")}><span><strong>?????</strong><small>????????????</small></span><ArrowRight size={20} /></button>
+                <button type="button" onClick={() => openFutureStage("high_school")}><span><strong>?????</strong><small>?????????????</small></span><ArrowRight size={20} /></button>
               </div>
             </section>
           )}
@@ -723,7 +881,7 @@ export default function PreviewPage() {
       ) : null}
 
       {petOpen ? (
-        <aside className={`${styles.petPanel} ${petPanelPosition ? styles.petPanelAttached : ""} ${petPanelDragging ? styles.petPanelDragging : ""}`} style={petPanelStyle} ref={petPanelRef} aria-label="星星智能体面板">
+        <aside className={`${styles.petPanel} ${petPanelPosition ? styles.petPanelAttached : ""} ${petPanelDragging ? styles.petPanelDragging : ""}`} style={petPanelStyle} ref={petPanelRef} aria-label="???????">
           <div
             className={styles.petPanelHeader}
             data-testid="starbao-chat-drag-handle"
@@ -732,28 +890,28 @@ export default function PreviewPage() {
             onPointerUp={handlePetPanelPointerUp}
             onPointerCancel={handlePetPanelPointerUp}
             onLostPointerCapture={() => finishPetPanelDrag()}
-            title="拖动聊天窗口"
+            title="??????"
           >
-            <div className={`${styles.petIdentity} ${styles.petIdentityStar}`}><span className={`${styles.petMini} ${styles.petMiniSprite}`}><StarbaoSprite mood={starbaoSending ? "thinking" : "idle"} /></span><span><strong>星宝</strong><small>学习伙伴 · 在线</small></span></div>
-            <button className={styles.iconButton} type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => { setPetOpen(false); setPetPanelPosition(null); setPetPanelDetached(false); }} aria-label="关闭"><X size={18} /></button>
+            <div className={`${styles.petIdentity} ${styles.petIdentityStar}`}><span className={`${styles.petMini} ${styles.petMiniSprite}`}><StarbaoSprite mood={starbaoSending ? "thinking" : "idle"} /></span><span><strong>??</strong><small>???? ? ??</small></span></div>
+            <button className={styles.iconButton} type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => { setPetOpen(false); setPetPanelPosition(null); setPetPanelDetached(false); }} aria-label="??"><X size={18} /></button>
           </div>
           <div className={styles.messageList} ref={messageListRef}>
-            {starbaoLoading ? <p className={styles.petChatStatus}>正在连接星宝...</p> : null}
+            {starbaoLoading ? <p className={styles.petChatStatus}>??????...</p> : null}
             {starbaoMessages.map((message) => (
               <div
                 className={`${styles.message} ${message.role === "user" ? styles.messageUser : ""}`}
                 key={message.messageId}
               >
                 <span className={styles.petMessageMeta}>
-                  {message.origin === "web" ? "网页输入" : message.origin === "asr" ? "香橙派语音" : message.origin === "orangepi" ? "香橙派输入" : "星宝"}
+                  {message.origin === "web" ? "????" : message.origin === "asr" ? "?????" : message.origin === "orangepi" ? "?????" : "??"}
                 </span>
                 {message.content}
               </div>
             ))}
             {starbaoSending ? <StarbaoThinkingIndicator /> : null}
-            {starbaoError ? <p className={styles.petChatStatus} role="alert">星宝暂时无法同步，请稍后再试。</p> : null}
+            {starbaoError ? <p className={styles.petChatStatus} role="alert">???????????????</p> : null}
           </div>
-          <div className={styles.petComposer}><input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void sendMessage(); }} placeholder="和星宝说点什么" aria-label="和星宝说点什么" /><button type="button" onClick={() => void sendMessage()} aria-label="发送" disabled={starbaoSending || !draft.trim()}><Send size={16} /></button></div>
+          <div className={styles.petComposer}><input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void sendMessage(); }} placeholder="???????" aria-label="???????" /><button type="button" onClick={() => void sendMessage()} aria-label="??" disabled={starbaoSending || !draft.trim()}><Send size={16} /></button></div>
         </aside>
       ) : null}
     </main>

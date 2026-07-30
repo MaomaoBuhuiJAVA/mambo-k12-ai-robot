@@ -16,6 +16,7 @@ vi.mock("@/lib/starbao-core", () => ({
 import { generateText } from "ai";
 import { getChatModel } from "@/lib/ai/provider";
 import { appendStarbaoMessage, getStarbaoSnapshot } from "@/lib/starbao-core";
+import { resetLocalStarbaoChatForTests } from "@/lib/local-starbao-chat";
 
 import { POST } from "./route";
 
@@ -81,6 +82,7 @@ describe("POST /api/starbao/turn", () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
+    resetLocalStarbaoChatForTests();
   });
 
   it("persists a canonical user turn, generates a reply, and marks it for OrangePi speech", async () => {
@@ -281,6 +283,34 @@ describe("POST /api/starbao/turn", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "INVALID_STARBAO_TURN" });
+    expect(getStarbaoSnapshot).not.toHaveBeenCalled();
+    expect(appendStarbaoMessage).not.toHaveBeenCalled();
+  });
+
+  it("runs a local browser test turn without requiring the Core conversation service", async () => {
+    vi.stubEnv("LOCAL_AI_CHAT", "true");
+    vi.stubEnv("NODE_ENV", "development");
+    vi.mocked(getChatModel).mockReturnValue("deepseek-model" as never);
+    vi.mocked(generateText).mockResolvedValue({ text: "Let's make a small AI experiment." } as never);
+
+    const response = await POST(turnRequest({
+      clientMessageId: "local-turn-1",
+      text: "What can AI help me learn?",
+      stage: "lower_primary",
+      courseId: "lower-bubble-sort",
+    }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      conversation: { conversationId: "local-web-preview" },
+      userMessage: { clientMessageId: "local-turn-1", sequence: 1 },
+      assistantMessage: {
+        clientMessageId: "local-turn-1:assistant",
+        content: "Let's make a small AI experiment.",
+        sequence: 2,
+      },
+      latestSequence: 2,
+    });
     expect(getStarbaoSnapshot).not.toHaveBeenCalled();
     expect(appendStarbaoMessage).not.toHaveBeenCalled();
   });

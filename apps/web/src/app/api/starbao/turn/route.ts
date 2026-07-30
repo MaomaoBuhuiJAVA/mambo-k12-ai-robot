@@ -12,6 +12,11 @@ import {
   type StarbaoMessage,
   StarbaoCoreError,
 } from "@/lib/starbao-core";
+import {
+  appendLocalStarbaoMessage,
+  getLocalStarbaoSnapshot,
+  isLocalStarbaoChatEnabled,
+} from "@/lib/local-starbao-chat";
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 const MAX_HISTORY_MESSAGES = 20;
@@ -96,9 +101,12 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
+    const useLocalChat = isLocalStarbaoChatEnabled();
     const [snapshot, userMessage] = await Promise.all([
-      getStarbaoSnapshot({ after: 0, limit: 100 }),
-      appendStarbaoMessage({
+      useLocalChat
+        ? getLocalStarbaoSnapshot({ after: 0, limit: 100 })
+        : getStarbaoSnapshot({ after: 0, limit: 100 }),
+      (useLocalChat ? appendLocalStarbaoMessage : appendStarbaoMessage)({
         clientMessageId: parsed.data.clientMessageId,
         role: "user",
         origin: parsed.data.origin,
@@ -133,7 +141,7 @@ export async function POST(request: Request): Promise<Response> {
       answer = buildCourseFallback(course);
     }
 
-    const assistantMessage = await appendStarbaoMessage({
+    const assistantMessage = await (useLocalChat ? appendLocalStarbaoMessage : appendStarbaoMessage)({
       clientMessageId: assistantClientId,
       role: "assistant",
       origin: "starbao",

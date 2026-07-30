@@ -9,6 +9,7 @@ import {
   getStarbaoSnapshot,
   updateStarbaoSpeakerSetting,
 } from "@/lib/starbao-core";
+import { resetLocalStarbaoChatForTests } from "@/lib/local-starbao-chat";
 
 import { GET, PATCH } from "./route";
 
@@ -35,6 +36,8 @@ const message = {
 describe("/api/starbao", () => {
   afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    resetLocalStarbaoChatForTests();
   });
 
   it("returns the canonical conversation cursor without exposing Core field names", async () => {
@@ -99,5 +102,24 @@ describe("/api/starbao", () => {
       },
     });
     expect(updateStarbaoSpeakerSetting).toHaveBeenCalledWith(true);
+  });
+
+  it("uses an empty in-process conversation for an explicitly local browser test", async () => {
+    vi.stubEnv("LOCAL_AI_CHAT", "true");
+    vi.stubEnv("NODE_ENV", "development");
+
+    const response = await GET(new Request("http://localhost/api/starbao?after=0&limit=100"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      conversation: {
+        conversationId: "local-web-preview",
+        deviceId: "local-browser",
+        latestSequence: 0,
+      },
+      messages: [],
+      latestSequence: 0,
+    });
+    expect(getStarbaoSnapshot).not.toHaveBeenCalled();
   });
 });
