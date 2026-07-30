@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const stylesheet = readFileSync(resolve(process.cwd(), "src/app/preview/page.module.css"), "utf8");
+const spriteStylesheet = readFileSync(resolve(process.cwd(), "src/components/starbao/starbao-sprite.module.css"), "utf8");
 
 function rule(selector: string) {
   const match = stylesheet.match(new RegExp(`\\.${selector}\\s*\\{([\\s\\S]*?)\\}`));
@@ -18,14 +19,48 @@ function lastRule(selector: string) {
 }
 
 describe("Starbao chat visual styling", () => {
-  it("uses the requested gold pixel ghost instead of the blue cube loader", () => {
+  it("uses the original pixel ghost as the chat waiting indicator", () => {
     expect(rule("starbaoThinkingGhost")).toContain("--ghost-fill: rgb(255, 198, 14)");
-    expect(rule("starbaoThinkingGhostBody")).toMatch(/width:\s*140px/);
-    expect(rule("starbaoThinkingGhostBody")).toMatch(/height:\s*140px/);
     expect(rule("starbaoThinkingGhostBody")).toContain("grid-template-columns: repeat(14, 1fr)");
-    expect(stylesheet).toContain("@keyframes starbaoGhostUpNDown");
+    expect(rule("starbaoThinkingGhostBody")).toContain("animation: starbaoGhostUpNDown 500ms steps(2, end) infinite");
     expect(stylesheet).toContain("@keyframes starbaoGhostFlicker0");
     expect(stylesheet).toContain("@keyframes starbaoGhostEyes");
+  });
+
+  it("uses the supplied aligned frame sheets for Starbao animations", () => {
+    expect(spriteStylesheet).toContain("background-size: 1800% 100%");
+    expect(spriteStylesheet).toContain("animation: starbaoEighteenFrameSequence var(--starbao-frame-duration, 1.08s) linear infinite");
+    expect(spriteStylesheet).toContain("idle-cycle.png");
+    expect(spriteStylesheet).toContain("thinking-cycle.png");
+    expect(spriteStylesheet).toContain("cheer-cycle.png");
+    expect(spriteStylesheet).toContain("sleep-cycle.png");
+    expect(spriteStylesheet).toContain("drawing-cycle.png");
+    expect(spriteStylesheet).toContain("walk-cycle.png");
+    expect(spriteStylesheet).toContain("@keyframes starbaoEighteenFrameSequence");
+    expect(spriteStylesheet).toContain("94.444%, 100% { background-position: 100% 0; }");
+  });
+
+  it("uses the supplied twelve-frame thinking sheet without sampling a blank frame", () => {
+    expect(spriteStylesheet).toContain(".mood-thinking {");
+    expect(spriteStylesheet).toContain("background-size: 1200% 100%;");
+    expect(spriteStylesheet).toContain("animation: starbaoTwelveFrameSequence 1.2s linear infinite;");
+    expect(spriteStylesheet).toContain("@keyframes starbaoTwelveFrameSequence");
+    expect(spriteStylesheet).toContain("91.667%, 100% { background-position: 100% 0; }");
+  });
+
+  it("uses the supplied ten-frame sheets for idle and sleep cycles", () => {
+    expect(spriteStylesheet).toContain(".mood-idle {");
+    expect(spriteStylesheet).toContain("animation: starbaoTenFrameSequence 50s linear infinite;");
+    expect(spriteStylesheet).toContain('background-image: url("/assets/pets/twinkle-twinkle/idle-cycle.png");');
+    const sleepRule = spriteStylesheet.match(/\.mood-sleep\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    expect(sleepRule).toContain('background-image: url("/assets/pets/twinkle-twinkle/sleep-cycle.png");');
+    expect(sleepRule).toContain("background-size: 1000% 100%;");
+    expect(sleepRule).toContain("animation: starbaoSleepSequence 2s steps(1, end) infinite;");
+    expect(sleepRule).not.toContain("animation: none;");
+    expect(spriteStylesheet).toContain("@keyframes starbaoTenFrameSequence");
+    expect(spriteStylesheet).toContain("@keyframes starbaoSleepSequence");
+    expect(spriteStylesheet).toContain("0%, 9.999% { background-position: 1.1523% 0; }");
+    expect(spriteStylesheet).toContain("90%, 100% { background-position: 97.7726% 0; }");
   });
 
   it("uses the supplied sky artwork across the whole chat panel with a readable overlay", () => {
@@ -62,14 +97,34 @@ describe("Starbao chat visual styling", () => {
   });
 
   it("moves the floating Starbao within the hero and pauses it while chat is open", () => {
-    expect(rule("heroPetPatrol")).toContain("animation: heroPetPatrolMotion 16s");
+    expect(rule("heroPetPatrol")).toContain("animation: heroPetPatrolMotion 17.28s linear");
+    expect(rule("heroPetPatrol")).toContain("contain: layout;");
+    expect(rule("heroPetPatrol")).not.toContain("contain: layout paint;");
     expect(rule("heroPetPatrol")).toContain("left: clamp(58px, 5.8vw, 75px)");
     expect(rule("heroPetPatrolPaused")).toContain("animation-play-state: paused");
     expect(rule("petLauncher")).toContain("margin-top: 111px");
-    expect(rule("petPatrolSprite")).toContain("animation: heroPetPatrolFacing 16s");
+    expect(rule("petPatrolSprite")).toContain("animation: heroPetPatrolFacing 17.28s");
+    expect(rule("petPatrolWalk")).toContain("heroPetPatrolWalkVisibility 17.28s");
     expect(stylesheet).toContain("@keyframes heroPetPatrolMotion");
     expect(stylesheet).toContain("@keyframes heroPetPatrolFacing");
-    expect(stylesheet).toContain("56.01%, 70% { transform: scaleX(-1);");
+    expect(stylesheet).toContain("@keyframes heroPetPatrolWalkVisibility");
+    expect(stylesheet).toContain("56.25%, 68.749% { transform: scaleX(-1);");
+    expect(stylesheet).toContain("24.999% { transform: translate3d(0, 0, 0);");
+    expect(stylesheet).toContain('.heroPetPatrol[data-pet-mood="sleep"] { animation: none; transform: translate3d(0, 0, 0); }');
+    expect(stylesheet).toContain('.heroPetPatrolPaused .petPatrolSprite, .heroPetPatrol[data-pet-mood="sleep"] .petPatrolSprite { animation-play-state: paused; }');
+    expect(stylesheet).toContain('.heroPetPatrolPaused .petPatrolIdle, .heroPetPatrol[data-pet-mood="sleep"] .petPatrolIdle { animation-play-state: paused; opacity: 1 !important; }');
+    expect(stylesheet).toContain('.heroPetPatrolPaused .petPatrolWalk, .heroPetPatrol[data-pet-mood="sleep"] .petPatrolWalk { animation-play-state: paused; opacity: 0 !important; }');
+  });
+
+  it("keeps the patrol route and the valid eighteen-frame walk sequence aligned", () => {
+    expect(rule("heroPetPatrol")).toContain("animation: heroPetPatrolMotion 17.28s linear infinite");
+    expect(rule("petPatrolSprite")).toContain("animation: heroPetPatrolFacing 17.28s");
+    expect(rule("petPatrolIdle")).toContain("animation: heroPetPatrolIdleVisibility 17.28s");
+    expect(rule("petPatrolWalk")).toContain("animation: heroPetPatrolWalkVisibility 17.28s");
+    expect(stylesheet).toContain("37.5%, 56.249% { transform: translate3d(var(--pet-patrol-distance), 0, 0);");
+    expect(stylesheet).toContain("56.25%, 68.749% { transform: scaleX(-1);");
+    expect(spriteStylesheet).toContain("@keyframes starbaoEighteenFrameSequence");
+    expect(spriteStylesheet).not.toContain("105.8823529412% 0");
   });
 
   it("keeps the mobile exhibition swipeable without exposing a native scrollbar", () => {

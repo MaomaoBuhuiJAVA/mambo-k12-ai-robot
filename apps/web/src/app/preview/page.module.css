@@ -149,14 +149,19 @@
 .entryDialogActions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; padding: 16px 22px 20px; border-top: 1px solid #d4be83; background: #f1dfad; }.dialogCancel, .dialogConfirm { display: inline-flex; align-items: center; gap: 7px; min-height: 39px; padding: 0 12px; border: 2px solid #806847; border-radius: 3px; font-family: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }.dialogCancel { color: #5b594d; background: #fff7df; }.dialogConfirm { color: #fff8de; border-color: #31453f; background: #4a7a6b; box-shadow: 3px 3px 0 #31453f; }.dialogConfirm:hover { background: #3c695c; transform: translate(1px, 1px); }
 .futureStageChoices { display: grid; gap: 10px; margin: 22px; }.futureStageChoices button { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 78px; padding: 12px 14px; border: 2px solid #c7b07a; border-left: 6px solid #d59773; border-radius: 3px; color: #3c554d; background: #fff8e5; font-family: inherit; text-align: left; cursor: pointer; }.futureStageChoices button + button { border-left-color: #7f73b0; }.futureStageChoices button:hover { border-color: #557f70; }.futureStageChoices span { display: flex; flex-direction: column; gap: 4px; }.futureStageChoices strong { color: #324941; font-size: 14px; }.futureStageChoices small { color: #718177; font-size: 11px; }.futureStageChoices svg { color: #547b6d; }
 
-.heroPetPatrol { position: absolute; z-index: 6; top: 340px; left: clamp(58px, 5.8vw, 75px); width: 96px; height: 104px; --pet-patrol-distance: min(25.5vw, 330px); animation: heroPetPatrolMotion 16s cubic-bezier(.45, 0, .55, 1) infinite; will-change: transform; }
+.heroPetPatrol { position: absolute; z-index: 6; top: 340px; left: clamp(58px, 5.8vw, 75px); width: 96px; height: 104px; --pet-patrol-distance: min(25.5vw, 330px); contain: layout; animation: heroPetPatrolMotion 17.28s linear infinite; will-change: transform; }
 .heroPetPatrolPaused { animation-play-state: paused; }
+.heroPetPatrol[data-pet-mood="sleep"] { animation: none; transform: translate3d(0, 0, 0); }
 .petLauncher { position: relative; z-index: 1; display: grid; width: 96px; height: 104px; margin-top: 111px; place-items: center; padding: 0; border: 0; border-radius: 0; outline: 0; background: transparent; box-shadow: none; cursor: pointer; touch-action: manipulation; transition: transform 160ms ease, filter 160ms ease; }
 .petLauncher:hover { transform: translateY(-5px); filter: brightness(1.06); }
 .petLauncher:focus-visible { outline: 2px solid #fff3c7; outline-offset: 4px; }
 .petLauncherOpen { transform: scale(.96); }
-.petPatrolSprite { display: block; width: 96px; height: 104px; transform-origin: center; animation: heroPetPatrolFacing 16s steps(1, end) infinite; }
-.heroPetPatrolPaused .petPatrolSprite { animation-play-state: paused; }
+.petPatrolSprite { position: relative; display: block; width: 96px; height: 104px; transform-origin: center; backface-visibility: hidden; animation: heroPetPatrolFacing 17.28s steps(1, end) infinite; will-change: transform; }
+.petPatrolIdle { position: absolute; inset: 0; display: block; animation: heroPetPatrolIdleVisibility 17.28s steps(1, end) infinite; }
+.petPatrolWalk { position: absolute; inset: 0; display: block; opacity: 0; animation: heroPetPatrolWalkVisibility 17.28s steps(1, end) infinite; }
+.heroPetPatrolPaused .petPatrolSprite, .heroPetPatrol[data-pet-mood="sleep"] .petPatrolSprite { animation-play-state: paused; }
+.heroPetPatrolPaused .petPatrolIdle, .heroPetPatrol[data-pet-mood="sleep"] .petPatrolIdle { animation-play-state: paused; opacity: 1 !important; }
+.heroPetPatrolPaused .petPatrolWalk, .heroPetPatrol[data-pet-mood="sleep"] .petPatrolWalk { animation-play-state: paused; opacity: 0 !important; }
 .petLauncher .petSprite { width: 96px; height: 104px; }
 .petStatus, .petSpark { display: none; }
 .petPanel { position: fixed; z-index: 21; right: 22px; bottom: 112px; width: min(360px, calc(100vw - 30px)); overflow: hidden; border: 2px solid #253542; border-radius: 4px; background: #f9f1d8; box-shadow: 8px 8px 0 #132a35; animation: panelIn 180ms ease both; }.petPanelAttached { animation: none; }.petPanelDragging { transition: none; }.petPanelHeader { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 2px solid #d4be80; background: #f4dfad; }.petIdentity { display: flex; align-items: center; gap: 9px; }.petIdentity strong, .petIdentity small { display: block; }.petIdentity strong { color: #263a43; font-size: 14px; }.petIdentity small { margin-top: 2px; color: #68766b; font-size: 10px; }.petMini { display: grid; width: 34px; height: 34px; place-items: center; overflow: hidden; border: 2px solid #273943; background: #e9bf51; }.petMiniSprite .petSprite { width: 32px; height: 39px; }.iconButton { display: grid; width: 34px; height: 34px; place-items: center; border: 2px solid #746245; color: #554d43; background: #f6e8bd; }.petTabs { display: flex; gap: 3px; padding: 7px 10px 0; background: #f9f1d8; }.petTabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 35px; padding: 0 10px; border: 0; color: #7d806e; background: transparent; font-size: 11px; font-weight: 900; }.petTabs button.tabActive { color: #3e6c64; background: #e5f0d7; }.messageList { display: flex; flex-direction: column; gap: 8px; max-height: 205px; padding: 12px 14px 7px; overflow: auto; background: #fff9e9; }.message { align-self: flex-start; max-width: 84%; padding: 8px 10px; border: 2px solid #d8c98e; border-radius: 3px; color: #4a5a51; background: #fffef4; font-size: 12px; line-height: 1.45; }.messageUser { align-self: flex-end; border-color: #9ccbb5; color: #36665c; background: #e7f3dd; }.quickReplies { display: flex; gap: 7px; padding: 4px 14px 8px; overflow-x: auto; background: #fff9e9; }.quickReplies button { flex: 0 0 auto; min-height: 30px; padding: 0 10px; border: 2px solid #cbbd83; color: #597568; background: #fffef4; font-size: 10px; font-weight: 850; }.petComposer { display: flex; align-items: center; gap: 7px; padding: 10px 11px 12px; border-top: 2px solid #d4be80; background: #f4dfad; }.petComposer input { min-width: 0; flex: 1; height: 38px; padding: 0 10px; border: 2px solid #bcae77; outline: 0; color: #354940; background: #fffef4; font-size: 12px; }.petComposer input:focus { border-color: #5b9688; }.petComposer button { display: grid; width: 38px; height: 38px; place-items: center; border: 2px solid #263944; color: #fff8d8; background: #518b79; }.devicePanel { padding: 15px 14px 17px; color: #43574d; background: #fff9e9; }.deviceOnline { display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid #d8c98e; font-size: 12px; }.deviceOnline > span { display: inline-flex; align-items: center; gap: 7px; }.deviceOnline strong { color: #3d9d73; }.liveDot { display: inline-block; width: 8px; height: 8px; background: #58b979; }.deviceMetrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 13px 0; }.deviceMetrics div { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 2px solid #d8c98e; color: #819284; background: #fffef4; }.deviceMetrics strong { color: #374940; font-family: var(--font-geist-mono), monospace; font-size: 12px; }.deviceMetrics span { font-size: 10px; }.deviceAction { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 41px; margin-top: 8px; padding: 0 10px; border: 2px solid #bcae77; color: #4c6f60; background: #fffef4; font-size: 11px; font-weight: 850; }.deviceAction svg:last-child { margin-left: auto; }.deviceHint { margin: 13px 2px 0; color: #839183; font-size: 10px; line-height: 1.5; }
@@ -442,14 +447,22 @@
 
 @keyframes petIdle { from { background-position: 0 0; } to { background-position: 71.4286% 0; } }
 @keyframes heroPetPatrolMotion {
-  0%, 24% { transform: translate3d(0, 0, 0); }
-  38%, 56% { transform: translate3d(var(--pet-patrol-distance), 0, 0); }
-  70%, 100% { transform: translate3d(0, 0, 0); }
+  0%, 24.999% { transform: translate3d(0, 0, 0); }
+  37.5%, 56.249% { transform: translate3d(var(--pet-patrol-distance), 0, 0); }
+  68.75%, 100% { transform: translate3d(0, 0, 0); }
 }
 @keyframes heroPetPatrolFacing {
-  0%, 56% { transform: scaleX(1); }
-  56.01%, 70% { transform: scaleX(-1); }
-  70.01%, 100% { transform: scaleX(1); }
+  0%, 56.249% { transform: scaleX(1); }
+  56.25%, 68.749% { transform: scaleX(-1); }
+  68.75%, 100% { transform: scaleX(1); }
+}
+@keyframes heroPetPatrolIdleVisibility {
+  0%, 24.999%, 37.5%, 56.249%, 68.75%, 100% { opacity: 1; }
+  25%, 37.499%, 56.25%, 68.749% { opacity: 0; }
+}
+@keyframes heroPetPatrolWalkVisibility {
+  0%, 24.999%, 37.5%, 56.249%, 68.75%, 100% { opacity: 0; }
+  25%, 37.499%, 56.25%, 68.749% { opacity: 1; }
 }
 @keyframes petRunningRight { from { background-position: 0 12.5%; } to { background-position: 100% 12.5%; } }
 @keyframes petRunningLeft { from { background-position: 0 25%; } to { background-position: 100% 25%; } }
@@ -1470,7 +1483,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .heroPetPatrol,
-  .petPatrolSprite { animation: none; }
+  .petPatrolSprite,
+  .petPatrolIdle,
+  .petPatrolWalk { animation: none; }
+  .petPatrolWalk { display: none; }
 }
 
 /* The chat keeps one continuous pixel-sky scene behind every control. */
@@ -1774,6 +1790,11 @@
 }
 .deviceMetrics strong { color: #fff7d6; }
 .deviceHint { color: #d4e7e1; }
+
+.petMiniSprite > [data-starbao-mood] {
+  width: 32px;
+  height: 39px;
+}
 
 /* Keep the journey card's full mobile footprint after the legacy hero rules. */
 @media (max-width: 680px) {

@@ -12,6 +12,7 @@ const sendTurn = vi.fn();
 const setSpeakOnOrangePi = vi.fn();
 const previewPageSource = readFileSync(resolve(process.cwd(), "src/app/preview/page.tsx"), "utf8");
 const previewStylesSource = readFileSync(resolve(process.cwd(), "src/app/preview/page.module.css"), "utf8");
+const starbaoSpriteStylesSource = readFileSync(resolve(process.cwd(), "src/components/starbao/starbao-sprite.module.css"), "utf8");
 const journeyCardSource = readFileSync(resolve(process.cwd(), "src/components/star-journey-card/StarJourneyCard.jsx"), "utf8");
 const stepperSource = readFileSync(resolve(process.cwd(), "src/components/star-journey-card/Stepper.jsx"), "utf8");
 const journeyCardStylesSource = readFileSync(resolve(process.cwd(), "src/components/star-journey-card/StarJourneyCard.module.css"), "utf8");
@@ -196,7 +197,7 @@ describe("PreviewPage Starbao chat", () => {
     expect(previewStylesSource).toContain('background: url("/assets/chat/starbao-dialogue-preview.png") center / cover no-repeat;');
   });
 
-  it("shows the gold pixel ghost in the chat message list while Starbao is sending", () => {
+  it("shows the original pixel thinking indicator in the chat message list while Starbao is sending", () => {
     sharedConversationState.isSending = true;
     render(<PreviewPage />);
 
@@ -380,16 +381,24 @@ describe("PreviewPage Starbao chat", () => {
     expect(container.querySelector("#top")).toContainElement(launcher);
     expect(launcher).not.toHaveAttribute("aria-grabbed");
     expect(previewPageSource).toContain("styles.heroPetPatrol");
+    expect(previewPageSource).toContain("styles.petPatrolIdle");
+    expect(previewPageSource).toContain("styles.petPatrolWalk");
     expect(previewPageSource).toContain("styles.petPatrolSprite");
+    expect(previewPageSource).toContain("StarbaoSprite mood={petMood}");
+    expect(previewPageSource).toContain('StarbaoSprite mood="walk"');
     expect(previewStylesSource).toContain("@keyframes heroPetPatrolMotion");
     expect(previewStylesSource).toContain("@keyframes heroPetPatrolFacing");
+    expect(previewStylesSource).toContain("17.28s linear");
+    expect(starbaoSpriteStylesSource).toContain("walk-cycle.png");
+    expect(starbaoSpriteStylesSource).toContain("starbaoEighteenFrameSequence");
+    expect(starbaoSpriteStylesSource).not.toContain("105.8823529412% 0");
     expect(previewStylesSource).toContain("animation-play-state: paused");
 
     fireEvent.click(launcher);
     expect(screen.getByRole("complementary", { name: "星星智能体面板" })).toBeInTheDocument();
   });
 
-  it("uses the pixel ghost instead of the previous cube and loading dots", () => {
+  it("uses the original pixel indicator instead of the thinking frame sheet and loading dots", () => {
     sharedConversationState.isSending = true;
     render(<PreviewPage />);
 
@@ -397,8 +406,37 @@ describe("PreviewPage Starbao chat", () => {
 
     const thinkingStatus = screen.getByRole("status", { name: "Starbao is thinking" });
     expect(screen.getByTestId("starbao-thinking-ghost")).toBeInTheDocument();
+    expect(screen.queryByTestId("starbao-thinking-sprite")).not.toBeInTheDocument();
     expect(screen.queryByTestId("starbao-thinking-dot")).not.toBeInTheDocument();
     expect(thinkingStatus).not.toHaveTextContent("星宝正在思考");
+  });
+
+  it("uses sleep after inactivity and celebrates when a Starbao reply completes", async () => {
+    vi.useFakeTimers();
+    try {
+      const { container, unmount } = render(<PreviewPage />);
+      act(() => vi.advanceTimersByTime(6500));
+      expect(container.querySelector('#top [data-starbao-mood="sleep"]')).toBeInTheDocument();
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    let resolveTurn: (() => void) | undefined;
+    sendTurn.mockImplementation(() => new Promise<void>((resolve) => {
+      resolveTurn = resolve;
+    }));
+    const { container } = render(<PreviewPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Open star chat" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "和星宝说点什么" }), { target: { value: "这个答案对吗" } });
+    fireEvent.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(container.querySelector('#top [data-starbao-mood="thinking"]')).toBeInTheDocument();
+    await act(async () => {
+      resolveTurn?.();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('#top [data-starbao-mood="cheer"]')).toBeInTheDocument();
   });
 
   it("scrolls the open chat message list to the bottom while Starbao is sending", () => {

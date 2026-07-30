@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import styles from "./page.module.css";
+import { StarbaoSprite, type StarbaoMood } from "@/components/starbao/starbao-sprite";
 import StarJourneyCard from "@/components/star-journey-card/StarJourneyCard";
 import { resolvePetPanelLeft } from "./pet-panel-position";
 import { GESTURE_NAVIGATE_EVENT, type GestureNavigationDirection } from "@/components/robot/robot-gesture-provider";
@@ -23,7 +24,7 @@ import type { Stage } from "@/lib/domain";
 import { workspaceHref } from "@/lib/workspace-route";
 
 type FloorId = "explore" | "create" | "future";
-type PetMood = "idle" | "running-right" | "running-left" | "waving" | "jumping" | "waiting" | "running" | "review";
+type PetMood = Exclude<StarbaoMood, "walk">;
 type PetChatAnchor = "launcher" | "reference";
 type EntryDialog = "programming" | "future" | null;
 type LabFamiliarity = "first_steps" | "guided" | "ready";
@@ -235,7 +236,7 @@ export default function PreviewPage() {
   }, []);
 
   useEffect(() => {
-    petWaitingTimerRef.current = window.setTimeout(() => setPetMoodIfChanged("waiting"), 6500);
+    petWaitingTimerRef.current = window.setTimeout(() => setPetMoodIfChanged("sleep"), 6500);
     return () => {
       if (petMoodTimerRef.current) window.clearTimeout(petMoodTimerRef.current);
       if (petWaitingTimerRef.current) window.clearTimeout(petWaitingTimerRef.current);
@@ -337,17 +338,26 @@ export default function PreviewPage() {
   function schedulePetWaiting() {
     if (petWaitingTimerRef.current) window.clearTimeout(petWaitingTimerRef.current);
     petWaitingTimerRef.current = window.setTimeout(() => {
-      setPetMoodIfChanged("waiting");
+      petWaitingTimerRef.current = null;
+      setPetMoodIfChanged("sleep");
     }, 6500);
   }
 
-  function playPetMood(mood: PetMood, duration = 900) {
+  function playPetMood(mood: PetMood, duration = 900, resumeSleep = true) {
     if (petMoodTimerRef.current) window.clearTimeout(petMoodTimerRef.current);
+    if (petWaitingTimerRef.current) window.clearTimeout(petWaitingTimerRef.current);
+    petMoodTimerRef.current = null;
+    petWaitingTimerRef.current = null;
     setPetMoodIfChanged(mood);
     if (duration > 0) {
-      petMoodTimerRef.current = window.setTimeout(() => setPetMoodIfChanged("idle"), duration);
+      petMoodTimerRef.current = window.setTimeout(() => {
+        petMoodTimerRef.current = null;
+        setPetMoodIfChanged("idle");
+        if (resumeSleep) schedulePetWaiting();
+      }, duration);
+    } else if (resumeSleep) {
+      schedulePetWaiting();
     }
-    schedulePetWaiting();
   }
 
   function togglePetChat(anchor: PetChatAnchor = "launcher") {
@@ -362,7 +372,7 @@ export default function PreviewPage() {
       setPetChatAnchor("launcher");
       setPetPanelDetached(false);
     }
-    playPetMood(nextOpen ? "waving" : "idle", nextOpen ? 1200 : 0);
+    playPetMood("idle", 0);
   }
 
   function handlePetClick() {
@@ -463,6 +473,7 @@ export default function PreviewPage() {
   }
 
   function openStorybook() {
+    playPetMood("drawing", 1300);
     scrollToFeature("storybook");
   }
 
@@ -482,6 +493,7 @@ export default function PreviewPage() {
         ? "upper_primary"
         : "middle_school";
     setDraft("");
+    playPetMood("thinking", 0, false);
     try {
       await sendStarbaoTurn({
         text: value,
@@ -489,9 +501,9 @@ export default function PreviewPage() {
         courseId: floor.courseId,
         origin: "web",
       });
-      playPetMood("waving", 850);
+      playPetMood("cheer", 1200);
     } catch {
-      // The hook exposes a compact error state inside the pet panel.
+      playPetMood("idle", 0);
     }
   }
 
@@ -499,6 +511,7 @@ export default function PreviewPage() {
   const selectedStage = labStageOptions.find((option) => option.id === labStage)!;
   const codingTemplate = "Hello World";
   const codingLines = ['print("Hello, World!")'];
+  const heroPetPatrolPaused = (petOpen && petChatAnchor === "launcher") || petMood === "sleep";
 
   return (
     <main className={styles.page}>
@@ -527,19 +540,23 @@ export default function PreviewPage() {
           </h1>
           <p>从认识世界，到创造作品，再到研究未来。选择适合你的学习阶段，和星星一起开始今天的探索。</p>
         </div>
-        <div className={`${styles.heroPetPatrol} ${petOpen && petChatAnchor === "launcher" ? styles.heroPetPatrolPaused : ""}`}>
+        <div className={`${styles.heroPetPatrol} ${heroPetPatrolPaused ? styles.heroPetPatrolPaused : ""}`} data-pet-mood={petMood}>
           <button
             className={`${styles.petLauncher} ${petOpen ? styles.petLauncherOpen : ""}`}
             ref={petLauncherRef}
             type="button"
             onClick={handlePetClick}
-            onMouseEnter={() => playPetMood("waving", 850)}
-            onMouseLeave={() => { if (!petOpen) playPetMood("idle", 0); }}
+            onMouseEnter={() => { if (!petOpen) playPetMood("idle", 0); }}
             aria-label={petOpen ? "Close star chat" : "Open star chat"}
             title="点击和星宝聊天"
           >
             <span className={styles.petPatrolSprite} aria-hidden="true">
-              <span className={`${styles.petSprite} ${styles[`petSprite-${petMood}`]}`} />
+              <span className={styles.petPatrolIdle}>
+                <StarbaoSprite mood={petMood} />
+              </span>
+              <span className={styles.petPatrolWalk}>
+                <StarbaoSprite mood="walk" />
+              </span>
             </span>
           </button>
         </div>
@@ -649,7 +666,7 @@ export default function PreviewPage() {
         <div className={styles.robotStage}>
           <div className={styles.pixelWoodFrame}>
             <button className={styles.referencePet} type="button" ref={referencePetRef} onClick={handleReferencePetClick} aria-expanded={petOpen} aria-label={petOpen ? "关闭星宝对话" : "打开星宝对话"}>
-              <span className={styles.petSprite + " " + styles.petSpriteSparkle} aria-hidden="true" />
+              <StarbaoSprite mood="idle" />
             </button>
           </div>
         </div>
@@ -717,7 +734,7 @@ export default function PreviewPage() {
             onLostPointerCapture={() => finishPetPanelDrag()}
             title="拖动聊天窗口"
           >
-            <div className={`${styles.petIdentity} ${styles.petIdentityStar}`}><span className={`${styles.petMini} ${styles.petMiniSprite}`}><span className={`${styles.petSprite} ${styles.petSpriteIdle}`} aria-hidden="true" /></span><span><strong>星宝</strong><small>学习伙伴 · 在线</small></span></div>
+            <div className={`${styles.petIdentity} ${styles.petIdentityStar}`}><span className={`${styles.petMini} ${styles.petMiniSprite}`}><StarbaoSprite mood={starbaoSending ? "thinking" : "idle"} /></span><span><strong>星宝</strong><small>学习伙伴 · 在线</small></span></div>
             <button className={styles.iconButton} type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => { setPetOpen(false); setPetPanelPosition(null); setPetPanelDetached(false); }} aria-label="关闭"><X size={18} /></button>
           </div>
           <div className={styles.messageList} ref={messageListRef}>

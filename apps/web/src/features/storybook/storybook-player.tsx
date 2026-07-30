@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookMarked, ChevronLeft, ChevronRight, RefreshCw, Save, Volume2 } from "lucide-react";
 
 import type { CurriculumCourse } from "@/data/curriculum";
+import { StarbaoSprite } from "@/components/starbao/starbao-sprite";
 
 import styles from "./storybook-player.module.css";
 import { selectStorybookIllustration } from "./storybook-illustrations";
@@ -149,6 +150,7 @@ export function StorybookPlayer({ course, initialSavedId }: { course: Curriculum
           <p>{storybook.summary}</p>
         </div>
         <div className={styles.actions}>
+          {isGenerating ? <StarbaoSprite mood="drawing" className={styles.generationMascot} /> : null}
           <button type="button" onClick={readAloud} aria-label="朗读本页" title="朗读本页"><Volume2 size={17} /></button>
           <button type="button" onClick={saveStorybook} aria-label="保存绘本" title="保存绘本"><Save size={17} /></button>
           <button type="button" onClick={regenerate} disabled={isGenerating} aria-label="重新生成" title="重新生成"><RefreshCw size={17} /></button>
@@ -194,7 +196,12 @@ export function StorybookPlayer({ course, initialSavedId }: { course: Curriculum
             </button>
           ))}
         </div>
-        {feedback ? <p role="status" data-correct={selectedAnswer === question.answer}>{feedback}</p> : null}
+        {feedback ? (
+          <p role="status" data-correct={selectedAnswer === question.answer}>
+            {selectedAnswer === question.answer ? <StarbaoSprite mood="cheer" className={styles.feedbackMascot} /> : null}
+            {feedback}
+          </p>
+        ) : null}
       </div>
 
       <footer className={styles.footer}>

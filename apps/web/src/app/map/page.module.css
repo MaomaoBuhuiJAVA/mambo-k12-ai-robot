@@ -1,0 +1,343 @@
+.page {
+  min-height: 100dvh;
+  overflow: hidden;
+  color: #f7f3dd;
+  background: #06284c;
+}
+
+.mapSection {
+  width: min(100%, 1680px);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 28px 28px 34px;
+}
+
+.heading {
+  display: flex;
+  align-items: baseline;
+  gap: 13px;
+  margin: 0 0 15px 2px;
+}
+
+.heading p {
+  color: #91dcff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.heading h1 {
+  color: #fff4c5;
+  font-size: 26px;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.mapStage {
+  position: relative;
+  width: min(100%, calc((100dvh - 103px) * 1.5));
+  max-height: calc(100dvh - 103px);
+  aspect-ratio: 3 / 2;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 2px solid #236b9a;
+  background: #083665;
+  box-shadow: 0 0 0 3px #0a4275, 0 20px 46px rgb(0 14 36 / 45%);
+}
+
+.mapArtwork {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.hotspotOverlay {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.regionGlow,
+.regionZoom {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 200ms ease;
+}
+
+.regionGlow[data-active="true"] {
+  opacity: 1;
+}
+
+.regionZoom {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(1);
+}
+
+.regionZoom[data-active="true"] {
+  opacity: 1;
+  transform: scale(1.04);
+}
+
+.hotspot {
+  cursor: pointer;
+  fill: transparent;
+  pointer-events: all;
+  outline: none;
+}
+
+.hotspot:focus-visible {
+  outline: none;
+}
+
+.cardDeck {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  isolation: isolate;
+  container-type: inline-size;
+}
+
+.cardDeckBackdrop {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: rgb(0 11 29 / 68%);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.goldParticle {
+  position: absolute;
+  z-index: 2;
+  top: var(--particle-origin-y);
+  left: var(--particle-origin-x);
+  width: clamp(4px, 0.8cqw, 10px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff09a;
+  box-shadow: 0 0 10px #ffe66e, 0 0 22px rgb(255 211 52 / 96%), 0 0 42px rgb(255 185 37 / 78%);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.16);
+  animation: cardEdgeParticleBurst 680ms cubic-bezier(0.16, 0.76, 0.2, 1) both;
+  animation-delay: var(--particle-delay);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.cardDeckCards {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  width: min(70%, 640px);
+  gap: clamp(10px, 2cqw, 26px);
+  perspective: 1100px;
+  pointer-events: none;
+  transform-style: preserve-3d;
+  transform: translateY(3%);
+}
+
+.learningCard {
+  --launch-rotate-y: -34deg;
+  --launch-rotate-z: -12deg;
+  --rest-rotate-y: -5deg;
+  --rest-rotate-z: -2deg;
+
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 0.64;
+  isolation: isolate;
+  pointer-events: auto;
+  transform-style: preserve-3d;
+  animation: cardLaunch 840ms cubic-bezier(0.16, 0.76, 0.2, 1) both;
+  animation-delay: calc(var(--card-index) * 90ms);
+  will-change: transform, opacity;
+}
+
+.learningCard:nth-child(2) {
+  --launch-rotate-y: 15deg;
+  --launch-rotate-z: 4deg;
+  --rest-rotate-y: 0deg;
+  --rest-rotate-z: 0deg;
+}
+
+.learningCard:nth-child(3) {
+  --launch-rotate-y: 36deg;
+  --launch-rotate-z: 11deg;
+  --rest-rotate-y: 5deg;
+  --rest-rotate-z: 2deg;
+}
+
+.learningCard::before {
+  position: absolute;
+  z-index: 0;
+  inset: 7px -8px -9px 8px;
+  content: "";
+  border: 1px solid #8e7021;
+  background: #092c48;
+  box-shadow: 11px 13px 0 rgb(3 20 38 / 46%);
+  transform: translateZ(-14px);
+  clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+
+.cardFace {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: clamp(11px, 1.7cqw, 22px);
+  overflow: hidden;
+  border: 1px solid #f9dd71;
+  background: #123f61;
+  box-shadow: 0 0 0 3px rgb(30 96 133 / 62%), 0 0 20px rgb(255 212 89 / 43%);
+  transform: translateZ(8px);
+  clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+
+.learningCard:nth-child(2) .cardFace {
+  background: #0d4d64;
+  border-color: #9fe9d1;
+  box-shadow: 0 0 0 3px rgb(20 102 125 / 58%), 0 0 20px rgb(112 242 193 / 38%);
+}
+
+.learningCard:nth-child(3) .cardFace {
+  background: #21405a;
+  border-color: #ffbd72;
+  box-shadow: 0 0 0 3px rgb(102 77 47 / 55%), 0 0 20px rgb(255 179 77 / 42%);
+}
+
+.cardNumber {
+  color: #fff0a8;
+  font-size: clamp(14px, 2.3cqw, 27px);
+  font-weight: 850;
+  line-height: 1;
+}
+
+.cardFace p {
+  margin: auto 0 5px;
+  color: #a7e5ff;
+  font-size: clamp(10px, 1.35cqw, 15px);
+  font-weight: 700;
+}
+
+.cardFace h2 {
+  margin: 0;
+  color: #fff9dc;
+  font-size: clamp(14px, 2.1cqw, 26px);
+  font-weight: 850;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+@keyframes cardLaunch {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 132%, 0) rotateX(-74deg) rotateY(var(--launch-rotate-y)) rotateZ(var(--launch-rotate-z)) scale(0.76);
+  }
+
+  64% {
+    opacity: 1;
+    transform: translate3d(0, -5%, 0) rotateX(6deg) rotateY(var(--rest-rotate-y)) rotateZ(var(--rest-rotate-z)) scale(1.025);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateX(0) rotateY(var(--rest-rotate-y)) rotateZ(var(--rest-rotate-z)) scale(1);
+  }
+}
+
+@keyframes cardEdgeParticleBurst {
+  0%,
+  5% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.16);
+  }
+
+  18% {
+    opacity: 0.96;
+  }
+
+  62% {
+    opacity: 0.68;
+    transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) scale(var(--particle-scale));
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) scale(var(--particle-scale));
+  }
+}
+
+@media (max-width: 700px) {
+  .mapSection {
+    padding: 18px 12px 22px;
+  }
+
+  .heading {
+    gap: 9px;
+    margin: 0 0 11px 1px;
+  }
+
+  .heading p {
+    font-size: 12px;
+  }
+
+  .heading h1 {
+    font-size: 21px;
+  }
+
+  .mapStage {
+    max-height: none;
+  }
+
+  .cardDeckCards {
+    width: min(94%, 460px);
+    gap: 7px;
+  }
+
+  .cardFace {
+    padding: 9px;
+  }
+
+  .goldParticle {
+    width: clamp(4px, 1cqw, 8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .regionGlow,
+  .regionZoom {
+    transition: none;
+  }
+
+  .regionZoom[data-active="true"] {
+    transform: scale(1.014);
+  }
+
+  .learningCard {
+    animation: none;
+    opacity: 1;
+    transform: rotateY(var(--rest-rotate-y)) rotateZ(var(--rest-rotate-z));
+  }
+
+  .goldParticle {
+    animation: none;
+    opacity: 0;
+    transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) scale(var(--particle-scale));
+  }
+}
