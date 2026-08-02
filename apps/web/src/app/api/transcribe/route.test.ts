@@ -7,7 +7,7 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("@/lib/ai/provider", () => ({
-  getGoogleModel: vi.fn(),
+  getChatModel: vi.fn(),
 }));
 
 import { generateText } from "ai";
@@ -85,7 +85,7 @@ function stalledRequest() {
 
 describe("POST /api/transcribe", () => {
   beforeEach(() => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
   });
 
   afterEach(() => {
@@ -118,7 +118,7 @@ describe("POST /api/transcribe", () => {
   });
 
   it("rejects an oversized Content-Length before reading or contacting the provider", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     const { request, cancel } = oversizedStreamRequest(String(9 * 1024 * 1024 + 1));
 
     const response = await POST(request);
@@ -131,7 +131,7 @@ describe("POST /api/transcribe", () => {
   });
 
   it.each([undefined, "1"])("streams and cancels an oversized multipart body with Content-Length %s", async (contentLength) => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     const { request, cancel } = oversizedStreamRequest(contentLength);
 
     const response = await POST(request);
@@ -144,7 +144,7 @@ describe("POST /api/transcribe", () => {
   });
 
   it("returns a stable error before contacting the provider when no key is configured", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "");
+    vi.stubEnv("DEEPSEEK_API_KEY", "");
 
     const response = await POST(audioRequest(new File(["audio"], "clip.ogg", { type: "audio/ogg" })));
 
@@ -172,7 +172,7 @@ describe("POST /api/transcribe", () => {
   });
 
   it("accepts audio MIME parameters and sends the base MIME as an AI SDK file part", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     vi.mocked(generateText).mockResolvedValue({ text: "  transcript  " } as never);
     const response = await POST(audioRequest(new File(["audio"], "clip.webm", { type: "audio/webm;codecs=opus" })));
 
@@ -216,7 +216,7 @@ describe("POST /api/transcribe", () => {
   });
 
   it("fails closed when the provider returns only whitespace", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     vi.mocked(generateText).mockResolvedValue({ text: " \n " } as never);
 
     const response = await POST(audioRequest(new File(["audio"], "clip.ogg", { type: "audio/ogg; codecs=opus" })));
@@ -227,7 +227,7 @@ describe("POST /api/transcribe", () => {
   });
 
   it("releases transcription concurrency only after provider work settles", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     let resolveGeneration: ((value: { text: string }) => void) | undefined;
     vi.mocked(generateText).mockImplementationOnce(() => new Promise((resolve) => {
       resolveGeneration = resolve as (value: { text: string }) => void;

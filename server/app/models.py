@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -181,6 +182,66 @@ class ConversationMessage(Base):
     )
 
     session: Mapped[LearningSession] = relationship(back_populates="messages")
+
+
+class StarbaoConversation(Base):
+    __tablename__ = "starbao_conversations"
+
+    conversation_id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=new_id
+    )
+    device_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True, index=True
+    )
+    speak_on_orangepi: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    latest_sequence: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )
+
+
+class StarbaoMessage(Base):
+    __tablename__ = "starbao_messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "conversation_id",
+            "sequence",
+            name="uq_starbao_messages_conversation_sequence",
+        ),
+        UniqueConstraint(
+            "conversation_id",
+            "client_message_id",
+            name="uq_starbao_messages_conversation_client_message",
+        ),
+        Index("ix_starbao_messages_conversation_sequence", "conversation_id", "sequence"),
+    )
+
+    message_id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=new_id
+    )
+    conversation_id: Mapped[str] = mapped_column(
+        ForeignKey("starbao_conversations.conversation_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    client_message_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    origin: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    reply_to_message_id: Mapped[str | None] = mapped_column(String(36))
+    announce_on_orangepi: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
 
 
 class ExerciseAttempt(Base):

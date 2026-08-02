@@ -7,11 +7,11 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("@/lib/ai/provider", () => ({
-  getGoogleModel: vi.fn(),
+  getChatModel: vi.fn(),
 }));
 
 import { createTextStreamResponse, streamText, toTextStream } from "ai";
-import { getGoogleModel } from "@/lib/ai/provider";
+import { getChatModel } from "@/lib/ai/provider";
 import { resetRequestGuardForTests } from "@/lib/ai/request-guard";
 
 import { POST } from "./route";
@@ -93,7 +93,7 @@ function delayedChatRequest(delayMs: number) {
 
 describe("POST /api/chat", () => {
   beforeEach(() => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
   });
 
   afterEach(() => {
@@ -118,7 +118,7 @@ describe("POST /api/chat", () => {
   });
 
   it("returns a stable error before contacting the provider when no key is configured", async () => {
-    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "");
+    vi.stubEnv("DEEPSEEK_API_KEY", "");
 
     const response = await POST(request(JSON.stringify({
       stage: "lower_primary",
@@ -229,7 +229,7 @@ describe("POST /api/chat", () => {
   });
 
   it("streams a valid request with AI SDK 7 adapters and no-store headers", async () => {
-    vi.mocked(getGoogleModel).mockReturnValue("google-model" as never);
+    vi.mocked(getChatModel).mockReturnValue("deepseek-model" as never);
     const providerStream = new ReadableStream();
     const textStream = new ReadableStream();
     const expectedResponse = new Response("streamed", { headers: { "Cache-Control": "no-store" } });
@@ -245,11 +245,13 @@ describe("POST /api/chat", () => {
 
     expect(response).toBe(expectedResponse);
     expect(streamText).toHaveBeenCalledWith(expect.objectContaining({
-      model: "google-model",
+      model: "deepseek-model",
       instructions: expect.stringContaining("Mambo"),
       messages: [{ role: "user", content: "help" }],
       abortSignal: expect.any(AbortSignal),
+      maxOutputTokens: 120,
       maxRetries: 0,
+      providerOptions: { deepseek: { thinking: { type: "disabled" } } },
     }));
     expect(toTextStream).toHaveBeenCalledWith({ stream: providerStream });
     expect(createTextStreamResponse).toHaveBeenCalledWith({ stream: expect.any(ReadableStream), headers: { "Cache-Control": "no-store" } });
@@ -308,7 +310,7 @@ describe("POST /api/chat", () => {
   });
 
   it("holds concurrency until a chat response stream is cancelled", async () => {
-    vi.mocked(getGoogleModel).mockReturnValue("google-model" as never);
+    vi.mocked(getChatModel).mockReturnValue("deepseek-model" as never);
     vi.mocked(streamText).mockReturnValue({ stream: new ReadableStream() } as never);
     vi.mocked(toTextStream).mockImplementation(() => new ReadableStream());
     vi.mocked(createTextStreamResponse).mockImplementation(({ stream, headers }) => new Response(stream, { headers }));

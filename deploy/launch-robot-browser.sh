@@ -6,6 +6,26 @@ ROBOT_BROWSER="${ROBOT_BROWSER:-}"
 ROBOT_DISPLAY="${ROBOT_DISPLAY:-:0}"
 ROBOT_XAUTHORITY="${ROBOT_XAUTHORITY:-/home/orangepi/.Xauthority}"
 ROBOT_USER_DATA_DIR="${ROBOT_USER_DATA_DIR:-/tmp/mambo-robot-browser}"
+ROBOT_AUDIO_SINK="${ROBOT_AUDIO_SINK:-USB_Speaker}"
+ROBOT_USB_SPEAKER_DEVICE="${ROBOT_USB_SPEAKER_DEVICE:-plughw:3,0}"
+ROBOT_USB_SPEAKER_CARD="${ROBOT_USB_SPEAKER_CARD:-3}"
+ROBOT_AUDIO_SOURCE="${ROBOT_AUDIO_SOURCE:-alsa_input.usb-C-Media_Electronics_Inc._USB_PnP_Sound_Device-00.analog-mono}"
+ROBOT_USB_MIC_VOLUME="${ROBOT_USB_MIC_VOLUME:-80%}"
+
+if command -v amixer >/dev/null 2>&1; then
+  amixer -c "$ROBOT_USB_SPEAKER_CARD" sset PCM 100% unmute >/dev/null 2>&1 || true
+fi
+
+if command -v pactl >/dev/null 2>&1; then
+  pactl set-default-source "$ROBOT_AUDIO_SOURCE" >/dev/null 2>&1 || true
+  pactl set-source-volume "$ROBOT_AUDIO_SOURCE" "$ROBOT_USB_MIC_VOLUME" >/dev/null 2>&1 || true
+  if ! pactl list short sinks | awk '{print $2}' | grep -Fxq "$ROBOT_AUDIO_SINK"; then
+    pactl load-module module-alsa-sink \
+      sink_name="$ROBOT_AUDIO_SINK" device="$ROBOT_USB_SPEAKER_DEVICE" \
+      rate=48000 channels=2 >/dev/null 2>&1 || true
+  fi
+  pactl set-default-sink "$ROBOT_AUDIO_SINK" >/dev/null 2>&1 || true
+fi
 
 if [[ -z "$ROBOT_BROWSER" && -x /usr/bin/snap ]]; then
   snap_caps="$(getcap /usr/lib/snapd/snap-confine 2>/dev/null || true)"
@@ -28,6 +48,7 @@ if [[ "${ROBOT_LOCAL_PROXY:-0}" == "1" ]]; then
 fi
 
 if [[ "${ROBOT_BROWSER:-}" == "webkit" ]]; then
+  export ROBOT_URL
   export DISPLAY="$ROBOT_DISPLAY"
   export XAUTHORITY="$ROBOT_XAUTHORITY"
   export LIBGL_ALWAYS_SOFTWARE="${LIBGL_ALWAYS_SOFTWARE:-1}"

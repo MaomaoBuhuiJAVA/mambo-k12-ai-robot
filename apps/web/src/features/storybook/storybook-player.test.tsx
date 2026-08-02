@@ -42,9 +42,12 @@ describe("StorybookPlayer", () => {
     expect(screen.getByRole("img", { name: /数字泡泡相邻排队/ })).toBeVisible();
     expect(screen.queryByRole("img", { name: /隐藏特征节点/ })).not.toBeInTheDocument();
 
-    const answer = screen.getAllByRole("button", { name: /答案：/ })[0];
-    await user.click(answer);
-    expect(screen.getByRole("status")).toHaveTextContent(/正确|再想一想/);
+    const correctAnswer = createSeedStorybook(course).pages[1]!.interactiveQuestion.answer;
+    await user.click(screen.getByRole("button", { name: `答案：${correctAnswer}` }));
+    const feedback = screen.getByRole("status");
+    expect(feedback).toHaveTextContent("正确");
+    expect(feedback).toHaveAttribute("data-correct", "true");
+    expect(feedback.querySelector('[data-starbao-mood="cheer"]')).toBeInTheDocument();
   });
 
   it("saves, restores, reads aloud, and can regenerate", async () => {
@@ -83,6 +86,16 @@ describe("StorybookPlayer", () => {
     expect(screen.getByText("已保存 1 个版本")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "重新生成" }));
     expect(await screen.findByText("新绘本")).toBeVisible();
+  });
+
+  it("uses drawing frames while a storybook generation is in progress", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise<Response>(() => undefined));
+    const { container } = render(<StorybookPlayer course={course} />);
+
+    await user.click(screen.getByRole("button", { name: "重新生成" }));
+
+    expect(container.querySelector('[data-starbao-mood="drawing"]')).toBeInTheDocument();
   });
 
   it("preserves saved storybooks that belong to other courses", async () => {

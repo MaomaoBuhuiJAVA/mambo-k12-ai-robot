@@ -2,12 +2,17 @@ import type { GestureName, GestureObservation } from "./gesture-controller";
 
 export type Landmark = { x: number; y: number; z?: number };
 
+export type HandFrame = {
+  observation: GestureObservation;
+  landmarks: Landmark[];
+};
+
 type LandmarkerLike = {
   detectForVideo: (video: HTMLVideoElement, timestampMs: number) => { landmarks?: Landmark[][] };
   close: () => void;
 };
 
-type HandObservationHandler = (observation: GestureObservation) => void;
+type HandFrameHandler = (frame: HandFrame) => void;
 
 const FINGER_CHAINS = [
   [8, 6, 5],
@@ -72,8 +77,15 @@ export function observationFromLandmarks(landmarkSets: Landmark[][], timestamp: 
   };
 }
 
-export const HAND_LANDMARK_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
-export const MEDIAPIPE_WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
+export function handFrameFromLandmarks(landmarkSets: Landmark[][], timestamp: number): HandFrame {
+  return {
+    observation: observationFromLandmarks(landmarkSets, timestamp),
+    landmarks: landmarkSets[0] ?? [],
+  };
+}
+
+export const HAND_LANDMARK_MODEL_URL = "/models/hand/hand_landmarker.task";
+export const MEDIAPIPE_WASM_URL = "/vendor/mediapipe/wasm";
 
 export class BrowserHandTracker {
   private animationFrame: number | null = null;
@@ -82,7 +94,7 @@ export class BrowserHandTracker {
   constructor(
     private readonly landmarker: LandmarkerLike,
     private readonly video: HTMLVideoElement,
-    private readonly onObservation: HandObservationHandler,
+    private readonly onFrame: HandFrameHandler,
   ) {}
 
   start(): void {
@@ -93,7 +105,7 @@ export class BrowserHandTracker {
       if (this.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         const timestamp = performance.now();
         const result = this.landmarker.detectForVideo(this.video, timestamp);
-        this.onObservation(observationFromLandmarks(result.landmarks ?? [], timestamp));
+        this.onFrame(handFrameFromLandmarks(result.landmarks ?? [], timestamp));
       }
       this.animationFrame = requestAnimationFrame(detect);
     };
@@ -110,7 +122,7 @@ export class BrowserHandTracker {
 
 export async function createBrowserHandTracker(
   video: HTMLVideoElement,
-  onObservation: HandObservationHandler,
+  onFrame: HandFrameHandler,
 ): Promise<BrowserHandTracker> {
   const { FilesetResolver, HandLandmarker } = await import("@mediapipe/tasks-vision");
   const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_URL);
@@ -122,5 +134,5 @@ export async function createBrowserHandTracker(
     minHandPresenceConfidence: 0.55,
     minTrackingConfidence: 0.55,
   });
-  return new BrowserHandTracker(landmarker, video, onObservation);
+  return new BrowserHandTracker(landmarker, video, onFrame);
 }

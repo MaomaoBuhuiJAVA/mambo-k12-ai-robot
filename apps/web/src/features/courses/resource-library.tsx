@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download, FileText, Presentation, Video } from "lucide-react";
 
 import type { CurriculumCourse } from "@/data/curriculum";
+import { StarbaoSprite } from "@/components/starbao/starbao-sprite";
 
 import { KnowledgeEvidence } from "./knowledge-evidence";
 import styles from "./resource-library.module.css";
@@ -58,7 +59,10 @@ export function ResourceLibrary({ course }: { course: CurriculumCourse }) {
     <section className={styles.library} aria-label="课程资源库">
       <header>
         <div><span>学习资源</span><h3>{course.title}材料库</h3></div>
-        <p role="status">{status}</p>
+        <div className={styles.headerStatus}>
+          {activeDownload === "pptx" ? <StarbaoSprite mood="drawing" className={styles.generationMascot} /> : null}
+          <p role="status">{status}</p>
+        </div>
       </header>
       <div className={styles.downloads}>
         <button type="button" aria-label="下载 Word 讲义" onClick={() => startDownload("docx")} disabled={activeDownload !== null}>

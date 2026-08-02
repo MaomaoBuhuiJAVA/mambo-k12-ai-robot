@@ -10,6 +10,7 @@ from .repositories import mark_all_devices_offline
 from .routes.devices import router as device_router
 from .routes.devices import websocket_router
 from .routes.learning import router as learning_router
+from .routes.starbao import router as starbao_router
 from .routes.voice import router as voice_router
 
 
@@ -30,6 +31,7 @@ app = FastAPI(
 )
 app.include_router(device_router)
 app.include_router(learning_router)
+app.include_router(starbao_router)
 app.include_router(voice_router)
 app.include_router(websocket_router)
 

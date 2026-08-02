@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyHandLandmarks, landmarksFromFlatOutput, observationFromLandmarks, type Landmark } from "./hand-tracker";
+import {
+  HAND_LANDMARK_MODEL_URL,
+  MEDIAPIPE_WASM_URL,
+  classifyHandLandmarks,
+  handFrameFromLandmarks,
+  landmarksFromFlatOutput,
+  observationFromLandmarks,
+  type Landmark,
+} from "./hand-tracker";
 
 function point(x: number, y: number, z = 0): Landmark {
   return { x, y, z };
@@ -40,6 +48,13 @@ describe("classifyHandLandmarks", () => {
   });
 });
 
+describe("local model assets", () => {
+  it("loads the hand model and MediaPipe runtime from the app instead of a CDN", () => {
+    expect(HAND_LANDMARK_MODEL_URL).toBe("/models/hand/hand_landmarker.task");
+    expect(MEDIAPIPE_WASM_URL).toBe("/vendor/mediapipe/wasm");
+  });
+});
+
 describe("observationFromLandmarks", () => {
   it("mirrors the hand center for a natural camera cursor", () => {
     const landmarks = handWithFingerTips([1, 1, 1, 1]);
@@ -64,6 +79,17 @@ describe("observationFromLandmarks", () => {
       y: 0.5,
       confidence: 0,
       timestamp: 42,
+    });
+  });
+});
+
+describe("handFrameFromLandmarks", () => {
+  it("keeps the detected landmarks available for the live camera overlay", () => {
+    const landmarks = handWithFingerTips([1, 1, 1, 1]);
+
+    expect(handFrameFromLandmarks([landmarks], 42)).toMatchObject({
+      landmarks,
+      observation: { gesture: "open_palm", timestamp: 42 },
     });
   });
 });

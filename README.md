@@ -23,9 +23,12 @@ server/migrations/      Alembic 数据库迁移
 docs/protocol.md        WebSocket 消息协议
 docs/architecture.md    架构边界与后续路线
 docs/product-technical-design.md  产品与完整技术设计
+docs/quick-start-orangepi.md      Windows 与香橙派快速启动
 deploy/                 OrangePi systemd 配置
 scripts/                服务端启动脚本
 ```
+
+当前演示环境的 Windows 服务端、转发代理与香橙派 Kiosk 启动顺序，见 [Windows 服务端与香橙派硬件端快速启动](docs/quick-start-orangepi.md)。
 
 ## 启动服务端
 
@@ -133,6 +136,75 @@ COMMAND_TIMEOUT_SECONDS=30
 服务端设备命令的完整参数和错误码见 `docs/protocol.md`。
 
 已经安装 systemd 服务时，开发板开机后会自行连接服务端，无需先 SSH。部署详情见 `deploy/mambo-device-agent.service`。
+
+## 启动机器人 Kiosk 页面
+
+设备代理和机器人页面是两个独立进程：`mambo-device-agent.service` 负责设备
+WebSocket、硬件命令和状态上报；`/robot` 由 OrangePi 桌面的 WebKit/Chromium
+窗口显示。仅启动代理时，开发板会停留在桌面，这是预期行为。
+
+### 1. 在 Windows 启动可被开发板访问的生产 Web 服务
+
+`/robot` 的上游 Web 服务必须监听局域网地址，不能只绑定 `127.0.0.1`。以下命令
+以 Windows 主机 `192.168.1.18` 为例；换网络后应替换为该主机当前的局域网 IPv4
+地址：
+
+```powershell
+npm run build --workspace apps/web
+npm run start --workspace apps/web -- --hostname 0.0.0.0 --port 3001
+```
+
+从 OrangePi 验证上游页面：
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.1.18:3001/robot
+```
+
+预期输出为 `200`。如果 Windows 服务只监听 `127.0.0.1`，开发板无法访问它。
+不要将 `next dev` 作为 Kiosk 上游：本地代理不会转发开发服务器的 HMR WebSocket，
+会导致页面反复重载、组件闪烁，并使语音和手势初始化无法完成。
+
+### 2. 启动设备代理
+
+安装完成后，设备代理应由 systemd 守护：
+
+```bash
+sudo systemctl enable --now mambo-device-agent.service
+systemctl is-active mambo-device-agent.service
+journalctl -u mambo-device-agent.service -n 40 --no-pager
+```
+
+预期状态为 `active`，日志中出现设备注册信息。该服务不会自动打开浏览器页面。
+
+### 3. 启动 OrangePi 页面
+
+在 OrangePi 的 `orangepi` 用户会话中运行。当前板子的 Chromium Snap 已验证为
+不可用，因此显式使用 WebKit；脚本会在 `127.0.0.1:3010` 启动本地代理，再由
+WebKit 全屏显示页面。
+
+```bash
+nohup env \
+  ROBOT_URL=http://127.0.0.1:3010/robot \
+  ROBOT_BROWSER=webkit \
+  ROBOT_LOCAL_PROXY=1 \
+  ROBOT_PROXY_UPSTREAM=http://192.168.1.18:3001 \
+  DISPLAY=:0 \
+  XAUTHORITY=/home/orangepi/.Xauthority \
+  /opt/mambo-k12-ai-robot/deploy/launch-robot-browser.sh \
+  >/tmp/mambo-robot-browser.log 2>&1 </dev/null &
+```
+
+确认页面进程和代理都正常：
+
+```bash
+pgrep -af 'launch-robot-webkit.py|local-web-proxy.py'
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3010/robot
+tail -n 40 /tmp/mambo-robot-browser.log
+```
+
+预期 WebKit 和 `local-web-proxy.py` 两个进程存在，`3010/robot` 返回 `200`。
+HTTP 上游仅用于页面显示验证；摄像头手势应使用 HTTPS，不能为正式部署开启
+`ROBOT_ALLOW_INSECURE_CAMERA=1`。
 
 ## 数据库
 

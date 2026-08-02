@@ -2,9 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import { getCourseById } from "@/data/curriculum";
 
-import { buildSystemPrompt } from "./prompt";
+import { buildSystemPrompt, getChatMaxOutputTokens } from "./prompt";
 
 describe("buildSystemPrompt", () => {
+  it.each([
+    ["lower_primary", 120],
+    ["upper_primary", 180],
+    ["middle_school", 280],
+    ["high_school", 440],
+  ] as const)("sets a concise output budget for %s", (stage, expected) => {
+    expect(getChatMaxOutputTokens(stage)).toBe(expected);
+  });
+
   it.each([
     ["lower_primary", "低龄", "短句", "一次只问一个问题"],
     ["upper_primary", "小学高年级", "引导", "一次只问一个问题"],

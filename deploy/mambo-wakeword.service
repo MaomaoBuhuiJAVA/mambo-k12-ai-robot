@@ -1,0 +1,13 @@
+[Unit]
+Description=Mambo local wake word listener
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/mambo-k12-ai-robot/deploy/wakeword-daemon.py --keywords-file /opt/mambo-k12-ai-robot/deploy/wakeword-keywords.txt
+KillMode=control-group
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

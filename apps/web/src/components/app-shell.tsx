@@ -8,10 +8,11 @@ import {
 } from "lucide-react";
 
 import { DeviceStatus } from "@/features/device/device-status";
+import { workspaceHref } from "@/lib/workspace-route";
 
 const PRIMARY_NAVIGATION = [
-  { label: "今日学习", href: "/#workspace", icon: House, current: true },
-  { label: "课程", href: "/?view=path#course-rail", icon: BookOpen },
+  { label: "今日学习", href: workspaceHref({ hash: "workspace" }), icon: House, current: true },
+  { label: "课程", href: workspaceHref({ view: "path", hash: "course-rail" }), icon: BookOpen },
   { label: "编程实验", href: "/lab", icon: Code2 },
   { label: "作品", href: "/progress#works", icon: FolderOpen },
   {

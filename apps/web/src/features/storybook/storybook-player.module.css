@@ -28,4 +28,7 @@
 .footer button { display: inline-flex; align-items: center; gap: 3px; min-height: 36px; padding: 7px 10px; border: 1px solid #c7d9d5; border-radius: 5px; color: #176f66; background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
 .footer button:disabled { cursor: default; opacity: .35; }
 .footer span { color: #66807c; font-size: 11px; text-align: center; overflow-wrap: anywhere; }
+.generationMascot { width: 42px; height: 46px; flex: 0 0 42px; }
+.question p { display: flex; align-items: center; gap: 8px; }
+.feedbackMascot { width: 34px; height: 37px; flex: 0 0 34px; }
 @media (max-width: 520px) { .header { align-items: stretch; flex-direction: column; } .scene { grid-template-columns: 1fr; } .illustration img { min-height: 0; aspect-ratio: 16 / 10; } .footer { grid-template-columns: 1fr 1fr; } .footer span { grid-column: 1 / -1; grid-row: 2; } }

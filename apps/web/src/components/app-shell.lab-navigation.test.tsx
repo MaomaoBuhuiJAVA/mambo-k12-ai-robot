@@ -16,12 +16,21 @@ describe("AppShell lab navigation", () => {
     expect(screen.getByRole("link", { name: /编程实验/ })).toHaveAttribute("href", "/lab");
   });
 
-  it("opens the course path instead of pointing at an already-visible anchor", () => {
+  it("opens the course path inside the dedicated workspace route", () => {
     render(<AppShell><div>workspace</div></AppShell>);
 
     expect(screen.getByRole("link", { name: "课程" })).toHaveAttribute(
       "href",
-      "/?view=path#course-rail",
+      "/workspace?view=path#course-rail",
+    );
+  });
+
+  it("opens today's learning workspace without relying on the homepage route", () => {
+    render(<AppShell><div>workspace</div></AppShell>);
+
+    expect(screen.getByRole("link", { name: "今日学习" })).toHaveAttribute(
+      "href",
+      "/workspace#workspace",
     );
   });
 

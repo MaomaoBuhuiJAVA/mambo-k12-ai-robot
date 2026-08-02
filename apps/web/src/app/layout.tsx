@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { CloudTransitionProvider } from "@/components/cloud-transition/cloud-transition-provider";
+import { RobotGestureProvider } from "@/components/robot/robot-gesture-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,7 +21,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className={geistSans.variable}>
-      <body>{children}</body>
+      <body>
+        <CloudTransitionProvider>
+          <RobotGestureProvider>{children}</RobotGestureProvider>
+        </CloudTransitionProvider>
+      </body>
     </html>
   );
 }

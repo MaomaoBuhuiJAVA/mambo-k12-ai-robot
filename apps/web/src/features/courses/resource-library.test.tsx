@@ -50,4 +50,14 @@ describe("ResourceLibrary", () => {
     expect(source).toHaveAttribute("target", "_blank");
     expect(source).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
   });
+
+  it("uses drawing frames while generating a PowerPoint lesson", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise<Response>(() => undefined));
+    const { container } = render(<ResourceLibrary course={course} />);
+
+    await user.click(screen.getByRole("button", { name: "下载 PowerPoint 课件" }));
+
+    expect(container.querySelector('[data-starbao-mood="drawing"]')).toBeInTheDocument();
+  });
 });
