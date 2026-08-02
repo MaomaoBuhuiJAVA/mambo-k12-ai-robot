@@ -17,6 +17,7 @@ import {
 import styles from "./page.module.css";
 import { StarbaoSprite, type StarbaoMood } from "@/components/starbao/starbao-sprite";
 import StarJourneyCard from "@/components/star-journey-card/StarJourneyCard";
+import { useCloudTransition } from "@/components/cloud-transition/cloud-transition-provider";
 import { resolvePetPanelPosition, type PetPanelPosition } from "./pet-panel-position";
 import { resolvePatrolMotionState, type PatrolMotionState } from "./patrol-motion";
 import { GESTURE_NAVIGATE_EVENT, type GestureNavigationDirection } from "@/components/robot/robot-gesture-provider";
@@ -261,6 +262,7 @@ function usePatrolMotionState(
 
 export default function PreviewPage() {
   const router = useRouter();
+  const { notifyHomeReady } = useCloudTransition();
   const activeFloor: FloorId = "explore";
   const [petOpen, setPetOpen] = useState(false);
   const [petChatAnchor, setPetChatAnchor] = useState<PetChatAnchor>("launcher");
@@ -303,6 +305,11 @@ export default function PreviewPage() {
       : "running";
   const heroPetPatrolPaused = patrolPlayback !== "running";
   const { state: heroPetPatrolState, direction: heroPetPatrolDirection } = usePatrolMotionState(heroPetPatrolRef, patrolPlayback);
+
+  useEffect(() => {
+    notifyHomeReady();
+  }, [notifyHomeReady]);
+
   const setPetMoodIfChanged = useCallback((mood: PetMood) => {
     if (petMoodRef.current === mood) return;
     petMoodRef.current = mood;

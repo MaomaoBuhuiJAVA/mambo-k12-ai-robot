@@ -1,4 +1,6 @@
 .page {
+  width: 100vw;
+  height: 100dvh;
   min-height: 100dvh;
   overflow: hidden;
   color: #f7f3dd;
@@ -6,55 +8,88 @@
 }
 
 .mapSection {
-  width: min(100%, 1680px);
+  width: 100vw;
+  height: 100dvh;
   min-height: 100dvh;
-  margin: 0 auto;
-  padding: 28px 28px 34px;
-}
-
-.heading {
-  display: flex;
-  align-items: baseline;
-  gap: 13px;
-  margin: 0 0 15px 2px;
-}
-
-.heading p {
-  color: #91dcff;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.heading h1 {
-  color: #fff4c5;
-  font-size: 26px;
-  font-weight: 850;
-  line-height: 1.15;
 }
 
 .mapStage {
   position: relative;
-  width: min(100%, calc((100dvh - 103px) * 1.5));
-  max-height: calc(100dvh - 103px);
-  aspect-ratio: 3 / 2;
-  margin: 0 auto;
+  width: 100vw;
+  height: 100dvh;
   overflow: hidden;
-  border: 2px solid #236b9a;
+  border: 0;
+  isolation: isolate;
   background: #083665;
-  box-shadow: 0 0 0 3px #0a4275, 0 20px 46px rgb(0 14 36 / 45%);
+}
+
+.oceanBackdrop {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background-color: #083665;
+  background-image: url("/assets/learning-map/starbao-learning-ocean-backdrop.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  image-rendering: pixelated;
+}
+
+.returnLink {
+  position: absolute;
+  z-index: 4;
+  top: max(18px, env(safe-area-inset-top));
+  left: max(18px, env(safe-area-inset-left));
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px 0 11px;
+  border: 1px solid rgb(178 231 255 / 78%);
+  color: #f5fbff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  background: rgb(4 42 76 / 84%);
+  box-shadow: 0 7px 17px rgb(0 20 47 / 38%);
+  backdrop-filter: blur(4px);
+  clip-path: polygon(0 7px, 7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.returnLink:hover {
+  background: rgb(14 81 130 / 94%);
+  box-shadow: 0 0 0 2px rgb(174 234 255 / 26%), 0 8px 20px rgb(0 20 47 / 48%);
+  transform: translateY(-1px);
+}
+
+.returnLink:focus-visible {
+  outline: 2px solid #fff3a8;
+  outline-offset: 3px;
+}
+
+.returnLink:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .mapArtwork {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   image-rendering: pixelated;
 }
 
 .hotspotOverlay {
   position: absolute;
-  z-index: 1;
+  z-index: 2;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -284,27 +319,6 @@
 }
 
 @media (max-width: 700px) {
-  .mapSection {
-    padding: 18px 12px 22px;
-  }
-
-  .heading {
-    gap: 9px;
-    margin: 0 0 11px 1px;
-  }
-
-  .heading p {
-    font-size: 12px;
-  }
-
-  .heading h1 {
-    font-size: 21px;
-  }
-
-  .mapStage {
-    max-height: none;
-  }
-
   .cardDeckCards {
     width: min(94%, 460px);
     gap: 7px;
@@ -316,6 +330,14 @@
 
   .goldParticle {
     width: clamp(4px, 1cqw, 8px);
+  }
+}
+
+@media (max-aspect-ratio: 3 / 2) {
+  .oceanBackdrop {
+    background-image: url("/assets/learning-map/ocean-water-tile.png");
+    background-repeat: repeat;
+    background-size: 272px 272px;
   }
 }
 

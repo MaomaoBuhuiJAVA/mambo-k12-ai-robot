@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
 
+import { useCloudTransition } from "@/components/cloud-transition/cloud-transition-provider";
 import styles from "./page.module.css";
 import regionLayout from "./region-layout.json";
 
@@ -124,9 +126,15 @@ function regionAsset(id: MapRegionId, suffix: "mask" | "zoom") {
 }
 
 export default function LearningMapPage() {
+  const { isTransitioning, notifyMapReady, startHomeTransition } = useCloudTransition();
   const [activeRegion, setActiveRegion] = useState<MapRegionId | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<MapRegionId | null>(null);
   const [deckLaunchKey, setDeckLaunchKey] = useState(0);
+  const [mapImageLoaded, setMapImageLoaded] = useState(false);
+
+  useEffect(() => {
+    if (mapImageLoaded) notifyMapReady();
+  }, [mapImageLoaded, notifyMapReady]);
 
   function selectRegion(id: MapRegionId) {
     setActiveRegion(id);
@@ -139,21 +147,32 @@ export default function LearningMapPage() {
     setSelectedRegion(null);
   }
 
+  function returnToHome() {
+    startHomeTransition();
+  }
+
   return (
     <main className={styles.page}>
-      <section className={styles.mapSection} aria-labelledby="learning-map-title">
-        <div className={styles.heading}>
-          <p>星宝世界</p>
-          <h1 id="learning-map-title">小学学习地图</h1>
-        </div>
-
+      <section className={styles.mapSection} aria-label="小学学习地图">
         <div className={styles.mapStage}>
+          <div aria-hidden="true" className={styles.oceanBackdrop} />
+          <button
+            aria-label="返回首页"
+            className={styles.returnLink}
+            disabled={isTransitioning}
+            onClick={returnToHome}
+            type="button"
+          >
+            <ArrowLeft aria-hidden="true" size={18} />
+            <span>返回首页</span>
+          </button>
           <Image
             className={styles.mapArtwork}
-            src="/assets/learning-map/starbao-learning-islands.png"
+            src="/assets/learning-map/starbao-learning-islands-transparent-water.png"
             alt="小学学习地图"
             width={mapWidth}
             height={mapHeight}
+            onLoad={() => setMapImageLoaded(true)}
             priority
           />
           <svg className={styles.hotspotOverlay} viewBox={`0 0 ${mapWidth} ${mapHeight}`} aria-label="学习地图热点区域">

@@ -1,24 +1,69 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LearningMapPage from "./page";
+
+const mapStylesSource = readFileSync(resolve(process.cwd(), "src/app/map/page.module.css"), "utf8");
+const notifyMapReady = vi.fn();
+const startHomeTransition = vi.fn(() => true);
+
+vi.mock("@/components/cloud-transition/cloud-transition-provider", () => ({
+  useCloudTransition: () => ({ notifyMapReady, startHomeTransition, isTransitioning: false }),
+}));
 
 vi.mock("next/image", () => ({
   default: ({ alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => <img alt={alt} {...props} />,
 }));
 
 describe("Learning map route", () => {
+  beforeEach(() => {
+    notifyMapReady.mockReset();
+  });
+
   it("publishes a standalone interactive map page", () => {
     expect(existsSync(resolve(process.cwd(), "src/app/map/page.tsx"))).toBe(true);
+  });
+
+  it("starts the cloud transition when returning to the preview home page", () => {
+    render(<LearningMapPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "返回首页" }));
+
+    expect(startHomeTransition).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the full map visible over a dedicated ocean backdrop", () => {
+    expect(mapStylesSource).toContain(".oceanBackdrop");
+    expect(mapStylesSource).toContain("background-image:");
+    expect(mapStylesSource).toContain("object-fit: contain;");
+  });
+
+  it("reports readiness after the full map artwork has loaded", () => {
+    render(<LearningMapPage />);
+
+    fireEvent.load(screen.getByRole("img", { name: "小学学习地图" }));
+
+    expect(notifyMapReady).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the supplied widescreen ocean backdrop without changing hotspot geometry", () => {
+    expect(existsSync(resolve(process.cwd(), "public/assets/learning-map/starbao-learning-ocean-backdrop.png"))).toBe(true);
+    expect(mapStylesSource).toContain("starbao-learning-ocean-backdrop.png");
+    expect(mapStylesSource).toContain("@media (max-aspect-ratio: 3 / 2)");
   });
 
   it("renders five independent focusable hotspots with matching visual layers", () => {
     render(<LearningMapPage />);
 
-    expect(screen.getByRole("img", { name: "小学学习地图" })).toHaveAttribute("src", "/assets/learning-map/starbao-learning-islands.png");
+    expect(screen.queryByRole("heading", { name: "小学学习地图" })).not.toBeInTheDocument();
+    expect(mapStylesSource).toContain("width: 100vw;");
+    expect(mapStylesSource).toContain("height: 100dvh;");
+    expect(mapStylesSource).toContain("object-fit: contain;");
+    expect(existsSync(resolve(process.cwd(), "public/assets/learning-map/starbao-learning-islands-transparent-water.png"))).toBe(true);
+    expect(screen.getByRole("img", { name: "小学学习地图" })).toHaveAttribute("src", "/assets/learning-map/starbao-learning-islands-transparent-water.png");
     expect(screen.getAllByTestId("map-hotspot")).toHaveLength(5);
     expect(screen.getAllByTestId("map-hotspot").every((hotspot) => hotspot.tagName.toLowerCase() === "path")).toBe(true);
     expect(screen.getAllByTestId(/map-region-glow-/)).toHaveLength(5);

@@ -8,6 +8,8 @@ import { GESTURE_NAVIGATE_EVENT } from "@/components/robot/robot-gesture-provide
 import PreviewPage from "./page";
 
 const push = vi.fn();
+const startMapTransition = vi.fn(() => true);
+const notifyHomeReady = vi.fn();
 const sendTurn = vi.fn();
 const setSpeakOnOrangePi = vi.fn();
 const previewPageSource = readFileSync(resolve(process.cwd(), "src/app/preview/page.tsx"), "utf8");
@@ -64,6 +66,16 @@ function dispatchGestureNavigation(direction: "previous" | "next") {
   });
 }
 
+vi.mock("@/components/cloud-transition/cloud-transition-provider", () => ({
+  useCloudTransition: () => ({
+    isTransitioning: false,
+    notifyMapReady: vi.fn(),
+    notifyHomeReady,
+    startMapTransition,
+    startHomeTransition: vi.fn(() => true),
+  }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
@@ -84,11 +96,20 @@ vi.mock("@/features/starbao/use-shared-starbao-conversation", () => ({
 describe("PreviewPage Starbao chat", () => {
   beforeEach(() => {
     push.mockReset();
+    startMapTransition.mockReset();
+    startMapTransition.mockReturnValue(true);
+    notifyHomeReady.mockReset();
     sendTurn.mockReset();
     setSpeakOnOrangePi.mockReset();
     sendTurn.mockResolvedValue(undefined);
     setSpeakOnOrangePi.mockResolvedValue(undefined);
     sharedConversationState.isSending = false;
+  });
+
+  it("reports that the preview home page is ready for a reverse cloud reveal", () => {
+    render(<PreviewPage />);
+
+    expect(notifyHomeReady).toHaveBeenCalledTimes(1);
   });
 
   it("uses the shared Starbao history and submits a web visitor message", () => {
@@ -337,6 +358,18 @@ describe("PreviewPage Starbao chat", () => {
     fireEvent.click(screen.getByRole("button", { name: "上一步" }));
     expect(screen.getByRole("button", { name: "前往第 3 步" })).toHaveAttribute("aria-current", "step");
     expect(screen.getByRole("heading", { name: "你对AI了解多少？" })).toBeInTheDocument();
+  });
+
+  it("opens the primary-school learning map when the journey starts", () => {
+    render(<PreviewPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "下一步" }));
+    fireEvent.click(screen.getByRole("radio", { name: "小学" }));
+    fireEvent.click(screen.getByRole("button", { name: "下一步" }));
+    fireEvent.click(screen.getByRole("button", { name: "下一步" }));
+    fireEvent.click(screen.getByRole("button", { name: "开始" }));
+
+    expect(startMapTransition).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the clickable woodland path above the changing step content", () => {

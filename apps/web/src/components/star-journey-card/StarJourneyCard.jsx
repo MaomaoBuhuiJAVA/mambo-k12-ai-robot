@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { useCloudTransition } from '@/components/cloud-transition/cloud-transition-provider';
 import Stepper, { Step } from './Stepper';
 import cardStyles from './StarJourneyCard.module.css';
 import forestVineFrame from './assets/forest-vine-frame.png';
@@ -48,9 +49,16 @@ function ChoiceGroup({ name, value, onChange, options, label, compact = false })
 }
 
 export default function StarJourneyCard() {
+  const { isTransitioning, startMapTransition } = useCloudTransition();
   const [stage, setStage] = useState('primary');
   const [familiarity, setFamiliarity] = useState('new');
   const [format, setFormat] = useState('storybook');
+
+  function handleFinalStepCompleted() {
+    if (stage === 'primary') {
+      startMapTransition();
+    }
+  }
 
   return (
     <div role="region" aria-label="星宝学习旅程" className={cardStyles.card} style={styles.card}>
@@ -61,8 +69,9 @@ export default function StarJourneyCard() {
           backButtonText="上一步"
           nextButtonText="下一步"
           finalButtonText="开始"
-          onFinalStepCompleted={() => undefined}
+          onFinalStepCompleted={handleFinalStepCompleted}
           disableStepIndicators={false}
+          interactionLocked={isTransitioning}
         >
           <Step>
             <div style={styles.stepContent}>

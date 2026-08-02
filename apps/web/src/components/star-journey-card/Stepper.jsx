@@ -22,6 +22,7 @@ export default function Stepper({
   nextButtonText = 'Next',
   finalButtonText = 'Finish',
   disableStepIndicators = false,
+  interactionLocked = false,
 }) {
   const steps = useMemo(() => Children.toArray(children), [children]);
   const totalSteps = steps.length;
@@ -56,7 +57,7 @@ export default function Stepper({
   };
 
   return (
-    <section aria-label="星宝步骤" style={styles.root}>
+    <section aria-busy={interactionLocked || undefined} aria-label="星宝步骤" style={styles.root}>
       {!disableStepIndicators && (
         <div aria-label={`第 ${currentStep} 步，共 ${totalSteps} 步`} style={styles.progressTrack}>
           {steps.map((_, index) => {
@@ -71,6 +72,7 @@ export default function Stepper({
                   type="button"
                   aria-current={isActive ? 'step' : undefined}
                   aria-label={`前往第 ${stepNumber} 步`}
+                  disabled={interactionLocked}
                   onClick={() => goToStep(stepNumber)}
                   style={{
                     ...styles.progressStep,
@@ -115,11 +117,11 @@ export default function Stepper({
         <button
           type="button"
           onClick={() => goToStep(currentStep - 1)}
-          disabled={isFirstStep}
+          disabled={isFirstStep || interactionLocked}
           style={{
             ...styles.button,
             ...styles.backButton,
-            ...(isFirstStep ? styles.disabledButton : {}),
+            ...(isFirstStep || interactionLocked ? styles.disabledButton : {}),
           }}
         >
           {backButtonText}
@@ -127,6 +129,7 @@ export default function Stepper({
         <button
           type="button"
           aria-label={isFinalStep ? finalButtonText : nextButtonText}
+          disabled={interactionLocked}
           onClick={handleNext}
           style={{ ...styles.button, ...styles.nextButton, ...(isFinalStep ? styles.finalButton : {}) }}
         >

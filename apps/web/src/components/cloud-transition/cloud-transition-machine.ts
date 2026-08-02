@@ -4,29 +4,32 @@ export const CLOUD_MAXIMUM_HOLD_MS = 5_000;
 export const CLOUD_REVEAL_DURATION_MS = 650;
 
 export type CloudTransitionPhase = "idle" | "covering" | "holding" | "revealing";
+export type CloudTransitionDestination = "map" | "home";
 
 export type CloudTransitionState = {
   phase: CloudTransitionPhase;
-  mapReady: boolean;
+  destination: CloudTransitionDestination | null;
+  pageReady: boolean;
   minimumHoldElapsed: boolean;
 };
 
 export type CloudTransitionEvent =
-  | { type: "START" }
+  | { type: "START"; destination: CloudTransitionDestination }
   | { type: "COVERED" }
-  | { type: "MAP_READY" }
+  | { type: "PAGE_READY"; destination: CloudTransitionDestination }
   | { type: "MINIMUM_HOLD_ELAPSED" }
   | { type: "MAXIMUM_HOLD_ELAPSED" }
   | { type: "REVEAL_FINISHED" };
 
 export const initialCloudTransitionState: CloudTransitionState = {
   phase: "idle",
-  mapReady: false,
+  destination: null,
+  pageReady: false,
   minimumHoldElapsed: false,
 };
 
 function revealWhenReady(state: CloudTransitionState): CloudTransitionState {
-  return state.mapReady && state.minimumHoldElapsed
+  return state.pageReady && state.minimumHoldElapsed
     ? { ...state, phase: "revealing" }
     : state;
 }
@@ -38,15 +41,15 @@ export function transitionCloudState(
   switch (event.type) {
     case "START":
       return state.phase === "idle"
-        ? { phase: "covering", mapReady: false, minimumHoldElapsed: false }
+        ? { phase: "covering", destination: event.destination, pageReady: false, minimumHoldElapsed: false }
         : state;
     case "COVERED":
       return state.phase === "covering"
-        ? { phase: "holding", mapReady: false, minimumHoldElapsed: false }
+        ? { ...state, phase: "holding", pageReady: false, minimumHoldElapsed: false }
         : state;
-    case "MAP_READY":
-      return state.phase === "holding"
-        ? revealWhenReady({ ...state, mapReady: true })
+    case "PAGE_READY":
+      return state.phase === "holding" && state.destination === event.destination
+        ? revealWhenReady({ ...state, pageReady: true })
         : state;
     case "MINIMUM_HOLD_ELAPSED":
       return state.phase === "holding"
