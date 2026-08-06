@@ -11,33 +11,33 @@ describe("AI battle module sizing", () => {
     expect(resolveAiBattleModule("tree-sanctuary").enemyScale).toBe(1.26);
   });
 
-  it("maps every battle module to spawn and defeat sprite sheets", () => {
-    const expectedSheets = {
+  it("maps every battle module to spawn and defeat videos", () => {
+    const expectedAnimations = {
       "castle-1": {
-        spawn: "/assets/game/enemy-sprites/castle-guardian-spawn.png",
-        defeat: "/assets/game/enemy-sprites/castle-guardian-defeat.png",
+        spawn: "/assets/game/enemy-videos/castle-guardian-spawn.mp4",
+        defeat: "/assets/game/enemy-videos/castle-guardian-defeat.mp4",
       },
       "core-lab": {
-        spawn: "/assets/game/enemy-sprites/core-automaton-spawn.png",
-        defeat: "/assets/game/enemy-sprites/core-automaton-defeat.png",
+        spawn: "/assets/game/enemy-videos/core-automaton-spawn.mp4",
+        defeat: "/assets/game/enemy-videos/core-automaton-defeat.mp4",
       },
       "desert-temple": {
-        spawn: "/assets/game/enemy-sprites/desert-sphinx-spawn.png",
-        defeat: "/assets/game/enemy-sprites/desert-sphinx-defeat.png",
+        spawn: "/assets/game/enemy-videos/desert-sphinx-spawn.mp4",
+        defeat: "/assets/game/enemy-videos/desert-sphinx-defeat.mp4",
       },
       "lava-cavern": {
-        spawn: "/assets/game/enemy-sprites/lava-serpent-spawn.png",
-        defeat: "/assets/game/enemy-sprites/lava-serpent-defeat.png",
+        spawn: "/assets/game/enemy-videos/lava-serpent-spawn.mp4",
+        defeat: "/assets/game/enemy-videos/lava-serpent-defeat.mp4",
       },
       "tree-sanctuary": {
-        spawn: "/assets/game/enemy-sprites/tree-guardian-spawn.png",
-        defeat: "/assets/game/enemy-sprites/tree-guardian-defeat.png",
+        spawn: "/assets/game/enemy-videos/tree-guardian-spawn.mp4",
+        defeat: "/assets/game/enemy-videos/tree-guardian-defeat.mp4",
       },
     } as const;
-    type ModuleWithSpriteSheets = ReturnType<typeof resolveAiBattleModule> & { enemySpriteSheets?: unknown };
+    type ModuleWithAnimations = ReturnType<typeof resolveAiBattleModule> & { enemyAnimations?: unknown };
 
-    for (const [moduleId, sheets] of Object.entries(expectedSheets)) {
-      expect((resolveAiBattleModule(moduleId) as ModuleWithSpriteSheets).enemySpriteSheets).toEqual(sheets);
+    for (const [moduleId, animations] of Object.entries(expectedAnimations)) {
+      expect((resolveAiBattleModule(moduleId) as ModuleWithAnimations).enemyAnimations).toEqual(animations);
     }
   });
 });

@@ -21,7 +21,8 @@ import styles from "./ai-battle-game.module.css";
 const HYDRATION_RANDOM = () => 0.5;
 const ATTACK_PRESENTATION_MS = 760;
 const ATTACK_IMPACT_MS = 700;
-const RESULT_PRESENTATION_MS = 1600;
+const VICTORY_PRESENTATION_MS = 5200;
+const DEFEAT_PRESENTATION_MS = 1600;
 const VICTORY_EXPLOSION_SPARKS = Array.from({ length: 14 }, (_, index) => index);
 
 export interface AiBattleGameProps {
@@ -118,7 +119,11 @@ export function AiBattleGame({
         setIsVictoryExplosionVisible(true);
       }
     }, ATTACK_IMPACT_MS);
-    const presentationDuration = result.session.status === "playing" ? ATTACK_PRESENTATION_MS : RESULT_PRESENTATION_MS;
+    const presentationDuration = result.session.status === "playing"
+      ? ATTACK_PRESENTATION_MS
+      : result.session.status === "won"
+        ? VICTORY_PRESENTATION_MS
+        : DEFEAT_PRESENTATION_MS;
     turnResolutionTimer.current = setTimeout(() => {
       turnResolutionTimer.current = null;
       if (result.session.status === "playing") {

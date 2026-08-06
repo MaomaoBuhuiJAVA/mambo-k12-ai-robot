@@ -4,10 +4,10 @@ export interface AiBattleModule {
   readonly arenaAsset: string;
   readonly enemyAsset: string;
   readonly enemyScale: number;
-  readonly enemySpriteSheets?: AiBattleEnemySpriteSheets;
+  readonly enemyAnimations: AiBattleEnemyAnimations;
 }
 
-export interface AiBattleEnemySpriteSheets {
+export interface AiBattleEnemyAnimations {
   readonly spawn: string;
   readonly defeat: string;
 }
@@ -24,9 +24,9 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
     arenaAsset: "/assets/game/battle-castle-one.jpg",
     enemyAsset: "/assets/game/enemy-castle-guardian.png",
     enemyScale: 1.16,
-    enemySpriteSheets: {
-      spawn: "/assets/game/enemy-sprites/castle-guardian-spawn.png",
-      defeat: "/assets/game/enemy-sprites/castle-guardian-defeat.png",
+    enemyAnimations: {
+      spawn: "/assets/game/enemy-videos/castle-guardian-spawn.mp4",
+      defeat: "/assets/game/enemy-videos/castle-guardian-defeat.mp4",
     },
   },
   {
@@ -36,9 +36,9 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
     arenaAsset: "/assets/game/battle-core-lab.jpg",
     enemyAsset: "/assets/game/enemy-core-automaton.png",
     enemyScale: 1.25,
-    enemySpriteSheets: {
-      spawn: "/assets/game/enemy-sprites/core-automaton-spawn.png",
-      defeat: "/assets/game/enemy-sprites/core-automaton-defeat.png",
+    enemyAnimations: {
+      spawn: "/assets/game/enemy-videos/core-automaton-spawn.mp4",
+      defeat: "/assets/game/enemy-videos/core-automaton-defeat.mp4",
     },
   },
   {
@@ -48,9 +48,9 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
     arenaAsset: "/assets/game/battle-desert-temple.jpg",
     enemyAsset: "/assets/game/enemy-desert-sphinx.png",
     enemyScale: 1.42,
-    enemySpriteSheets: {
-      spawn: "/assets/game/enemy-sprites/desert-sphinx-spawn.png",
-      defeat: "/assets/game/enemy-sprites/desert-sphinx-defeat.png",
+    enemyAnimations: {
+      spawn: "/assets/game/enemy-videos/desert-sphinx-spawn.mp4",
+      defeat: "/assets/game/enemy-videos/desert-sphinx-defeat.mp4",
     },
   },
   {
@@ -60,9 +60,9 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
     arenaAsset: "/assets/game/battle-lava-cavern.jpg",
     enemyAsset: "/assets/game/enemy-lava-serpent.png",
     enemyScale: 1.25,
-    enemySpriteSheets: {
-      spawn: "/assets/game/enemy-sprites/lava-serpent-spawn.png",
-      defeat: "/assets/game/enemy-sprites/lava-serpent-defeat.png",
+    enemyAnimations: {
+      spawn: "/assets/game/enemy-videos/lava-serpent-spawn.mp4",
+      defeat: "/assets/game/enemy-videos/lava-serpent-defeat.mp4",
     },
   },
   {
@@ -72,9 +72,9 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
     arenaAsset: "/assets/game/battle-tree-sanctuary.jpg",
     enemyAsset: "/assets/game/enemy-tree-guardian.png",
     enemyScale: 1.26,
-    enemySpriteSheets: {
-      spawn: "/assets/game/enemy-sprites/tree-guardian-spawn.png",
-      defeat: "/assets/game/enemy-sprites/tree-guardian-defeat.png",
+    enemyAnimations: {
+      spawn: "/assets/game/enemy-videos/tree-guardian-spawn.mp4",
+      defeat: "/assets/game/enemy-videos/tree-guardian-defeat.mp4",
     },
   },
 ];

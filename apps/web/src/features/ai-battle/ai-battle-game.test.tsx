@@ -102,6 +102,10 @@ describe("AiBattleGame", () => {
       arenaAsset: "/assets/game/battle-tree-sanctuary.jpg",
       enemyAsset: "/assets/game/enemy-tree-guardian.png",
       enemyScale: 1.08,
+      enemyAnimations: {
+        spawn: "/assets/game/enemy-videos/tree-guardian-spawn.mp4",
+        defeat: "/assets/game/enemy-videos/tree-guardian-defeat.mp4",
+      },
     };
 
     render(<AiBattleGame battleModule={treeSanctuary} questions={questions} questionCount={5} random={() => 0} />);
@@ -261,7 +265,7 @@ describe("AiBattleGame", () => {
 
     await answerCorrectQuestions(user);
 
-    expect(await screen.findByRole("dialog", {}, { timeout: 2500 })).toHaveTextContent("胜利");
+    expect(await screen.findByRole("dialog", {}, { timeout: 7000 })).toHaveTextContent("胜利");
     expect(screen.getByText("最终得分 500")).toBeVisible();
     expectHealth(DEFAULT_ENEMY_HEALTH_LABEL, 0);
 
@@ -270,7 +274,7 @@ describe("AiBattleGame", () => {
     expect(screen.getByText("第 1 / 5 题")).toBeVisible();
     expectHealth("星宝生命", 100);
     expect(screen.getByRole("dialog", { name: "Component question 1" })).toBeVisible();
-  }, 8_000);
+  }, 15_000);
 
   it("shows a failure summary after five incorrect answers", async () => {
     const user = userEvent.setup();

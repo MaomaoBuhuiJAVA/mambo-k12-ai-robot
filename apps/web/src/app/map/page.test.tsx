@@ -88,14 +88,38 @@ describe("Learning map route", () => {
     expect(document.querySelectorAll("img")).toHaveLength(1);
   });
 
-  it("renders every zoomed region from the same full-map artwork as the base layer", () => {
+  it("uses complete transparent region assets for zoom layers instead of clipping the full map", () => {
     render(<LearningMapPage />);
 
     const zoomLayers = screen.getAllByTestId(/map-region-zoom-/);
+    const castleZoom = screen.getByTestId("map-region-zoom-castle");
 
-    expect(zoomLayers.every((layer) => layer.tagName.toLowerCase() === "g")).toBe(true);
-    expect(zoomLayers.every((layer) => layer.getAttribute("clip-path")?.startsWith("url(#map-region-clip-"))).toBe(true);
-    expect(document.querySelectorAll('use[href="#learning-map-artwork-source"]')).toHaveLength(5);
+    expect(zoomLayers.every((layer) => layer.tagName.toLowerCase() === "image")).toBe(true);
+    expect(castleZoom).toHaveAttribute("href", "/assets/learning-map/primary-regions/castle-zoom.png");
+    expect(castleZoom).not.toHaveAttribute("clip-path");
+    expect(document.querySelectorAll('use[href="#learning-map-artwork-source"]')).toHaveLength(0);
+    expect(mapStylesSource).toContain("transform-box: fill-box;");
+    expect(mapStylesSource).toContain("transform-origin: center;");
+  });
+
+  it("keeps the castle's complete cloud silhouette visible before hover", () => {
+    render(<LearningMapPage />);
+
+    const castleBase = screen.getByTestId("map-region-base-castle");
+
+    expect(castleBase.tagName.toLowerCase()).toBe("image");
+    expect(castleBase).toHaveAttribute("href", "/assets/learning-map/primary-regions/castle-zoom.png");
+    expect(screen.getAllByTestId(/map-region-base-/)).toHaveLength(1);
+    expect(mapStylesSource).toContain(".regionBase");
+  });
+
+  it("keeps focused hotspot artwork at map scale so it stays aligned with the background", () => {
+    expect(mapStylesSource).toContain(`.regionZoom[data-active="true"] {
+  opacity: 1;
+  transform: scale(1);
+}`);
+    expect(mapStylesSource).not.toContain("transform: scale(1.04);");
+    expect(mapStylesSource).not.toContain("transform: scale(1.014);");
   });
 
   it("only activates the matching region glow and zoom layer when a region is hovered", () => {
