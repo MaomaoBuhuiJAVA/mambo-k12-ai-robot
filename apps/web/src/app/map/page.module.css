@@ -113,19 +113,29 @@
   transition: opacity 180ms ease, transform 200ms ease;
 }
 
+.regionBase {
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.regionBase[data-active="true"] {
+  opacity: 0;
+}
+
 .regionGlow[data-active="true"] {
   opacity: 1;
 }
 
 .regionZoom {
-  transform-box: view-box;
-  transform-origin: var(--region-center-x) var(--region-center-y);
+  transform-box: fill-box;
+  transform-origin: center;
   transform: scale(1);
 }
 
 .regionZoom[data-active="true"] {
   opacity: 1;
-  transform: scale(1.04);
+  transform: scale(1);
 }
 
 .hotspot {
@@ -355,10 +365,6 @@
   .regionGlow,
   .regionZoom {
     transition: none;
-  }
-
-  .regionZoom[data-active="true"] {
-    transform: scale(1.014);
   }
 
   .learningCard {

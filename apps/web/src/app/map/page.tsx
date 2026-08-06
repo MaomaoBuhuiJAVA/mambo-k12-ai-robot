@@ -121,6 +121,11 @@ const mapRegions: MapRegion[] = regionLayout.regions.map((region) => {
   const id = region.id as MapRegionId;
   return { ...region, id, label: regionLabels[id] };
 });
+const persistentBaseRegions = mapRegions.filter((region) => region.id === "castle");
+
+function regionAsset(id: MapRegionId, suffix: "mask" | "zoom") {
+  return `/assets/learning-map/primary-regions/${id}-${suffix}.png`;
+}
 
 export default function LearningMapPage() {
   const { isTransitioning, notifyMapReady, startHomeTransition } = useCloudTransition();
@@ -179,14 +184,6 @@ export default function LearningMapPage() {
             />
             <svg className={styles.hotspotOverlay} viewBox={`0 0 ${mapWidth} ${mapHeight}`} aria-label="学习地图热点区域">
             <defs>
-              <image
-                height={mapHeight}
-                href={mapArtworkSrc}
-                id="learning-map-artwork-source"
-                width={mapWidth}
-                x="0"
-                y="0"
-              />
               {mapRegions.map((region) => (
                 <filter
                   colorInterpolationFilters="sRGB"
@@ -212,51 +209,62 @@ export default function LearningMapPage() {
                   </feMerge>
                 </filter>
               ))}
-              {mapRegions.map((region) => (
-                <clipPath clipPathUnits="userSpaceOnUse" id={`map-region-clip-${region.id}`} key={`clip-${region.id}`}>
-                  <path d={region.path} fillRule="evenodd" />
-                </clipPath>
-              ))}
             </defs>
 
             <g aria-hidden="true">
-              {mapRegions.map((region) => {
+              {persistentBaseRegions.map((region) => {
                 const isActive = activeRegion === region.id || selectedRegion === region.id;
                 return (
-                  <path
-                    className={styles.regionGlow}
+                  <image
+                    className={styles.regionBase}
                     data-active={isActive ? "true" : undefined}
                     data-region={region.id}
-                    data-testid={`map-region-glow-${region.id}`}
-                    d={region.path}
-                    fill="#ffffff"
-                    fillRule="evenodd"
-                    filter={`url(#map-region-glow-${region.id})`}
-                    key={`glow-${region.id}`}
+                    data-testid={`map-region-base-${region.id}`}
+                    height={region.height}
+                    href={regionAsset(region.id, "zoom")}
+                    key={`base-${region.id}`}
                     pointerEvents="none"
+                    width={region.width}
+                    x={region.x}
+                    y={region.y}
                   />
                 );
               })}
               {mapRegions.map((region) => {
                 const isActive = activeRegion === region.id || selectedRegion === region.id;
-                const centerX = region.x + region.width / 2;
-                const centerY = region.y + region.height / 2;
                 return (
-                  <g
-                    clipPath={`url(#map-region-clip-${region.id})`}
+                  <image
+                    className={styles.regionGlow}
+                    data-active={isActive ? "true" : undefined}
+                    data-region={region.id}
+                    data-testid={`map-region-glow-${region.id}`}
+                    filter={`url(#map-region-glow-${region.id})`}
+                    height={region.height}
+                    href={regionAsset(region.id, "mask")}
+                    key={`glow-${region.id}`}
+                    pointerEvents="none"
+                    width={region.width}
+                    x={region.x}
+                    y={region.y}
+                  />
+                );
+              })}
+              {mapRegions.map((region) => {
+                const isActive = activeRegion === region.id || selectedRegion === region.id;
+                return (
+                  <image
                     className={styles.regionZoom}
                     data-active={isActive ? "true" : undefined}
                     data-region={region.id}
                     data-testid={`map-region-zoom-${region.id}`}
+                    height={region.height}
+                    href={regionAsset(region.id, "zoom")}
                     key={`zoom-${region.id}`}
                     pointerEvents="none"
-                    style={{
-                      "--region-center-x": `${centerX}px`,
-                      "--region-center-y": `${centerY}px`,
-                    } as CSSProperties}
-                  >
-                    <use href="#learning-map-artwork-source" />
-                  </g>
+                    width={region.width}
+                    x={region.x}
+                    y={region.y}
+                  />
                 );
               })}
             </g>
