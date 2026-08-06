@@ -16,7 +16,6 @@ import { useRouter } from "next/navigation";
 import {
   CLOUD_COVER_DURATION_MS,
   CLOUD_MAXIMUM_HOLD_MS,
-  CLOUD_MINIMUM_HOLD_MS,
   CLOUD_REVEAL_DURATION_MS,
   initialCloudTransitionState,
   transitionCloudState,
@@ -41,6 +40,8 @@ type CloudInstance = {
   fill?: boolean;
   edgeCover?: "top" | "top-left" | "top-right";
   mobileOnly?: boolean;
+  coverage?: boolean;
+  rightCoverage?: boolean;
   size: string;
   startX: string;
   startY: string;
@@ -56,6 +57,67 @@ type CloudInstance = {
 type CloudStyle = CSSProperties & Record<`--${string}`, string>;
 
 const CloudTransitionContext = createContext<CloudTransitionContextValue | null>(null);
+
+const coverageCloudAssets = ["cloud-01.png", "cloud-03.png", "cloud-05.png", "cloud-07.png", "cloud-08.png", "cloud-10.png", "cloud-12.png"] as const;
+const coverageCloudSizes = ["42vw", "36vw", "48vw", "39vw", "45vw", "34vw", "41vw"] as const;
+const coverageRowCount = 6;
+const coverageColumnCount = 7;
+const coverageColumnStep = 15;
+
+// A denser grid keeps the transition fully covered while making each cloud read as a separate layer.
+const coverageCloudInstances: CloudInstance[] = Array.from({ length: coverageRowCount }, (_, row) =>
+  Array.from({ length: coverageColumnCount }, (_, column) => {
+    const index = row * coverageColumnCount + column;
+    const x = -8 + column * coverageColumnStep + (row % 2 === 1 ? 3 : 0);
+    const y = -10 + row * 18 + (column % 2 === 1 ? 2 : 0);
+    const direction = index % 4;
+
+    return {
+      id: `coverage-${row}-${column}`,
+      layer: (row < 2 ? "back" : row < 4 ? "middle" : "front") as CloudLayer,
+      asset: coverageCloudAssets[index % coverageCloudAssets.length],
+      coverage: true,
+      size: coverageCloudSizes[(row + column) % coverageCloudSizes.length],
+      startX: `${direction === 0 ? x - 44 : direction === 1 ? x + 44 : x}vw`,
+      startY: `${direction === 2 ? y - 46 : direction === 3 ? y + 46 : y}vh`,
+      coveredX: `${x}vw`,
+      coveredY: `${y}vh`,
+      exitX: `${direction === 0 ? x + 44 : direction === 1 ? x - 44 : x}vw`,
+      exitY: `${direction === 2 ? y + 46 : direction === 3 ? y - 46 : y}vh`,
+      coverDelay: `${(index % 9) * 18}ms`,
+      revealDelay: `${((coverageRowCount * coverageColumnCount - 1 - index) % 9) * 18}ms`,
+      opacity: `${0.82 + ((row + column) % 5) * 0.04}`,
+    };
+  }),
+).flat();
+
+const rightCoverageAssets = ["cloud-03.png", "cloud-12.png", "cloud-07.png", "cloud-10.png", "cloud-05.png", "cloud-08.png"] as const;
+const rightCoverageCloudInstances: CloudInstance[] = Array.from({ length: 9 }, (_, row) =>
+  Array.from({ length: 3 }, (_, column) => {
+    const index = row * 3 + column;
+    const x = 70 + column * 12 + (row % 2 === 0 ? 0 : 2);
+    const y = -10 + row * 12;
+    const isFront = (row + column) % 2 === 1;
+
+    return {
+      id: `right-coverage-${row}-${column}`,
+      layer: (isFront ? "front" : "middle") as CloudLayer,
+      asset: rightCoverageAssets[index % rightCoverageAssets.length],
+      coverage: true,
+      rightCoverage: true,
+      size: `${34 + ((row + column) % 3) * 2}vw`,
+      startX: `${x + 38}vw`,
+      startY: `${y - 4}vh`,
+      coveredX: `${x}vw`,
+      coveredY: `${y}vh`,
+      exitX: `${x + 41}vw`,
+      exitY: `${y - 2}vh`,
+      coverDelay: `${80 + (index % 9) * 14}ms`,
+      revealDelay: `${28 + ((26 - index) % 9) * 18}ms`,
+      opacity: "1",
+    };
+  }),
+).flat();
 
 const cloudInstances: readonly CloudInstance[] = [
   { id: "back-northwest", layer: "back", asset: "cloud-01.png", size: "72vw", startX: "-76vw", startY: "-32vh", coveredX: "-24vw", coveredY: "-20vh", exitX: "-78vw", exitY: "-34vh", coverDelay: "0ms", revealDelay: "30ms", opacity: "0.68" },
@@ -97,11 +159,19 @@ const cloudInstances: readonly CloudInstance[] = [
   { id: "mobile-edge-bottom-left", layer: "front", asset: "cloud-05.png", mobileOnly: true, size: "125vw", startX: "-76vw", startY: "55vh", coveredX: "-60vw", coveredY: "58vh", exitX: "-79vw", exitY: "61vh", coverDelay: "150ms", revealDelay: "165ms", opacity: "1" },
   { id: "mobile-edge-bottom-right", layer: "front", asset: "cloud-12.png", mobileOnly: true, size: "125vw", startX: "120vw", startY: "55vh", coveredX: "60vw", coveredY: "58vh", exitX: "123vw", exitY: "61vh", coverDelay: "140ms", revealDelay: "55ms", opacity: "1" },
   { id: "mobile-edge-bottom-center", layer: "front", asset: "cloud-05.png", mobileOnly: true, size: "125vw", startX: "-40vw", startY: "70vh", coveredX: "-40vw", coveredY: "66vh", exitX: "-42vw", exitY: "72vh", coverDelay: "155ms", revealDelay: "175ms", opacity: "1" },
+  ...coverageCloudInstances,
+  ...rightCoverageCloudInstances,
 ];
+
+function scaledCloudSize(cloud: CloudInstance): string {
+  const size = Number.parseFloat(cloud.size);
+  const scale = cloud.coverage ? 0.7 : cloud.fill ? 0.3 : cloud.mobileOnly ? 0.42 : 0.48;
+  return Number.isFinite(size) ? `${Math.max(8, Math.round(size * scale))}vw` : cloud.size;
+}
 
 function cloudStyle(cloud: CloudInstance): CloudStyle {
   return {
-    "--cloud-size": cloud.size,
+    "--cloud-size": scaledCloudSize(cloud),
     "--cloud-start-x": cloud.startX,
     "--cloud-start-y": cloud.startY,
     "--cloud-covered-x": cloud.coveredX,
@@ -173,17 +243,12 @@ export function CloudTransitionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (state.phase !== "holding") return;
 
-    const minimumHoldTimer = window.setTimeout(
-      () => dispatch({ type: "MINIMUM_HOLD_ELAPSED" }),
-      CLOUD_MINIMUM_HOLD_MS,
-    );
     const maximumHoldTimer = window.setTimeout(
       () => dispatch({ type: "MAXIMUM_HOLD_ELAPSED" }),
       CLOUD_MAXIMUM_HOLD_MS,
     );
 
     return () => {
-      window.clearTimeout(minimumHoldTimer);
       window.clearTimeout(maximumHoldTimer);
     };
   }, [state.phase]);
@@ -219,6 +284,7 @@ export function CloudTransitionProvider({ children }: { children: ReactNode }) {
           data-testid="cloud-transition-overlay"
           role="status"
         >
+          <span aria-hidden="true" className={styles.cloudVeil} data-testid="cloud-transition-veil" />
           {cloudInstances.map((cloud) => (
             <span
               aria-hidden="true"
@@ -227,6 +293,8 @@ export function CloudTransitionProvider({ children }: { children: ReactNode }) {
               data-fill={cloud.fill ? "true" : undefined}
               data-edge-seal={cloud.edgeCover}
               data-mobile-seal={cloud.mobileOnly ? "true" : undefined}
+              data-coverage={cloud.coverage ? "true" : undefined}
+              data-right-coverage={cloud.rightCoverage ? "true" : undefined}
               data-testid="cloud-transition-cloud"
               key={cloud.id}
               style={cloudStyle(cloud)}

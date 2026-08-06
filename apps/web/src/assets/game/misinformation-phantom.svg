@@ -1,0 +1,26 @@
+<svg width="480" height="480" viewBox="0 0 480 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g filter="url(#shadow)">
+    <path d="M238 58C159 58 91 124 91 206C91 264 120 302 109 354C103 384 122 413 154 419C180 424 193 398 216 397C240 397 254 427 282 421C306 416 315 386 340 384C372 381 387 347 374 320C359 289 389 252 389 204C389 123 320 58 238 58Z" fill="#76447D" stroke="#21173C" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M123 228C128 145 180 94 240 94C305 94 353 142 358 215C324 186 283 176 241 182C199 189 164 210 123 228Z" fill="#A75C8F"/>
+    <path d="M143 292C164 324 191 338 217 338C236 338 246 325 262 326C279 327 294 348 318 339C337 332 352 312 359 290C323 310 290 317 254 310C210 301 179 296 143 292Z" fill="#532B65"/>
+    <ellipse cx="184" cy="226" rx="37" ry="44" fill="#F9E9B8" stroke="#21173C" stroke-width="11"/>
+    <ellipse cx="300" cy="226" rx="37" ry="44" fill="#F9E9B8" stroke="#21173C" stroke-width="11"/>
+    <circle cx="190" cy="233" r="16" fill="#21173C"/>
+    <circle cx="294" cy="233" r="16" fill="#21173C"/>
+    <circle cx="195" cy="227" r="5" fill="#F6D062"/>
+    <circle cx="299" cy="227" r="5" fill="#F6D062"/>
+    <path d="M190 294C221 314 264 314 294 294" stroke="#F7EBC2" stroke-width="12" stroke-linecap="round"/>
+    <path d="M113 166C74 167 53 195 62 221C70 244 91 253 112 240" stroke="#FF9368" stroke-width="14" stroke-linecap="round"/>
+    <path d="M368 166C407 167 428 195 419 221C411 244 390 253 369 240" stroke="#FF9368" stroke-width="14" stroke-linecap="round"/>
+    <path d="M238 34L252 64L284 70L260 93L265 125L238 108L211 125L216 93L192 70L224 64L238 34Z" fill="#F6D062" stroke="#21173C" stroke-width="12" stroke-linejoin="round"/>
+  </g>
+  <path d="M67 311L90 321" stroke="#F4B64A" stroke-width="11" stroke-linecap="round"/>
+  <path d="M403 311L381 321" stroke="#F4B64A" stroke-width="11" stroke-linecap="round"/>
+  <path d="M88 368L112 360" stroke="#FF9368" stroke-width="11" stroke-linecap="round"/>
+  <path d="M392 368L368 360" stroke="#FF9368" stroke-width="11" stroke-linecap="round"/>
+  <defs>
+    <filter id="shadow" x="48" y="20" width="385" height="428" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#0E081A" flood-opacity="0.56"/>
+    </filter>
+  </defs>
+</svg>

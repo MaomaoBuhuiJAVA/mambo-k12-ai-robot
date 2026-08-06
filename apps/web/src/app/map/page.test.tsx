@@ -15,7 +15,7 @@ vi.mock("@/components/cloud-transition/cloud-transition-provider", () => ({
 }));
 
 vi.mock("next/image", () => ({
-  default: ({ alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => <img alt={alt} {...props} />,
+  default: ({ alt, fill: _fill, sizes: _sizes, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; sizes?: string }) => <img alt={alt} {...props} />,
 }));
 
 describe("Learning map route", () => {
@@ -39,6 +39,18 @@ describe("Learning map route", () => {
     expect(mapStylesSource).toContain(".oceanBackdrop");
     expect(mapStylesSource).toContain("background-image:");
     expect(mapStylesSource).toContain("object-fit: contain;");
+  });
+
+  it("keeps the hotspot coordinate system inside the same aspect-ratio canvas as the artwork", () => {
+    render(<LearningMapPage />);
+
+    const artwork = screen.getByRole("img", { name: "小学学习地图" });
+    const canvas = screen.getByTestId("map-canvas");
+    const hotspotOverlay = screen.getByLabelText("学习地图热点区域");
+
+    expect(canvas).toContainElement(artwork);
+    expect(canvas).toContainElement(hotspotOverlay);
+    expect(canvas).toHaveAttribute("data-map-aspect", "1536/1024");
   });
 
   it("reports readiness after the full map artwork has loaded", () => {
@@ -74,6 +86,16 @@ describe("Learning map route", () => {
     expect(screen.getByLabelText("沙漠热点")).toBeInTheDocument();
     expect(screen.getByLabelText("火山热点")).toBeInTheDocument();
     expect(document.querySelectorAll("img")).toHaveLength(1);
+  });
+
+  it("renders every zoomed region from the same full-map artwork as the base layer", () => {
+    render(<LearningMapPage />);
+
+    const zoomLayers = screen.getAllByTestId(/map-region-zoom-/);
+
+    expect(zoomLayers.every((layer) => layer.tagName.toLowerCase() === "g")).toBe(true);
+    expect(zoomLayers.every((layer) => layer.getAttribute("clip-path")?.startsWith("url(#map-region-clip-"))).toBe(true);
+    expect(document.querySelectorAll('use[href="#learning-map-artwork-source"]')).toHaveLength(5);
   });
 
   it("only activates the matching region glow and zoom layer when a region is hovered", () => {

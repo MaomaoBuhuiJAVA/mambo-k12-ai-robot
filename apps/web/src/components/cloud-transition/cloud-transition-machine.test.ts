@@ -6,15 +6,13 @@ import {
 } from "./cloud-transition-machine";
 
 describe("cloud transition state machine", () => {
-  it("requires a covered hold and map readiness before revealing", () => {
+  it("reveals as soon as the destination page is ready after coverage", () => {
     const covering = transitionCloudState(initialCloudTransitionState, { type: "START", destination: "map" });
     const holding = transitionCloudState(covering, { type: "COVERED" });
-    const readyButHolding = transitionCloudState(holding, { type: "PAGE_READY", destination: "map" });
-    const revealing = transitionCloudState(readyButHolding, { type: "MINIMUM_HOLD_ELAPSED" });
+    const revealing = transitionCloudState(holding, { type: "PAGE_READY", destination: "map" });
 
     expect(covering.phase).toBe("covering");
     expect(holding.phase).toBe("holding");
-    expect(readyButHolding.phase).toBe("holding");
     expect(revealing.phase).toBe("revealing");
   });
 
@@ -33,7 +31,7 @@ describe("cloud transition state machine", () => {
     expect(transitionCloudState(covering, { type: "START", destination: "home" })).toEqual(covering);
     expect(
       transitionCloudState(
-        { phase: "revealing", destination: "home", pageReady: true, minimumHoldElapsed: true },
+        { phase: "revealing", destination: "home", pageReady: true },
         { type: "REVEAL_FINISHED" },
       ),
     ).toEqual(initialCloudTransitionState);
@@ -42,12 +40,10 @@ describe("cloud transition state machine", () => {
   it("routes the reverse transition to the home page after it is covered", () => {
     const covering = transitionCloudState(initialCloudTransitionState, { type: "START", destination: "home" });
     const holding = transitionCloudState(covering, { type: "COVERED" });
-    const readyButHolding = transitionCloudState(holding, { type: "PAGE_READY", destination: "home" });
-    const revealing = transitionCloudState(readyButHolding, { type: "MINIMUM_HOLD_ELAPSED" });
+    const revealing = transitionCloudState(holding, { type: "PAGE_READY", destination: "home" });
 
     expect(covering.destination).toBe("home");
     expect(holding.phase).toBe("holding");
-    expect(readyButHolding.phase).toBe("holding");
     expect(revealing.phase).toBe("revealing");
   });
 });

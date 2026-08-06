@@ -33,7 +33,7 @@ const sharedConversationState = {
       clientMessageId: "web-1",
       role: "user",
       origin: "web",
-      content: "????????",
+      content: "我想看看泡泡排序",
       replyToMessageId: null,
       announceOnOrangePi: false,
       createdAt: "2026-07-19T09:00:00Z",
@@ -45,7 +45,7 @@ const sharedConversationState = {
       clientMessageId: "web-1:assistant",
       role: "assistant",
       origin: "starbao",
-      content: "?????????????",
+      content: "我们先比较相邻的两个数字。",
       replyToMessageId: "message-1",
       announceOnOrangePi: false,
       createdAt: "2026-07-19T09:00:01Z",
@@ -117,19 +117,19 @@ describe("PreviewPage Starbao chat", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open star chat" }));
 
-    expect(screen.getByText("????????")).toBeInTheDocument();
-    expect(screen.getByText("?????????????")).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "????" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "????" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "???" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "????????" })).not.toBeInTheDocument();
+    expect(screen.getByText("我想看看泡泡排序")).toBeInTheDocument();
+    expect(screen.getByText("我们先比较相邻的两个数字。")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "设备信息" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "图像分类" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "去二楼" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "同步到香橙派播报" })).not.toBeInTheDocument();
 
-    const input = screen.getByRole("textbox", { name: "???????" });
-    fireEvent.change(input, { target: { value: "????????" } });
+    const input = screen.getByRole("textbox", { name: "和星宝说点什么" });
+    fireEvent.change(input, { target: { value: "带我从第一步开始" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(sendTurn).toHaveBeenCalledWith({
-      text: "????????",
+      text: "带我从第一步开始",
       stage: "lower_primary",
       courseId: "lower-bubble-sort",
       origin: "web",
@@ -141,9 +141,9 @@ describe("PreviewPage Starbao chat", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open star chat" }));
 
-    const panel = screen.getByRole("complementary", { name: "???????" });
-    expect(panel).toHaveTextContent("??");
-    expect(panel).toHaveTextContent("???? ? ??");
+    const panel = screen.getByRole("complementary", { name: "星星智能体面板" });
+    expect(panel).toHaveTextContent("星宝");
+    expect(panel).toHaveTextContent("学习伙伴 · 在线");
     expect(panel).not.toHaveTextContent("Twinkle Twinkle");
     expect(panel).not.toHaveTextContent("Star study companion - Online");
   });
@@ -160,7 +160,7 @@ describe("PreviewPage Starbao chat", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open star chat" }));
 
-    const panel = screen.getByRole("complementary", { name: "???????" });
+    const panel = screen.getByRole("complementary", { name: "星星智能体面板" });
     const handle = screen.getByTestId("starbao-chat-drag-handle");
     Object.defineProperty(panel, "getBoundingClientRect", {
       configurable: true,
@@ -175,6 +175,28 @@ describe("PreviewPage Starbao chat", () => {
     fireEvent.pointerUp(handle, { clientX: 230, clientY: 260, pointerId: 7 });
 
     expect(panel).toHaveStyle({ left: "180px", top: "220px", transform: "none" });
+  });
+
+  it("shows the running sprite while the hero Starbao is being dragged", () => {
+    const { container } = render(<PreviewPage />);
+    const hero = container.querySelector("#top") as HTMLElement;
+    const patrol = container.querySelector("#top [data-patrol-state]") as HTMLDivElement;
+    const launcher = screen.getByRole("button", { name: "Open star chat" });
+    Object.defineProperty(hero, "clientWidth", { configurable: true, value: 1280 });
+    Object.defineProperty(hero, "clientHeight", { configurable: true, value: 620 });
+    Object.defineProperty(patrol, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 80, top: 240, width: 96, height: 215 }),
+    });
+    Object.defineProperty(patrol, "offsetWidth", { configurable: true, value: 96 });
+    Object.defineProperty(patrol, "offsetHeight", { configurable: true, value: 215 });
+    Object.defineProperty(launcher, "setPointerCapture", { configurable: true, value: vi.fn() });
+
+    fireEvent.pointerDown(launcher, { button: 0, clientX: 100, clientY: 270, pointerId: 12, isPrimary: true });
+
+    expect(patrol.className).toContain("heroPetPatrolDragging");
+    expect(previewStylesSource).toContain(".heroPetPatrolDragging .petPatrolWalk");
+    expect(previewStylesSource).toContain(".heroPetPatrolDragging .petPatrolIdle");
   });
 
   it("moves the hero Starbao without opening chat, then preserves regular click behavior", () => {
@@ -279,10 +301,10 @@ describe("PreviewPage Starbao chat", () => {
   it("shows the chat screenshot and a dark Python terminal in the learning previews", () => {
     render(<PreviewPage />);
 
-    const chatPreview = screen.getByRole("group", { name: "????????" });
-    expect(chatPreview).toContainElement(screen.getByRole("img", { name: "????????" }));
+    const chatPreview = screen.getByRole("group", { name: "星宝聊天窗口预览" });
+    expect(chatPreview).toContainElement(screen.getByRole("img", { name: "星宝聊天窗口截图" }));
 
-    const terminalPreview = screen.getByRole("group", { name: "Python ????" });
+    const terminalPreview = screen.getByRole("group", { name: "Python 终端预览" });
     expect(terminalPreview).toHaveTextContent("TERMINAL");
     expect(terminalPreview).toHaveTextContent("Python 3.12");
   });
@@ -311,10 +333,10 @@ describe("PreviewPage Starbao chat", () => {
   it("does not render the three floor cards over the house scene", () => {
     render(<PreviewPage />);
 
-    expect(screen.queryByRole("button", { name: "?????????????? ? ?? ? ??" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "?????????????? ? ?? ? ??" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "???????? ? ????? ? ?? ? ??" })).not.toBeInTheDocument();
-    expect(screen.queryByText("?????????????")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "小小探索家，小学低年级，故事 · 声音 · 观察" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "创意实验室，小学高年级，动画 · 编程 · 实验" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "未来研究所，初中 · 高中，算法 · 模型 · 项目" })).not.toBeInTheDocument();
+    expect(screen.queryByText("点击楼层，进入对应的学习屋")).not.toBeInTheDocument();
   });
 
   it("does not render the house scene beside the homepage introduction", () => {
@@ -326,9 +348,9 @@ describe("PreviewPage Starbao chat", () => {
   it("does not render the removed hero house or its foundation", () => {
     const { container } = render(<PreviewPage />);
 
-    expect(screen.queryByText("?????????")).not.toBeInTheDocument();
-    expect(screen.queryByText("????? ? ????")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("?????")).not.toBeInTheDocument();
+    expect(screen.queryByText("给每个好奇心一间房")).not.toBeInTheDocument();
+    expect(screen.queryByText("星星机器人 · 演示在线")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("三层学习屋")).not.toBeInTheDocument();
     expect(container.querySelector("img[src*='user-house-three-level.png']")).not.toBeInTheDocument();
     expect(container.querySelector("img[src*='user-house-foundation.png']")).not.toBeInTheDocument();
   });
@@ -336,28 +358,28 @@ describe("PreviewPage Starbao chat", () => {
   it("places the interactive Starbao journey card in the hero", () => {
     render(<PreviewPage />);
 
-    const journey = screen.getByRole("region", { name: "??????" });
+    const journey = screen.getByRole("region", { name: "星宝学习旅程" });
     expect(journey).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "??? 1 ?" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("button", { name: "前往第 1 步" })).toHaveAttribute("aria-current", "step");
 
-    fireEvent.click(screen.getByRole("button", { name: "???" }));
+    fireEvent.click(screen.getByRole("button", { name: "下一步" }));
 
-    expect(screen.getByRole("button", { name: "??? 2 ?" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("button", { name: "前往第 2 步" })).toHaveAttribute("aria-current", "step");
   });
 
   it("keeps the woodland path in sync across next, direct-path, and previous navigation", () => {
     render(<PreviewPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "???" }));
-    expect(screen.getByRole("button", { name: "??? 2 ?" })).toHaveAttribute("aria-current", "step");
+    fireEvent.click(screen.getByRole("button", { name: "下一步" }));
+    expect(screen.getByRole("button", { name: "前往第 2 步" })).toHaveAttribute("aria-current", "step");
 
-    fireEvent.click(screen.getByRole("button", { name: "??? 4 ?" }));
-    expect(screen.getByRole("button", { name: "??? 4 ?" })).toHaveAttribute("aria-current", "step");
-    expect(screen.getByRole("button", { name: "??" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "前往第 4 步" }));
+    expect(screen.getByRole("button", { name: "前往第 4 步" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("button", { name: "开始" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "???" }));
-    expect(screen.getByRole("button", { name: "??? 3 ?" })).toHaveAttribute("aria-current", "step");
-    expect(screen.getByRole("heading", { name: "??AI?????" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "上一步" }));
+    expect(screen.getByRole("button", { name: "前往第 3 步" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("heading", { name: "你对AI了解多少？" })).toBeInTheDocument();
   });
 
   it("opens the primary-school learning map when the journey starts", () => {
@@ -378,9 +400,9 @@ describe("PreviewPage Starbao chat", () => {
   });
 
   it("uses centered concise choice labels and centers each pinecone number", () => {
-    expect(journeyCardSource).toContain("label: '??'");
-    expect(journeyCardSource).toContain("label: '??'");
-    expect(journeyCardSource).toContain("label: '???'");
+    expect(journeyCardSource).toContain("label: '新人'");
+    expect(journeyCardSource).toContain("label: '高手'");
+    expect(journeyCardSource).toContain("label: '程序员'");
     expect(journeyCardStylesSource).toContain("place-items: center;");
     expect(journeyCardStylesSource).toContain("margin-right: 10px;");
     expect(journeyCardStylesSource).toContain("margin-right: 20px;");
@@ -446,31 +468,31 @@ describe("PreviewPage Starbao chat", () => {
     expect(screen.queryByRole("button", { name: "Open middle school learning path" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Open high school learning path" })).not.toBeInTheDocument();
     expect(container.querySelectorAll("img[src*='assets/learning-stages/']")).toHaveLength(3);
-    expect(Array.from(container.querySelectorAll("[class*='exhibitStageLabel']")).map((label) => label.textContent)).toEqual(["??", "??", "??"]);
-    expect(screen.getByRole("region", { name: "????" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "?????????????" })).toBeInTheDocument();
-    expect(screen.getByText("?????")).toBeInTheDocument();
-    expect(screen.getByText("Ai????-??")).toBeInTheDocument();
+    expect(Array.from(container.querySelectorAll("[class*='exhibitStageLabel']")).map((label) => label.textContent)).toEqual(["小学", "初中", "高中"]);
+    expect(screen.getByRole("region", { name: "成长展厅" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "从绘本到编程，星宝如影随形" })).toBeInTheDocument();
+    expect(screen.getByText("从小教到大")).toBeInTheDocument();
+    expect(screen.getByText("Ai学习伙伴-星宝")).toBeInTheDocument();
 
-    expect(screen.queryByRole("group", { name: "??????" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "选择学习阶段" })).not.toBeInTheDocument();
     expect(container.querySelector("[class*='exhibitBayLabel']")).not.toBeInTheDocument();
-    expect(screen.queryByText("???????")).not.toBeInTheDocument();
+    expect(screen.queryByText("星宝的像素旅程")).not.toBeInTheDocument();
     expect(container.querySelector("a[href='#classroom']")).not.toBeInTheDocument();
     expect(container.querySelector("footer")).not.toBeInTheDocument();
     expect(container.querySelector("[class*='floorDetail']")).not.toBeInTheDocument();
-    expect(screen.queryByText("????")).not.toBeInTheDocument();
-    expect(screen.queryByText("01 ? ??????")).not.toBeInTheDocument();
-    expect(screen.queryByText("02 ? ??????")).not.toBeInTheDocument();
-    expect(screen.queryByText("03 ? ??????")).not.toBeInTheDocument();
-    expect(screen.queryByText("???????")).not.toBeInTheDocument();
+    expect(screen.queryByText("网站功能")).not.toBeInTheDocument();
+    expect(screen.queryByText("01 · 智能语音对话")).not.toBeInTheDocument();
+    expect(screen.queryByText("02 · 绘本动画阅读")).not.toBeInTheDocument();
+    expect(screen.queryByText("03 · 编程实操训练")).not.toBeInTheDocument();
+    expect(screen.queryByText("桌面上的小伙伴")).not.toBeInTheDocument();
   });
 
   it("keeps the exhibit artwork and labels free of hover routing behavior", () => {
     const { container } = render(<PreviewPage />);
 
-    expect(screen.queryByText("????")).not.toBeInTheDocument();
-    expect(screen.queryByText("????")).not.toBeInTheDocument();
-    expect(screen.queryByText("????")).not.toBeInTheDocument();
+    expect(screen.queryByText("读写启蒙")).not.toBeInTheDocument();
+    expect(screen.queryByText("思考进阶")).not.toBeInTheDocument();
+    expect(screen.queryByText("编程创造")).not.toBeInTheDocument();
     expect(container.querySelectorAll("[class*='exhibitBayDetail']")).toHaveLength(0);
     expect(container.querySelectorAll("[class*='exhibitStageLink']")).toHaveLength(0);
     expect(previewPageSource).not.toContain("openSchoolStage");
@@ -510,7 +532,7 @@ describe("PreviewPage Starbao chat", () => {
     expect(previewStylesSource).toContain("animation-play-state: paused");
 
     fireEvent.click(launcher);
-    expect(screen.getByRole("complementary", { name: "???????" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "星星智能体面板" })).toBeInTheDocument();
   });
 
   it("uses the original pixel indicator instead of the thinking frame sheet and loading dots", () => {
@@ -523,7 +545,7 @@ describe("PreviewPage Starbao chat", () => {
     expect(screen.getByTestId("starbao-thinking-ghost")).toBeInTheDocument();
     expect(screen.queryByTestId("starbao-thinking-sprite")).not.toBeInTheDocument();
     expect(screen.queryByTestId("starbao-thinking-dot")).not.toBeInTheDocument();
-    expect(thinkingStatus).not.toHaveTextContent("??????");
+    expect(thinkingStatus).not.toHaveTextContent("星宝正在思考");
   });
 
   it("uses sleep after inactivity and returns to idle when a Starbao reply completes", async () => {
@@ -543,8 +565,8 @@ describe("PreviewPage Starbao chat", () => {
     }));
     const { container } = render(<PreviewPage />);
     fireEvent.click(screen.getByRole("button", { name: "Open star chat" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "???????" }), { target: { value: "??????" } });
-    fireEvent.click(screen.getByRole("button", { name: "??" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "和星宝说点什么" }), { target: { value: "这个答案对吗" } });
+    fireEvent.click(screen.getByRole("button", { name: "发送" }));
 
     expect(container.querySelector('#top [data-starbao-mood="thinking"]')).toBeInTheDocument();
     await act(async () => {
@@ -580,21 +602,21 @@ describe("PreviewPage Starbao chat", () => {
   it("moves the storybook page with global gesture navigation and stays within its bounds", () => {
     render(<PreviewPage />);
 
-    expect(screen.getByText("? 1 / 3 ?")).toBeInTheDocument();
+    expect(screen.getByText("第 1 / 3 页")).toBeInTheDocument();
 
     dispatchGestureNavigation("next");
-    expect(screen.getByText("? 2 / 3 ?")).toBeInTheDocument();
-
-    dispatchGestureNavigation("previous");
-    expect(screen.getByText("? 1 / 3 ?")).toBeInTheDocument();
+    expect(screen.getByText("第 2 / 3 页")).toBeInTheDocument();
 
     dispatchGestureNavigation("previous");
-    expect(screen.getByText("? 1 / 3 ?")).toBeInTheDocument();
+    expect(screen.getByText("第 1 / 3 页")).toBeInTheDocument();
+
+    dispatchGestureNavigation("previous");
+    expect(screen.getByText("第 1 / 3 页")).toBeInTheDocument();
 
     dispatchGestureNavigation("next");
     dispatchGestureNavigation("next");
     dispatchGestureNavigation("next");
-    expect(screen.getByText("? 3 / 3 ?")).toBeInTheDocument();
+    expect(screen.getByText("第 3 / 3 页")).toBeInTheDocument();
   });
 
   it("removes its global gesture navigation listener when it unmounts", () => {

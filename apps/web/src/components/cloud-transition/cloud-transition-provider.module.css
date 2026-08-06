@@ -9,16 +9,41 @@
   background: transparent;
 }
 
+.cloudVeil {
+  position: absolute;
+  z-index: 0;
+  inset: -4vw;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 10%), rgb(255 255 255 / 18%) 52%, rgb(255 255 255 / 24%));
+  filter: blur(1.2vw);
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+.overlay[data-phase="covering"] .cloudVeil,
+.overlay[data-phase="holding"] .cloudVeil {
+  opacity: 0.74;
+}
+
+.overlay[data-phase="revealing"] .cloudVeil {
+  opacity: 0;
+  transition-duration: 320ms;
+}
+
 .cloud {
   position: absolute;
   z-index: 2;
-  width: max(var(--cloud-size), 11rem);
+  width: max(var(--cloud-size), 8rem);
   aspect-ratio: 15 / 8;
   overflow: hidden;
   opacity: 0;
   filter: drop-shadow(0 1.4vw 1.7vw rgb(83 118 150 / 0.3));
   transform: translate(var(--cloud-start-x), var(--cloud-start-y)) scale(0.88);
   will-change: transform, opacity;
+}
+
+.cloud[data-coverage="true"] {
+  width: max(var(--cloud-size), 33.75vh);
 }
 
 .cloudSprite {
@@ -60,20 +85,20 @@
 
 @media (max-width: 600px) {
   .cloud {
-    width: max(var(--cloud-size), 120vw);
+    width: max(var(--cloud-size), 8rem);
   }
 
   .cloud[data-fill="true"] {
-    width: max(var(--cloud-size), 220vw);
+    width: max(var(--cloud-size), 14rem);
   }
 
   .cloud[data-edge-seal] {
-    width: max(var(--cloud-size), 140vw);
+    width: max(var(--cloud-size), 16rem);
   }
 
   .cloud[data-mobile-seal="true"] {
     display: block;
-    width: max(var(--cloud-size), 180vw);
+    width: max(var(--cloud-size), 18rem);
   }
 }
 
