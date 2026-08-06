@@ -8,6 +8,7 @@ export const SPRITE_SHEET_GRID = {
 export const PLAYER_ANIMATION_RANGES = {
   spawn: { start: 0, end: 7, frameRate: 12, repeat: 0 },
   idle: { start: 16, end: 23, frameRate: 8, repeat: -1 },
+  defeat: { start: 0, end: 31, frameRate: 20, repeat: 0 },
 } as const;
 
 const CHECKERBOARD_CELL_SIZE = 16;

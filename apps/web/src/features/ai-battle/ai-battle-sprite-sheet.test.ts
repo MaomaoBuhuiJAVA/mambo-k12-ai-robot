@@ -55,6 +55,7 @@ describe("Starbao battle sprite sheet", () => {
     expect(PLAYER_ANIMATION_RANGES).toEqual({
       spawn: { start: 0, end: 7, frameRate: 12, repeat: 0 },
       idle: { start: 16, end: 23, frameRate: 8, repeat: -1 },
+      defeat: { start: 0, end: 31, frameRate: 20, repeat: 0 },
     });
   });
 });

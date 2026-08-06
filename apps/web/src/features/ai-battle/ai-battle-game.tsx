@@ -128,8 +128,8 @@ export function AiBattleGame({
       turnResolutionTimer.current = null;
       if (result.session.status === "playing") {
         setSession(advanceBattleQuestion(result.session));
+        arenaController.current?.idle();
       }
-      arenaController.current?.idle();
       setIsVictoryExplosionVisible(false);
       setIsResolvingTurn(false);
     }, presentationDuration);

@@ -287,6 +287,27 @@ describe("AiBattleGame", () => {
     expectHealth("星宝生命", 0);
   }, 8_000);
 
+  it("does not return Starbao to idle when the defeat summary appears", async () => {
+    vi.useFakeTimers();
+    renderGame();
+
+    for (let index = 1; index <= 4; index += 1) {
+      fireEvent.click(screen.getByRole("button", { name: `Wrong A ${index}` }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(760);
+      });
+    }
+
+    arenaSpy.idle.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Wrong A 5" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1600);
+    });
+
+    expect(screen.getByRole("dialog")).toHaveTextContent("挑战失败");
+    expect(arenaSpy.idle).not.toHaveBeenCalled();
+  });
+
   it("destroys the Phaser instance when the component unmounts", async () => {
     arenaSpy.destroy.mockClear();
     const { unmount } = renderGame();
