@@ -5,6 +5,11 @@ export const SPRITE_SHEET_GRID = {
   frameHeight: 180,
 } as const;
 
+export const PLAYER_ANIMATION_RANGES = {
+  spawn: { start: 0, end: 7, frameRate: 12, repeat: 0 },
+  idle: { start: 16, end: 23, frameRate: 8, repeat: -1 },
+} as const;
+
 const CHECKERBOARD_CELL_SIZE = 16;
 const CHECKERBOARD_COLOR_TOLERANCE = 28;
 type Rgb = readonly [number, number, number];

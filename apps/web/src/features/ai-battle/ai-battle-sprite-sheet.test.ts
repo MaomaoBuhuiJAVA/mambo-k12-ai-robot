@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ENEMY_ANIMATION_RANGES,
+  PLAYER_ANIMATION_RANGES,
   SPRITE_SHEET_GRID,
   hasTransparentSpriteSheetPixels,
   isCheckerboardBackgroundPixel,
@@ -46,5 +47,14 @@ describe("enemy sprite sheets", () => {
       255, 255, 255, 255,
       240, 240, 240, 255,
     ]))).toBe(false);
+  });
+});
+
+describe("Starbao battle sprite sheet", () => {
+  it("defines a looping idle range after the spawn frames", () => {
+    expect(PLAYER_ANIMATION_RANGES).toEqual({
+      spawn: { start: 0, end: 7, frameRate: 12, repeat: 0 },
+      idle: { start: 16, end: 23, frameRate: 8, repeat: -1 },
+    });
   });
 });

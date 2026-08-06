@@ -7,14 +7,12 @@ import {
   ENEMY_VIDEO_FRAME_SIZE,
   type EnemyVideoTextureController,
 } from "./enemy-video-keyer";
-import { SPRITE_SHEET_GRID } from "./ai-battle-sprite-sheet";
+import { PLAYER_ANIMATION_RANGES, SPRITE_SHEET_GRID } from "./ai-battle-sprite-sheet";
 
 const SCENE_KEY = "ai-battle-arena";
 const ARENA_TEXTURE = "ai-battle-arena-background";
 const PLAYER_TEXTURE = "ai-battle-starbao";
 const PLAYER_SPRITE_SHEET = "/assets/game/starbao-sprite-sheet.png";
-const PLAYER_IDLE_FRAME = 16;
-const PLAYER_SPAWN_END_FRAME = 7;
 const ENEMY_REFERENCE_TEXTURE = "ai-battle-enemy-reference";
 const ENEMY_SPAWN_VIDEO_TEXTURE = "ai-battle-enemy-spawn-video";
 const ENEMY_DEFEAT_VIDEO_TEXTURE = "ai-battle-enemy-defeat-video";
@@ -100,11 +98,20 @@ function createBattleScene(
 
     create() {
       const playerSpawnAnimationKey = `${SCENE_KEY}-starbao-spawn`;
+      const playerIdleAnimationKey = `${SCENE_KEY}-starbao-idle`;
+      const playerSpawnRange = PLAYER_ANIMATION_RANGES.spawn;
+      const playerIdleRange = PLAYER_ANIMATION_RANGES.idle;
       this.anims.create({
         key: playerSpawnAnimationKey,
-        frames: this.anims.generateFrameNumbers(PLAYER_TEXTURE, { start: 0, end: PLAYER_SPAWN_END_FRAME }),
-        frameRate: 12,
-        repeat: 0,
+        frames: this.anims.generateFrameNumbers(PLAYER_TEXTURE, { start: playerSpawnRange.start, end: playerSpawnRange.end }),
+        frameRate: playerSpawnRange.frameRate,
+        repeat: playerSpawnRange.repeat,
+      });
+      this.anims.create({
+        key: playerIdleAnimationKey,
+        frames: this.anims.generateFrameNumbers(PLAYER_TEXTURE, { start: playerIdleRange.start, end: playerIdleRange.end }),
+        frameRate: playerIdleRange.frameRate,
+        repeat: playerIdleRange.repeat,
       });
 
       const background = this.add.image(0, 0, ARENA_TEXTURE).setOrigin(0.5, 0.5);
@@ -197,6 +204,7 @@ function createBattleScene(
       const hidePlayerForIdle = () => {
         player.setVisible(true).setAlpha(1);
         playerGlow.setVisible(true).setAlpha(0.16);
+        player.play(playerIdleAnimationKey, true);
       };
 
       const moveEnemyOut = () => {
@@ -256,7 +264,7 @@ function createBattleScene(
 
       player.on("animationcomplete", (animation: { key: string }) => {
         if (animation.key === playerSpawnAnimationKey) {
-          player.stop().setFrame(PLAYER_IDLE_FRAME);
+          player.play(playerIdleAnimationKey);
         }
       });
 
