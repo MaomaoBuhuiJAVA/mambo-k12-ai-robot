@@ -1,6 +1,7 @@
 import { keyEdgeConnectedCheckerboardPixels } from "./starbao-video-keyer";
 
-export const STARBAO_VIDEO_FRAME_SIZE = 512;
+export const STARBAO_VIDEO_FRAME_WIDTH = 768;
+export const STARBAO_VIDEO_FRAME_HEIGHT = 432;
 
 export interface StarbaoVideoTextureController {
   readonly video: HTMLVideoElement;
@@ -14,6 +15,7 @@ interface CreateStarbaoVideoTextureOptions {
   readonly canvas: HTMLCanvasElement;
   readonly refresh: () => void;
   readonly onError: () => void;
+  readonly onEnded: () => void;
 }
 
 export function createStarbaoVideoTexture({
@@ -21,6 +23,7 @@ export function createStarbaoVideoTexture({
   canvas,
   refresh,
   onError,
+  onEnded,
 }: CreateStarbaoVideoTextureOptions): StarbaoVideoTextureController {
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) throw new Error("Unable to create the Starbao video canvas context.");
@@ -28,7 +31,7 @@ export function createStarbaoVideoTexture({
 
   const video = document.createElement("video");
   video.muted = true;
-  video.loop = true;
+  video.loop = false;
   video.playsInline = true;
   video.preload = "auto";
   video.src = source;
@@ -40,23 +43,22 @@ export function createStarbaoVideoTexture({
 
   const renderFrame = () => {
     if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
-    const sourceSize = Math.min(video.videoWidth || 720, video.videoHeight || 720);
-    const sourceX = Math.max(0, (video.videoWidth - sourceSize) / 2);
-    const sourceY = Math.max(0, (video.videoHeight - sourceSize) / 2);
-    context.clearRect(0, 0, STARBAO_VIDEO_FRAME_SIZE, STARBAO_VIDEO_FRAME_SIZE);
+    const sourceWidth = video.videoWidth || 1920;
+    const sourceHeight = video.videoHeight || 1080;
+    context.clearRect(0, 0, STARBAO_VIDEO_FRAME_WIDTH, STARBAO_VIDEO_FRAME_HEIGHT);
     context.drawImage(
       video,
-      sourceX,
-      sourceY,
-      sourceSize,
-      sourceSize,
       0,
       0,
-      STARBAO_VIDEO_FRAME_SIZE,
-      STARBAO_VIDEO_FRAME_SIZE,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      STARBAO_VIDEO_FRAME_WIDTH,
+      STARBAO_VIDEO_FRAME_HEIGHT,
     );
-    const frame = context.getImageData(0, 0, STARBAO_VIDEO_FRAME_SIZE, STARBAO_VIDEO_FRAME_SIZE);
-    keyEdgeConnectedCheckerboardPixels(frame.data, STARBAO_VIDEO_FRAME_SIZE, STARBAO_VIDEO_FRAME_SIZE);
+    const frame = context.getImageData(0, 0, STARBAO_VIDEO_FRAME_WIDTH, STARBAO_VIDEO_FRAME_HEIGHT);
+    keyEdgeConnectedCheckerboardPixels(frame.data, STARBAO_VIDEO_FRAME_WIDTH, STARBAO_VIDEO_FRAME_HEIGHT);
     context.putImageData(frame, 0, 0);
     refresh();
   };
@@ -100,6 +102,14 @@ export function createStarbaoVideoTexture({
     onError();
   };
 
+  const handleEnded = () => {
+    playing = false;
+    cancelScheduledFrame();
+    video.pause();
+    renderFrame();
+    onEnded();
+  };
+
   const start = () => {
     cancelScheduledFrame();
     playing = true;
@@ -119,6 +129,7 @@ export function createStarbaoVideoTexture({
   };
 
   video.addEventListener("error", handleError);
+  video.addEventListener("ended", handleEnded);
   video.load();
 
   return {
@@ -128,6 +139,7 @@ export function createStarbaoVideoTexture({
     destroy() {
       stop();
       video.removeEventListener("error", handleError);
+      video.removeEventListener("ended", handleEnded);
       video.removeAttribute("src");
       video.load();
     },

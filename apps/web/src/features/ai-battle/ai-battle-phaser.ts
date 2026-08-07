@@ -10,7 +10,8 @@ import {
 import { PLAYER_ANIMATION_RANGES, SPRITE_SHEET_GRID } from "./ai-battle-sprite-sheet";
 import {
   createStarbaoVideoTexture,
-  STARBAO_VIDEO_FRAME_SIZE,
+  STARBAO_VIDEO_FRAME_HEIGHT,
+  STARBAO_VIDEO_FRAME_WIDTH,
   type StarbaoVideoTextureController,
 } from "./starbao-video-texture";
 
@@ -19,7 +20,7 @@ const ARENA_TEXTURE = "ai-battle-arena-background";
 const PLAYER_TEXTURE = "ai-battle-starbao";
 const PLAYER_SPRITE_SHEET = "/assets/game/starbao-sprite-sheet.png";
 const PLAYER_VIDEO_TEXTURE = "ai-battle-starbao-video";
-const PLAYER_VIDEO_SOURCE = "/assets/game/starbao-entrance-idle.mp4";
+const PLAYER_VIDEO_SOURCE = "/assets/game/starbao-entrance.mp4";
 const PLAYER_DEFEAT_TEXTURE = "ai-battle-starbao-defeat";
 const PLAYER_DEFEAT_SPRITE_SHEET = "/assets/game/starbao-defeat-sprite-sheet.png";
 const ENEMY_REFERENCE_TEXTURE = "ai-battle-enemy-reference";
@@ -139,8 +140,8 @@ function createBattleScene(
       const player = this.add.sprite(0, 0, PLAYER_TEXTURE, 0).setOrigin(0.5, 1);
       const playerDefeat = this.add.sprite(0, 0, PLAYER_DEFEAT_TEXTURE, 0).setOrigin(0.5, 1).setVisible(false);
       const playerVideoCanvas = document.createElement("canvas");
-      playerVideoCanvas.width = STARBAO_VIDEO_FRAME_SIZE;
-      playerVideoCanvas.height = STARBAO_VIDEO_FRAME_SIZE;
+      playerVideoCanvas.width = STARBAO_VIDEO_FRAME_WIDTH;
+      playerVideoCanvas.height = STARBAO_VIDEO_FRAME_HEIGHT;
       const playerVideoCanvasTexture = this.textures.addCanvas(PLAYER_VIDEO_TEXTURE, playerVideoCanvas);
       if (!playerVideoCanvasTexture) throw new Error("Unable to create the Starbao video texture.");
       playerVideoCanvasTexture.setFilter(Phaser.Textures.FilterMode.LINEAR);
@@ -154,6 +155,11 @@ function createBattleScene(
           usePlayerVideo = false;
           playerVideo.setVisible(false);
           player.setVisible(true).setAlpha(1).play(playerSpawnAnimationKey);
+        },
+        onEnded: () => {
+          player.setVisible(false);
+          playerVideo.setVisible(true).setAlpha(1);
+          layout();
         },
       });
       const playerGlow = this.add.star(0, 0, 5, 9, 22, 0xF6D062, 0.22).setBlendMode(Phaser.BlendModes.ADD);
@@ -204,7 +210,7 @@ function createBattleScene(
         const enemyScale = Math.min(requestedEnemyScale, maxEnemyScale);
 
         player.setPosition(playerX, baseline).setScale(characterScale);
-        playerVideo.setPosition(playerX, baseline).setScale(characterScale * SPRITE_SHEET_GRID.frameWidth / STARBAO_VIDEO_FRAME_SIZE);
+        playerVideo.setPosition(playerX, baseline).setScale(characterScale * SPRITE_SHEET_GRID.frameHeight / STARBAO_VIDEO_FRAME_HEIGHT);
         playerDefeat.setPosition(playerX, baseline).setScale(characterScale);
         enemy.setPosition(0, 0).setScale(enemyScale);
         enemyVideo.setPosition(0, 0).setScale(enemyScale * enemyReferenceWidth / ENEMY_VIDEO_FRAME_SIZE);
