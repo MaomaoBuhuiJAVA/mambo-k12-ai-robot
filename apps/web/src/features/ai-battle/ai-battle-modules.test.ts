@@ -40,4 +40,34 @@ describe("AI battle module sizing", () => {
       expect((resolveAiBattleModule(moduleId) as ModuleWithAnimations).enemyAnimations).toEqual(animations);
     }
   });
+
+  it("maps every battle module to the extracted spawn and defeat sounds", () => {
+    const expectedAudio = {
+      "castle-1": {
+        spawn: "/assets/game/enemy-audio/castle-guardian-spawn.m4a",
+        defeat: "/assets/game/enemy-audio/castle-guardian-defeat.m4a",
+      },
+      "core-lab": {
+        spawn: "/assets/game/enemy-audio/core-automaton-spawn.m4a",
+        defeat: "/assets/game/enemy-audio/core-automaton-defeat.m4a",
+      },
+      "desert-temple": {
+        spawn: "/assets/game/enemy-audio/desert-sphinx-spawn.m4a",
+        defeat: "/assets/game/enemy-audio/desert-sphinx-defeat.m4a",
+      },
+      "lava-cavern": {
+        spawn: "/assets/game/enemy-audio/lava-serpent-spawn.m4a",
+        defeat: "/assets/game/enemy-audio/lava-serpent-defeat.m4a",
+      },
+      "tree-sanctuary": {
+        spawn: "/assets/game/enemy-audio/tree-guardian-spawn.m4a",
+        defeat: "/assets/game/enemy-audio/tree-guardian-defeat.m4a",
+      },
+    } as const;
+    type ModuleWithAudio = ReturnType<typeof resolveAiBattleModule> & { enemyAudio?: unknown };
+
+    for (const [moduleId, audio] of Object.entries(expectedAudio)) {
+      expect((resolveAiBattleModule(moduleId) as ModuleWithAudio).enemyAudio).toEqual(audio);
+    }
+  });
 });

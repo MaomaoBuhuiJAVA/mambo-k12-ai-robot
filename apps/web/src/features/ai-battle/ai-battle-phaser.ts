@@ -10,6 +10,7 @@ import {
 import { PLAYER_ANIMATION_RANGES, SPRITE_SHEET_GRID } from "./ai-battle-sprite-sheet";
 import {
   createStarbaoVideoTexture,
+  STARBAO_IDLE_VIDEO_FRAME_SIZE,
   STARBAO_VIDEO_FRAME_HEIGHT,
   STARBAO_VIDEO_FRAME_WIDTH,
   type StarbaoVideoTextureController,
@@ -19,8 +20,10 @@ const SCENE_KEY = "ai-battle-arena";
 const ARENA_TEXTURE = "ai-battle-arena-background";
 const PLAYER_TEXTURE = "ai-battle-starbao";
 const PLAYER_SPRITE_SHEET = "/assets/game/starbao-sprite-sheet.png";
-const PLAYER_VIDEO_TEXTURE = "ai-battle-starbao-video";
-const PLAYER_VIDEO_SOURCE = "/assets/game/starbao-entrance.mp4";
+const PLAYER_ENTRANCE_VIDEO_TEXTURE = "ai-battle-starbao-entrance-video";
+const PLAYER_ENTRANCE_VIDEO_SOURCE = "/assets/game/starbao-entrance.mp4";
+const PLAYER_IDLE_VIDEO_TEXTURE = "ai-battle-starbao-idle-video";
+const PLAYER_IDLE_VIDEO_SOURCE = "/assets/game/starbao-entrance-idle.mp4";
 const PLAYER_DEFEAT_TEXTURE = "ai-battle-starbao-defeat";
 const PLAYER_DEFEAT_SPRITE_SHEET = "/assets/game/starbao-defeat-sprite-sheet.png";
 const ENEMY_REFERENCE_TEXTURE = "ai-battle-enemy-reference";
@@ -28,9 +31,91 @@ const ENEMY_SPAWN_VIDEO_TEXTURE = "ai-battle-enemy-spawn-video";
 const ENEMY_DEFEAT_VIDEO_TEXTURE = "ai-battle-enemy-defeat-video";
 const BOLT_TEXTURE = "ai-battle-knowledge-bolt";
 const ENEMY_SCALE_BOOST = 1.18;
+const STARBAO_ENTRANCE_DURATION_SECONDS = 4.69;
+const STARBAO_ENTRANCE_EDGE_DELAY_SECONDS = 0.72;
+const STARBAO_ENTRANCE_OFFSCREEN_FRACTION = 0.4;
+const STARBAO_IDLE_FRAME_OFFSET_X = 57;
 type PhaserRuntime = typeof import("phaser");
+type PlayerVideoState = "entrance" | "transitioning" | "idle" | "defeat";
+type ArenaSceneEvent = BattleAnimationEvent | "begin" | "idle" | "reset";
+
+export function createArenaEventQueue() {
+  let destroyed = false;
+  let emitToScene: ((event: ArenaSceneEvent) => void) | null = null;
+  let queuedEvents: ArenaSceneEvent[] = [];
+
+  return {
+    emit(event: ArenaSceneEvent) {
+      if (destroyed) return;
+      if (emitToScene) {
+        emitToScene(event);
+        return;
+      }
+      queuedEvents.push(event);
+    },
+    ready(nextEmit: (event: ArenaSceneEvent) => void) {
+      if (destroyed) return;
+      emitToScene = nextEmit;
+      const events = queuedEvents;
+      queuedEvents = [];
+      events.forEach((event) => nextEmit(event));
+    },
+    destroy() {
+      destroyed = true;
+      emitToScene = null;
+      queuedEvents = [];
+    },
+  };
+}
+
+export function createEntranceCompletionTracker(onComplete: () => void) {
+  let playerFinished = false;
+  let enemyFinished = false;
+  let completed = false;
+
+  const completeWhenReady = () => {
+    if (completed || !playerFinished || !enemyFinished) return;
+    completed = true;
+    onComplete();
+  };
+
+  return {
+    playerFinished() {
+      playerFinished = true;
+      completeWhenReady();
+    },
+    enemyFinished() {
+      enemyFinished = true;
+      completeWhenReady();
+    },
+    reset() {
+      playerFinished = false;
+      enemyFinished = false;
+      completed = false;
+    },
+  };
+}
+
+export function calculateStarbaoEntranceX({
+  currentTime,
+  duration,
+  displayWidth,
+  targetX,
+}: {
+  readonly currentTime: number;
+  readonly duration: number;
+  readonly displayWidth: number;
+  readonly targetX: number;
+}) {
+  const travelDuration = Math.max(0.001, duration - STARBAO_ENTRANCE_EDGE_DELAY_SECONDS);
+  const elapsed = Number.isFinite(currentTime) ? currentTime - STARBAO_ENTRANCE_EDGE_DELAY_SECONDS : 0;
+  const progress = Math.min(1, Math.max(0, elapsed / travelDuration));
+  const startX = -displayWidth * STARBAO_ENTRANCE_OFFSCREEN_FRACTION;
+  return startX + (targetX - startX) * progress;
+}
 
 export interface AiBattleArenaController {
+  begin: (onEntrancesComplete?: () => void) => void;
   emit: (events: readonly BattleAnimationEvent[]) => void;
   idle: () => void;
   reset: () => void;
@@ -42,10 +127,16 @@ export async function mountAiBattleArena(
   battleModule: AiBattleModule = DEFAULT_AI_BATTLE_MODULE,
 ): Promise<AiBattleArenaController> {
   const Phaser = await import("phaser");
-  let sendEvent: ((event: BattleAnimationEvent | "idle" | "reset") => void) | null = null;
+  const eventQueue = createArenaEventQueue();
+  let entranceCompletionCallbacks: Array<() => void> = [];
+  const finishEntrances = () => {
+    const callbacks = entranceCompletionCallbacks;
+    entranceCompletionCallbacks = [];
+    callbacks.forEach((callback) => callback());
+  };
   const BattleScene = createBattleScene(Phaser, battleModule, (emit) => {
-    sendEvent = emit;
-  });
+    eventQueue.ready(emit);
+  }, finishEntrances);
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
@@ -70,17 +161,23 @@ export async function mountAiBattleArena(
   });
 
   return {
+    begin(onEntrancesComplete) {
+      if (onEntrancesComplete) entranceCompletionCallbacks.push(onEntrancesComplete);
+      eventQueue.emit("begin");
+    },
     emit(events) {
-      events.forEach((event) => sendEvent?.(event));
+      events.forEach((event) => eventQueue.emit(event));
     },
     idle() {
-      sendEvent?.("idle");
+      eventQueue.emit("idle");
     },
     reset() {
-      sendEvent?.("reset");
+      entranceCompletionCallbacks = [];
+      eventQueue.emit("reset");
     },
     destroy() {
-      sendEvent = null;
+      entranceCompletionCallbacks = [];
+      eventQueue.destroy();
       game.destroy(true);
     },
   };
@@ -89,7 +186,8 @@ export async function mountAiBattleArena(
 function createBattleScene(
   Phaser: PhaserRuntime,
   battleModule: AiBattleModule,
-  onReady: (emit: (event: BattleAnimationEvent | "idle" | "reset") => void) => void,
+  onReady: (emit: (event: ArenaSceneEvent) => void) => void,
+  onEntrancesComplete: () => void,
 ) {
   return class AiBattleScene extends Phaser.Scene {
     constructor() {
@@ -139,34 +237,89 @@ function createBattleScene(
       const background = this.add.image(0, 0, ARENA_TEXTURE).setOrigin(0.5, 0.5);
       const player = this.add.sprite(0, 0, PLAYER_TEXTURE, 0).setOrigin(0.5, 1);
       const playerDefeat = this.add.sprite(0, 0, PLAYER_DEFEAT_TEXTURE, 0).setOrigin(0.5, 1).setVisible(false);
-      const playerVideoCanvas = document.createElement("canvas");
-      playerVideoCanvas.width = STARBAO_VIDEO_FRAME_WIDTH;
-      playerVideoCanvas.height = STARBAO_VIDEO_FRAME_HEIGHT;
-      const playerVideoCanvasTexture = this.textures.addCanvas(PLAYER_VIDEO_TEXTURE, playerVideoCanvas);
-      if (!playerVideoCanvasTexture) throw new Error("Unable to create the Starbao video texture.");
-      playerVideoCanvasTexture.setFilter(Phaser.Textures.FilterMode.LINEAR);
-      const playerVideo = this.add.image(0, 0, PLAYER_VIDEO_TEXTURE).setOrigin(0.5, 1).setVisible(false);
+      const playerEntranceVideoCanvas = document.createElement("canvas");
+      playerEntranceVideoCanvas.width = STARBAO_VIDEO_FRAME_WIDTH;
+      playerEntranceVideoCanvas.height = STARBAO_VIDEO_FRAME_HEIGHT;
+      const playerEntranceVideoCanvasTexture = this.textures.addCanvas(PLAYER_ENTRANCE_VIDEO_TEXTURE, playerEntranceVideoCanvas);
+      if (!playerEntranceVideoCanvasTexture) throw new Error("Unable to create the Starbao entrance video texture.");
+      playerEntranceVideoCanvasTexture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+      const playerEntranceVideo = this.add.image(0, 0, PLAYER_ENTRANCE_VIDEO_TEXTURE).setOrigin(0.5, 1).setVisible(false);
+      const playerIdleVideoCanvas = document.createElement("canvas");
+      playerIdleVideoCanvas.width = STARBAO_IDLE_VIDEO_FRAME_SIZE;
+      playerIdleVideoCanvas.height = STARBAO_IDLE_VIDEO_FRAME_SIZE;
+      const playerIdleVideoCanvasTexture = this.textures.addCanvas(PLAYER_IDLE_VIDEO_TEXTURE, playerIdleVideoCanvas);
+      if (!playerIdleVideoCanvasTexture) throw new Error("Unable to create the Starbao idle video texture.");
+      playerIdleVideoCanvasTexture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+      const playerIdleVideo = this.add.image(0, 0, PLAYER_IDLE_VIDEO_TEXTURE).setOrigin(0.5, 1).setVisible(false);
       let usePlayerVideo = true;
-      const playerVideoController: StarbaoVideoTextureController = createStarbaoVideoTexture({
-        source: PLAYER_VIDEO_SOURCE,
-        canvas: playerVideoCanvas,
-        refresh: () => playerVideoCanvasTexture.refresh(),
+      let playerVideoState: PlayerVideoState = "entrance";
+      let queuedPlayerActions: Array<() => void> = [];
+      let playerFallbackEntranceActive = false;
+      const entranceCompletionTracker = createEntranceCompletionTracker(onEntrancesComplete);
+      const finishPlayerEntrance = () => entranceCompletionTracker.playerFinished();
+      const finishEnemyEntrance = () => entranceCompletionTracker.enemyFinished();
+      let playerX = 0;
+      let playerBaseline = 0;
+      let playerCharacterScale = 1;
+      let positionPlayerEntrance = () => {};
+      let activatePlayerIdleVideo: (animateTransition: boolean) => void = () => {};
+      let flushQueuedPlayerActions: () => void = () => {};
+      let sceneVideoTexturesActive = true;
+      const playerIsDefeated = () => playerVideoState === "defeat";
+      const playerEntranceVideoController: StarbaoVideoTextureController = createStarbaoVideoTexture({
+        source: PLAYER_ENTRANCE_VIDEO_SOURCE,
+        canvas: playerEntranceVideoCanvas,
+        refresh: () => {
+          if (sceneVideoTexturesActive) playerEntranceVideoCanvasTexture.refresh();
+        },
         onError: () => {
+          if (playerVideoState === "defeat") return;
           usePlayerVideo = false;
-          playerVideo.setVisible(false);
+          playerVideoState = "idle";
+          playerEntranceVideo.setVisible(false);
+          playerIdleVideo.setVisible(false);
           player.setVisible(true).setAlpha(1).play(playerSpawnAnimationKey);
-        },
-        onEnded: () => {
-          player.setVisible(false);
-          playerVideo.setVisible(true).setAlpha(1);
+          playerFallbackEntranceActive = true;
           layout();
+          flushQueuedPlayerActions();
         },
+        onEnded: () => activatePlayerIdleVideo(true),
+        onFrame: () => positionPlayerEntrance(),
+      });
+      const playerIdleVideoController: StarbaoVideoTextureController = createStarbaoVideoTexture({
+        source: PLAYER_IDLE_VIDEO_SOURCE,
+        canvas: playerIdleVideoCanvas,
+        refresh: () => {
+          if (sceneVideoTexturesActive) playerIdleVideoCanvasTexture.refresh();
+        },
+        onError: () => {
+          if (playerVideoState === "defeat") return;
+          usePlayerVideo = false;
+          playerVideoState = "idle";
+          playerEntranceVideoController.stop();
+          playerEntranceVideo.setVisible(false);
+          playerIdleVideo.setVisible(false);
+          player.setVisible(true).setAlpha(1).play(playerIdleAnimationKey, true);
+          playerFallbackEntranceActive = false;
+          layout();
+          flushQueuedPlayerActions();
+          finishPlayerEntrance();
+        },
+        loop: true,
+        frameMode: "center-square",
+        frameOffsetX: STARBAO_IDLE_FRAME_OFFSET_X,
       });
       const playerGlow = this.add.star(0, 0, 5, 9, 22, 0xF6D062, 0.22).setBlendMode(Phaser.BlendModes.ADD);
       const enemyContainer = this.add.container(0, 0);
       const enemyGlow = this.add.star(0, 0, 5, 9, 22, 0xFF9368, 0.2).setBlendMode(Phaser.BlendModes.ADD);
       const enemy = this.add.image(0, 0, ENEMY_REFERENCE_TEXTURE).setOrigin(0.5, 1);
-      const createVideoTexture = (textureKey: string, source: string, onEnded: () => void) => {
+      const createVideoTexture = (
+        textureKey: string,
+        source: string,
+        audioSource: string | undefined,
+        onEnded: () => void,
+        onError: () => void,
+      ) => {
         const canvas = document.createElement("canvas");
         canvas.width = ENEMY_VIDEO_FRAME_SIZE;
         canvas.height = ENEMY_VIDEO_FRAME_SIZE;
@@ -175,9 +328,13 @@ function createBattleScene(
         canvasTexture.setFilter(Phaser.Textures.FilterMode.LINEAR);
         const controller = createEnemyVideoTexture({
           source,
+          audioSource,
           canvas,
-          refresh: () => canvasTexture.refresh(),
+          refresh: () => {
+            if (sceneVideoTexturesActive) canvasTexture.refresh();
+          },
           onEnded,
+          onError,
         });
         return controller;
       };
@@ -191,15 +348,16 @@ function createBattleScene(
       const attackImpactDelay = reducedMotion ? 1 : (fast + 70) * 2 + normal + 70;
       let pendingVictoryExplosion: { remove: (dispatchCallback?: boolean) => void } | null = null;
       let enemyExitRequested = false;
+      let entranceStarted = false;
 
       const layout = (width = this.scale.width, height = this.scale.height) => {
         const backgroundScale = Math.max(width / background.width, height / background.height);
         background.setPosition(width / 2, height / 2).setDisplaySize(background.width * backgroundScale, background.height * backgroundScale);
-        const characterScale = Math.max(0.34, Math.min(width / 1280, height / 640) * 1.05);
-        const playerX = width * 0.24;
-        const baseline = height * 0.965;
+        playerCharacterScale = Math.max(0.34, Math.min(width / 1280, height / 640) * 1.05);
+        playerX = width * 0.24;
+        playerBaseline = height * 0.965;
         const enemyReferenceWidth = this.textures.get(ENEMY_REFERENCE_TEXTURE).getSourceImage().width;
-        const requestedEnemyScale = characterScale * battleModule.enemyScale * ENEMY_SCALE_BOOST;
+        const requestedEnemyScale = playerCharacterScale * battleModule.enemyScale * ENEMY_SCALE_BOOST;
         const maxEnemyScale = Math.max(
           0.3,
           Math.min(
@@ -209,64 +367,184 @@ function createBattleScene(
         );
         const enemyScale = Math.min(requestedEnemyScale, maxEnemyScale);
 
-        player.setPosition(playerX, baseline).setScale(characterScale);
-        playerVideo.setPosition(playerX, baseline).setScale(characterScale * SPRITE_SHEET_GRID.frameHeight / STARBAO_VIDEO_FRAME_HEIGHT);
-        playerDefeat.setPosition(playerX, baseline).setScale(characterScale);
+        player.setPosition(playerX, playerBaseline).setScale(playerCharacterScale);
+        playerEntranceVideo.setScale(playerCharacterScale * SPRITE_SHEET_GRID.frameHeight / STARBAO_VIDEO_FRAME_HEIGHT);
+        playerIdleVideo.setPosition(playerX, playerBaseline).setScale(playerCharacterScale * SPRITE_SHEET_GRID.frameWidth / STARBAO_IDLE_VIDEO_FRAME_SIZE);
+        if (playerVideoState === "entrance") {
+          positionPlayerEntrance();
+        } else {
+          playerEntranceVideo.setPosition(playerX, playerBaseline);
+        }
+        playerDefeat.setPosition(playerX, playerBaseline).setScale(playerCharacterScale);
         enemy.setPosition(0, 0).setScale(enemyScale);
         enemyVideo.setPosition(0, 0).setScale(enemyScale * enemyReferenceWidth / ENEMY_VIDEO_FRAME_SIZE);
         const enemyX = Math.min(
           width * 0.77,
           width - enemy.displayWidth / 2 - Math.max(12, width * 0.02),
         );
-        enemyContainer.setPosition(enemyX, baseline);
-        playerGlow.setPosition(playerX, baseline - 88 * characterScale).setScale(characterScale * 1.4);
+        enemyContainer.setPosition(enemyX, playerBaseline);
+        const visiblePlayerX = playerVideoState === "entrance" ? playerEntranceVideo.x : playerX;
+        playerGlow.setPosition(visiblePlayerX, playerBaseline - 88 * playerCharacterScale).setScale(playerCharacterScale * 1.4);
         const visibleEnemyHeight = enemyVideo.visible ? enemyVideo.displayHeight : enemy.displayHeight;
-        enemyGlow.setPosition(0, -Math.max(112 * characterScale, visibleEnemyHeight * 0.42)).setScale(characterScale * 1.55);
+        enemyGlow.setPosition(0, -Math.max(112 * playerCharacterScale, visibleEnemyHeight * 0.42)).setScale(playerCharacterScale * 1.55);
+      };
+
+      positionPlayerEntrance = () => {
+        if (playerVideoState !== "entrance") return;
+        const duration = Number.isFinite(playerEntranceVideoController.video.duration)
+          ? playerEntranceVideoController.video.duration
+          : STARBAO_ENTRANCE_DURATION_SECONDS;
+        const currentX = calculateStarbaoEntranceX({
+          currentTime: playerEntranceVideoController.video.currentTime,
+          duration,
+          displayWidth: playerEntranceVideo.displayWidth,
+          targetX: playerX,
+        });
+        playerEntranceVideo.setPosition(currentX, playerBaseline);
+        playerGlow.setPosition(currentX, playerBaseline - 88 * playerCharacterScale).setScale(playerCharacterScale * 1.4);
+      };
+
+      activatePlayerIdleVideo = (animateTransition) => {
+        if (!usePlayerVideo || playerVideoState === "defeat" || playerVideoState === "idle" || playerVideoState === "transitioning") return;
+        playerVideoState = animateTransition ? "transitioning" : "idle";
+        playerEntranceVideoController.stop();
+        playerEntranceVideo.setPosition(playerX, playerBaseline);
+        playerIdleVideo.setVisible(true).setAlpha(animateTransition ? 0 : 1).setAngle(0);
+        player.setVisible(false);
+        layout();
+        playerIdleVideoController.start();
+        if (!animateTransition) {
+          playerEntranceVideo.setVisible(false).setAlpha(1);
+          finishPlayerEntrance();
+          flushQueuedPlayerActions();
+          return;
+        }
+        this.tweens.add({
+          targets: playerEntranceVideo,
+          alpha: 0,
+          duration: 160,
+          ease: "Sine.easeOut",
+          onComplete: () => playerEntranceVideo.setVisible(false).setAlpha(1),
+        });
+        this.tweens.add({
+          targets: playerIdleVideo,
+          alpha: 1,
+          duration: 160,
+          ease: "Sine.easeOut",
+          onComplete: () => {
+            if (playerVideoState !== "transitioning") return;
+            playerVideoState = "idle";
+            finishPlayerEntrance();
+            flushQueuedPlayerActions();
+          },
+        });
+      };
+
+      const startPlayerEntrance = () => {
+        queuedPlayerActions = [];
+        playerFallbackEntranceActive = false;
+        playerVideoState = "entrance";
+        playerIdleVideoController.stop();
+        playerIdleVideo.setVisible(false).setAlpha(1).setAngle(0);
+        playerEntranceVideo.setVisible(true).setAlpha(1).setAngle(0);
+        player.setVisible(false);
+        playerDefeat.setVisible(false);
+        playerEntranceVideoController.start();
+        layout();
+      };
+
+      const runPlayerActionWhenReady = (action: () => void) => {
+        if (playerVideoState === "defeat") return;
+        if (usePlayerVideo && (playerVideoState === "entrance" || playerVideoState === "transitioning")) {
+          queuedPlayerActions.push(action);
+          return;
+        }
+        action();
+      };
+
+      flushQueuedPlayerActions = () => {
+        if (playerVideoState === "defeat") {
+          queuedPlayerActions = [];
+          return;
+        }
+        if (usePlayerVideo && playerVideoState !== "idle") return;
+        const actions = queuedPlayerActions;
+        queuedPlayerActions = [];
+        for (const action of actions) {
+          if (playerIsDefeated()) break;
+          action();
+        }
       };
 
       const enemyImpactY = () => enemyContainer.y - Math.max(112, (enemyVideo.visible ? enemyVideo.displayHeight : enemy.displayHeight) * 0.5);
 
       const resetCharacters = () => {
+        queuedPlayerActions = [];
         pendingVictoryExplosion?.remove(false);
         pendingVictoryExplosion = null;
         enemyExitRequested = false;
-        this.tweens.killTweensOf([player, playerVideo, playerDefeat, enemyContainer, playerGlow, enemyGlow]);
-        player.clearTint().setVisible(true).setAlpha(1).setAngle(0).setScale(1).stop().setFrame(0);
-        playerVideo.clearTint().setVisible(false).setAlpha(1).setAngle(0).setScale(1);
+        entranceStarted = false;
+        playerFallbackEntranceActive = false;
+        entranceCompletionTracker.reset();
+        this.tweens.killTweensOf([player, playerEntranceVideo, playerIdleVideo, playerDefeat, enemyContainer, playerGlow, enemyGlow]);
+        playerEntranceVideoController.stop();
+        playerIdleVideoController.stop();
+        playerVideoState = usePlayerVideo ? "entrance" : "idle";
+        player.clearTint().setVisible(false).setAlpha(1).setAngle(0).setScale(1).stop().setFrame(0);
+        playerEntranceVideo.clearTint().setVisible(false).setAlpha(1).setAngle(0).setScale(1);
+        playerIdleVideo.clearTint().setVisible(false).setAlpha(1).setAngle(0).setScale(1);
         playerDefeat.clearTint().setVisible(false).setAlpha(1).setAngle(0).setScale(1).stop().setFrame(0);
         enemyContainer.setVisible(true).setAlpha(1).setAngle(0);
         enemySpawnVideo.stop();
         enemyDefeatVideo.stop();
         enemy.clearTint().setVisible(false).setAlpha(1).setAngle(0).setScale(1);
-        enemyVideo.setTexture(ENEMY_SPAWN_VIDEO_TEXTURE).setVisible(true).setAlpha(1).setAngle(0).setScale(1);
+        enemyVideo.setTexture(ENEMY_SPAWN_VIDEO_TEXTURE).setVisible(false).setAlpha(1).setAngle(0).setScale(1);
+        playerGlow.setVisible(false).setAlpha(0.22);
+        enemyGlow.setVisible(false).setAlpha(0.2);
+        layout();
+      };
+
+      const startEntrances = () => {
+        if (entranceStarted) return;
+        entranceStarted = true;
+        entranceCompletionTracker.reset();
+        enemyExitRequested = false;
+        enemyContainer.setVisible(true).setAlpha(1).setAngle(0);
+        enemy.clearTint().setVisible(false).setAlpha(1).setAngle(0);
+        enemyVideo.setTexture(ENEMY_SPAWN_VIDEO_TEXTURE).setVisible(true).setAlpha(1).setAngle(0);
+        playerGlow.setVisible(true).setAlpha(0.22);
+        enemyGlow.setVisible(true).setAlpha(0.2);
         enemySpawnVideo.start();
         if (usePlayerVideo) {
-          player.setVisible(false);
-          playerVideo.setVisible(true);
-          playerVideoController.start();
+          startPlayerEntrance();
         } else {
-          player.play(playerSpawnAnimationKey);
+          playerVideoState = "idle";
+          playerFallbackEntranceActive = true;
+          player.setVisible(true).play(playerSpawnAnimationKey);
         }
-        playerGlow.setVisible(true).setAlpha(0.22);
-        enemyGlow.setAlpha(0.2);
         layout();
       };
 
       const showPlayerForCombat = () => {
+        if (playerVideoState === "defeat" || (usePlayerVideo && playerVideoState !== "idle")) return false;
         player.setVisible(!usePlayerVideo).setAlpha(1);
-        playerVideo.setVisible(usePlayerVideo).setAlpha(1);
+        playerEntranceVideo.setVisible(false);
+        playerIdleVideo.setVisible(usePlayerVideo).setAlpha(1);
         playerDefeat.setVisible(false).setAlpha(1);
         playerGlow.setVisible(true).setAlpha(0.22);
+        return true;
       };
 
       const hidePlayerForIdle = () => {
+        if (playerVideoState === "defeat" || (usePlayerVideo && playerVideoState !== "idle")) return;
         player.setVisible(!usePlayerVideo).setAlpha(1);
-        playerVideo.setVisible(usePlayerVideo).setAlpha(1);
+        playerEntranceVideo.setVisible(false);
+        playerIdleVideo.setVisible(usePlayerVideo).setAlpha(1);
         playerGlow.setVisible(true).setAlpha(0.16);
         if (!usePlayerVideo) player.play(playerIdleAnimationKey, true);
       };
 
-      const playerMotionTarget = () => usePlayerVideo ? playerVideo : player;
+      const playerMotionTarget = () => usePlayerVideo ? playerIdleVideo : player;
 
       const moveEnemyOut = () => {
         this.tweens.killTweensOf(enemyContainer);
@@ -283,8 +561,8 @@ function createBattleScene(
         enemyExitRequested = true;
         enemySpawnVideo.stop();
         enemyDefeatVideo.stop();
-        enemyVideo.setVisible(false);
-        enemy.setVisible(true);
+        enemy.setVisible(false);
+        enemyVideo.setVisible(true);
         moveEnemyOut();
       };
 
@@ -300,33 +578,59 @@ function createBattleScene(
       const enemySpawnVideo: EnemyVideoTextureController = createVideoTexture(
         ENEMY_SPAWN_VIDEO_TEXTURE,
         battleModule.enemyAnimations.spawn,
+        battleModule.enemyAudio?.spawn,
         () => {
+          if (!sceneVideoTexturesActive) return;
+          enemy.setVisible(false);
+          enemyVideo.setVisible(true);
+          layout();
+          finishEnemyEntrance();
+        },
+        () => {
+          if (!sceneVideoTexturesActive) return;
           enemyVideo.setVisible(false);
           enemy.setVisible(true);
           layout();
+          finishEnemyEntrance();
         },
       );
       const enemyDefeatVideo: EnemyVideoTextureController = createVideoTexture(
         ENEMY_DEFEAT_VIDEO_TEXTURE,
         battleModule.enemyAnimations.defeat,
+        battleModule.enemyAudio?.defeat,
         () => {
+          if (!sceneVideoTexturesActive) return;
           enemyVideo.setVisible(false);
           enemy.setVisible(false);
+          if (enemyExitRequested) moveEnemyOut();
+        },
+        () => {
+          if (!sceneVideoTexturesActive) return;
+          enemyVideo.setVisible(false);
+          enemy.setVisible(true);
           if (enemyExitRequested) moveEnemyOut();
         },
       );
 
       const cleanupEnemyVideos = () => {
+        if (!sceneVideoTexturesActive) return;
+        sceneVideoTexturesActive = false;
         enemySpawnVideo.destroy();
         enemyDefeatVideo.destroy();
-        playerVideoController.destroy();
+        playerEntranceVideoController.destroy();
+        playerIdleVideoController.destroy();
       };
 
       this.events.once("shutdown", cleanupEnemyVideos);
+      this.events.once("destroy", cleanupEnemyVideos);
 
       player.on("animationcomplete", (animation: { key: string }) => {
         if (animation.key === playerSpawnAnimationKey) {
           player.play(playerIdleAnimationKey);
+          if (playerFallbackEntranceActive) {
+            playerFallbackEntranceActive = false;
+            finishPlayerEntrance();
+          }
         }
       });
 
@@ -348,6 +652,7 @@ function createBattleScene(
         const explosionY = enemyImpactY();
         this.tweens.killTweensOf(enemyContainer);
         enemy.setVisible(false);
+        enemyVideo.setVisible(false);
         enemyGlow.setAlpha(0);
 
         const core = this.add.star(explosionX, explosionY, 10, 18, 44, 0xFFF2A5, 1).setBlendMode(Phaser.BlendModes.ADD);
@@ -408,7 +713,7 @@ function createBattleScene(
       };
 
       const playerAttack = () => {
-        showPlayerForCombat();
+        if (!showPlayerForCombat()) return;
         const startX = player.x;
         const startY = player.y;
         this.tweens.add({
@@ -434,7 +739,7 @@ function createBattleScene(
       };
 
       const enemyAttack = () => {
-        showPlayerForCombat();
+        if (!showPlayerForCombat()) return;
         const startX = enemyContainer.x;
         const startY = enemyContainer.y;
         this.tweens.add({
@@ -460,7 +765,7 @@ function createBattleScene(
       };
 
       const heal = () => {
-        showPlayerForCombat();
+        if (!showPlayerForCombat()) return;
         const glow = this.add.image(player.x, player.y - 72, BOLT_TEXTURE).setScale(0.12).setAlpha(0.75);
         this.tweens.add({
           targets: [playerMotionTarget(), playerGlow],
@@ -481,7 +786,7 @@ function createBattleScene(
       };
 
       const victory = () => {
-        showPlayerForCombat();
+        if (!showPlayerForCombat()) return;
         pendingVictoryExplosion?.remove(false);
         pendingVictoryExplosion = this.time.delayedCall(attackImpactDelay, () => {
           pendingVictoryExplosion = null;
@@ -499,8 +804,15 @@ function createBattleScene(
       };
 
       const defeat = () => {
-        playerVideoController.stop();
-        playerVideo.setVisible(false);
+        queuedPlayerActions = [];
+        pendingVictoryExplosion?.remove(false);
+        pendingVictoryExplosion = null;
+        this.tweens.killTweensOf([player, playerEntranceVideo, playerIdleVideo, playerGlow]);
+        playerVideoState = "defeat";
+        playerEntranceVideoController.stop();
+        playerIdleVideoController.stop();
+        playerEntranceVideo.setVisible(false);
+        playerIdleVideo.setVisible(false);
         player.setVisible(false).stop();
         playerDefeat.setVisible(true).setAlpha(1).setAngle(0).play(playerDefeatAnimationKey);
         playerGlow.setVisible(true).setAlpha(0.22);
@@ -515,26 +827,15 @@ function createBattleScene(
         });
       };
 
-      layout();
-      hidePlayerForIdle();
-      enemy.setVisible(false);
-      enemyVideo.setTexture(ENEMY_SPAWN_VIDEO_TEXTURE);
-      enemyVideo.setVisible(true);
-      enemySpawnVideo.start();
-      if (usePlayerVideo) {
-        player.setVisible(false);
-        playerVideo.setVisible(true);
-        playerVideoController.start();
-      } else {
-        player.play(playerSpawnAnimationKey);
-      }
+      resetCharacters();
       this.scale.on("resize", (size: Phaser.Structs.Size) => layout(size.width, size.height));
-      this.events.on("player-attack", playerAttack);
-      this.events.on("enemy-attack", enemyAttack);
-      this.events.on("heal", heal);
-      this.events.on("victory", victory);
+      this.events.on("begin", startEntrances);
+      this.events.on("player-attack", () => runPlayerActionWhenReady(playerAttack));
+      this.events.on("enemy-attack", () => runPlayerActionWhenReady(enemyAttack));
+      this.events.on("heal", () => runPlayerActionWhenReady(heal));
+      this.events.on("victory", () => runPlayerActionWhenReady(victory));
       this.events.on("defeat", defeat);
-      this.events.on("idle", hidePlayerForIdle);
+      this.events.on("idle", () => runPlayerActionWhenReady(hidePlayerForIdle));
       this.events.on("reset", resetCharacters);
       onReady((event) => this.events.emit(event));
     }

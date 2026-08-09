@@ -5,9 +5,15 @@ export interface AiBattleModule {
   readonly enemyAsset: string;
   readonly enemyScale: number;
   readonly enemyAnimations: AiBattleEnemyAnimations;
+  readonly enemyAudio?: AiBattleEnemyAudio;
 }
 
 export interface AiBattleEnemyAnimations {
+  readonly spawn: string;
+  readonly defeat: string;
+}
+
+export interface AiBattleEnemyAudio {
   readonly spawn: string;
   readonly defeat: string;
 }
@@ -28,6 +34,10 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
       spawn: "/assets/game/enemy-videos/castle-guardian-spawn.mp4",
       defeat: "/assets/game/enemy-videos/castle-guardian-defeat.mp4",
     },
+    enemyAudio: {
+      spawn: "/assets/game/enemy-audio/castle-guardian-spawn.m4a",
+      defeat: "/assets/game/enemy-audio/castle-guardian-defeat.m4a",
+    },
   },
   {
     id: "core-lab",
@@ -39,6 +49,10 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
     enemyAnimations: {
       spawn: "/assets/game/enemy-videos/core-automaton-spawn.mp4",
       defeat: "/assets/game/enemy-videos/core-automaton-defeat.mp4",
+    },
+    enemyAudio: {
+      spawn: "/assets/game/enemy-audio/core-automaton-spawn.m4a",
+      defeat: "/assets/game/enemy-audio/core-automaton-defeat.m4a",
     },
   },
   {
@@ -52,6 +66,10 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
       spawn: "/assets/game/enemy-videos/desert-sphinx-spawn.mp4",
       defeat: "/assets/game/enemy-videos/desert-sphinx-defeat.mp4",
     },
+    enemyAudio: {
+      spawn: "/assets/game/enemy-audio/desert-sphinx-spawn.m4a",
+      defeat: "/assets/game/enemy-audio/desert-sphinx-defeat.m4a",
+    },
   },
   {
     id: "lava-cavern",
@@ -64,6 +82,10 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
       spawn: "/assets/game/enemy-videos/lava-serpent-spawn.mp4",
       defeat: "/assets/game/enemy-videos/lava-serpent-defeat.mp4",
     },
+    enemyAudio: {
+      spawn: "/assets/game/enemy-audio/lava-serpent-spawn.m4a",
+      defeat: "/assets/game/enemy-audio/lava-serpent-defeat.m4a",
+    },
   },
   {
     id: "tree-sanctuary",
@@ -75,6 +97,10 @@ const AI_BATTLE_MODULE_CONFIGS: readonly ConfiguredAiBattleModule[] = [
     enemyAnimations: {
       spawn: "/assets/game/enemy-videos/tree-guardian-spawn.mp4",
       defeat: "/assets/game/enemy-videos/tree-guardian-defeat.mp4",
+    },
+    enemyAudio: {
+      spawn: "/assets/game/enemy-audio/tree-guardian-spawn.m4a",
+      defeat: "/assets/game/enemy-audio/tree-guardian-defeat.m4a",
     },
   },
 ];

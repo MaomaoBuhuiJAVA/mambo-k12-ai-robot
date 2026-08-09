@@ -80,6 +80,11 @@
   transform: translateX(-50%);
 }
 
+.battleMessage strong {
+  margin-right: 5px;
+  color: var(--purple);
+}
+
 .victoryExplosion {
   position: absolute;
   z-index: 3;
@@ -212,6 +217,205 @@
   background: rgba(20, 10, 47, 0.38);
 }
 
+.storyBackdrop {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.storyPanel {
+  position: absolute;
+  bottom: max(32px, calc(env(safe-area-inset-bottom) + 18px));
+  left: 50%;
+  display: grid;
+  width: min(760px, calc(100vw - 44px));
+  min-height: 176px;
+  overflow: visible;
+  border: 3px solid #b79b68;
+  border-radius: 8px;
+  color: #403223;
+  background: #f7edcf;
+  box-shadow: 0 7px 0 rgba(16, 8, 35, 0.48), inset 0 0 0 2px rgba(255, 254, 239, 0.62);
+  transform: translateX(-50%);
+}
+
+.storyPanel::before,
+.storyPanel::after {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: solid #b79b68;
+  content: "";
+}
+
+.storyPanel::before {
+  top: 8px;
+  right: 8px;
+  border-width: 2px 2px 0 0;
+}
+
+.storyPanel::after {
+  bottom: 8px;
+  right: 8px;
+  border-width: 0 2px 2px 0;
+}
+
+.storyPortrait {
+  position: absolute;
+  z-index: 1;
+  bottom: -3px;
+  left: clamp(-165px, -12vw, -124px);
+  display: grid;
+  width: clamp(304px, 32vw, 382px);
+  height: clamp(294px, 33vw, 348px);
+  place-items: end center;
+  pointer-events: none;
+}
+
+.storyPortrait[data-speaker="starbao"] {
+  width: clamp(300px, 30vw, 352px);
+  height: auto;
+  aspect-ratio: 182 / 180;
+}
+
+.storyPortrait[data-speaker="enemy"] {
+  left: auto;
+  right: clamp(-165px, -12vw, -124px);
+}
+
+.storyPortrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  filter: drop-shadow(0 4px 2px rgba(28, 17, 49, 0.22));
+}
+
+.storyPortrait[data-speaker="enemy"] img {
+  transform: none;
+}
+
+.storyStarbaoShip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  filter: drop-shadow(0 5px 3px rgba(28, 17, 49, 0.28));
+}
+
+.storyStarbaoShip img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  image-rendering: auto;
+  filter: none;
+}
+
+.storyContent {
+  display: grid;
+  min-width: 0;
+  margin-left: clamp(140px, 15vw, 210px);
+  padding: clamp(16px, 2.5vw, 24px) clamp(24px, 4vw, 42px) clamp(14px, 2vw, 19px) 20px;
+}
+
+.storyPanel[data-speaker="enemy"] .storyContent {
+  margin-right: clamp(140px, 15vw, 210px);
+  margin-left: 0;
+  padding: clamp(16px, 2.5vw, 24px) 20px clamp(14px, 2vw, 19px) clamp(24px, 4vw, 42px);
+}
+
+.storyHeading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #8d6c3a;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.storyHeading span:last-child {
+  color: #736448;
+  white-space: nowrap;
+}
+
+.storyContent h2 {
+  margin-top: 2px;
+  color: #593d21;
+  font-size: clamp(18px, 2.4vw, 24px);
+  line-height: 1.25;
+}
+
+.storyContent p {
+  max-width: 570px;
+  min-height: 3.16em;
+  margin-top: 5px;
+  color: #483723;
+  font-size: clamp(14px, 1.75vw, 16px);
+  font-weight: 700;
+  line-height: 1.58;
+  overflow-wrap: anywhere;
+}
+
+.storyText[data-typing="true"]::after {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: -0.13em;
+  content: "";
+  background: #a9763b;
+  animation: storyTextCursor 650ms steps(1, end) infinite;
+}
+
+@keyframes storyTextCursor {
+  50% { opacity: 0; }
+}
+
+.storyContent button {
+  justify-self: end;
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 5px 10px;
+  border: 2px solid #8c6b3d;
+  border-radius: 5px;
+  color: #4c361b;
+  background: #f5cf6c;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.storyResultIcon {
+  position: absolute;
+  top: -19px;
+  right: 30px;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 2px solid #b79b68;
+  border-radius: 50%;
+  color: #d57732;
+  background: #fff8df;
+  box-shadow: 0 3px 0 rgba(16, 8, 35, 0.32);
+}
+
+.storyPanel[data-speaker="enemy"] .storyResultIcon {
+  right: auto;
+  left: 30px;
+}
+
+.storyPanel[data-status="lost"] .storyResultIcon { color: #bf5d61; }
+
 .questionCard,
 .endContent {
   display: grid;
@@ -295,6 +499,7 @@
 @media (hover: hover) and (pointer: fine) {
   .option:hover { border-color: var(--purple); background: #fff1cd; transform: translateY(-2px); }
   .endContent button:hover { transform: translateY(-1px); }
+  .storyContent button:hover { background: #ffe396; transform: translateY(-1px); }
 }
 
 @media (max-width: 680px) {
@@ -311,6 +516,17 @@
   .questionCard h2 { font-size: 19px; }
   .options { grid-template-columns: 1fr; gap: 8px; }
   .option { min-height: 51px; padding: 8px 10px; font-size: 13px; }
+  .storyPanel { bottom: max(20px, calc(env(safe-area-inset-bottom) + 12px)); width: calc(100vw - 24px); min-height: 160px; }
+  .storyPortrait { left: -18px; width: min(132px, 34vw); height: min(164px, 43vw); }
+  .storyPortrait[data-speaker="enemy"] { left: auto; right: -18px; }
+  .storyContent { margin-left: min(98px, 26vw); padding: 15px 18px 12px 14px; }
+  .storyPanel[data-speaker="enemy"] .storyContent { margin-right: min(98px, 26vw); margin-left: 0; padding: 15px 14px 12px 18px; }
+  .storyHeading { gap: 6px; font-size: 10px; }
+  .storyContent h2 { font-size: 17px; }
+  .storyContent p { margin-top: 4px; font-size: 13px; line-height: 1.45; }
+  .storyContent button { min-height: 32px; margin-top: 7px; font-size: 12px; }
+  .storyResultIcon { top: -15px; right: 19px; width: 38px; height: 38px; }
+  .storyResultIcon svg { width: 24px; height: 24px; }
 }
 
 @media (max-height: 560px) and (min-width: 681px) {
