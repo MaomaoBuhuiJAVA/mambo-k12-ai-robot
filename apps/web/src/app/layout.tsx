@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
 import { CloudTransitionProvider } from "@/components/cloud-transition/cloud-transition-provider";
 import { RobotGestureProvider } from "@/components/robot/robot-gesture-provider";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Mambo AI 教室",
@@ -20,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className={geistSans.variable} data-scroll-behavior="smooth">
+    <html lang="zh-CN" data-scroll-behavior="smooth">
       <body>
         <CloudTransitionProvider>
           <RobotGestureProvider>{children}</RobotGestureProvider>

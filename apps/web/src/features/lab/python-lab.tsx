@@ -632,9 +632,14 @@ export function PythonLab({
             </dl>
             <pre aria-label="研究运行记录" aria-live="polite"><span className={styles.placeholder}>评估结果会显示在左侧记录表；完成后这里保留固定挑战版本和指标摘要。</span></pre>
           </aside>
-          </>
+        </>
         ) : <>
         <aside className={styles.guide} aria-label="实验任务">
+          <div className={styles.problemTabs} aria-label="题目区域">
+            <span aria-current="page">题目描述</span>
+            <span>题解</span>
+            <span>提交记录</span>
+          </div>
           {isGuidedImageClassification ? (
             <GuidedImageClassificationFlow
               key={guidedEvidenceSaved ? guidedRunMetadata?.runId ?? "saved-guided-evidence" : "guided-draft"}
@@ -699,6 +704,11 @@ export function PythonLab({
         </aside>
 
         <div className={styles.codeArea}>
+          <div className={styles.editorMeta} aria-label="代码编辑器设置">
+            <strong>代码</strong>
+            <span>Python⌄</span>
+            <span>智能模式</span>
+          </div>
           <div className={styles.toolbar}>
             <button type="button" className={styles.primaryButton} onClick={() => void runCode()} disabled={isRunning || status !== "ready" || !entryUnlocked || !code.trim() || (isGuidedImageClassification && (guidedRunPassed || guidedEvidenceSaved || !canRunGuidedImageClassification(guidedPrediction)))}>
               <Play size={17} aria-hidden="true" />

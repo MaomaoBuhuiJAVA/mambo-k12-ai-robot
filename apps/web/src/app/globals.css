@@ -7,7 +7,7 @@
 }
 
 :root {
-  --font-ui: "Lemi Pixel", var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
+  --font-ui: "Lemi Pixel", Arial, sans-serif;
   --background: #ffffff;
   --surface-subtle: #f7f9f8;
   --surface-muted: #eef2f0;

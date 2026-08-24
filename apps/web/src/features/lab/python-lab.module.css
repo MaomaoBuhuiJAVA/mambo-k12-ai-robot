@@ -920,6 +920,38 @@
 
 .guide > * { margin-bottom: 8px; }
 
+.problemTabs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  color: #737b87;
+  background: #202020;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.problemTabs span { display: inline-flex; min-height: 40px; align-items: center; border-bottom: 2px solid transparent; }
+.problemTabs span[aria-current="page"] { color: #f3f4f6; border-bottom-color: #22c55e; }
+
+.editorMeta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-bottom: 1px solid #3c3c3c;
+  color: #9ca3af;
+  background: #202020;
+  font-size: 11px;
+}
+
+.editorMeta strong { color: #22c55e; font-size: 13px; }
+.editorMeta span:first-of-type { color: #cbd5e1; }
+
 .guide :global([class*="guided-image-classification-flow-module__flow"]),
 .guide :global([class*="independent-image-classification-flow-module__flow"]),
 .guide :global([class*="research-image-classification-flow-module__flow"]) {
@@ -1023,7 +1055,7 @@
   grid-column: 2;
   grid-row: 1;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
