@@ -1,9 +1,9 @@
-export const CLOUD_COVER_DURATION_MS = 550;
+export const CLOUD_COVER_DURATION_MS = 700;
 export const CLOUD_MAXIMUM_HOLD_MS = 5_000;
 export const CLOUD_REVEAL_DURATION_MS = 650;
 
 export type CloudTransitionPhase = "idle" | "covering" | "holding" | "revealing";
-export type CloudTransitionDestination = "map" | "home";
+export type CloudTransitionDestination = "map" | "home" | "middle-map";
 
 export type CloudTransitionState = {
   phase: CloudTransitionPhase;

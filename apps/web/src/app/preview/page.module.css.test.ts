@@ -89,10 +89,10 @@ describe("Starbao chat visual styling", () => {
     expect(stylesheet).not.toContain('.exhibitBay[data-stage="primary"] { background:');
   });
 
-  it("keeps the exhibition stage labels static", () => {
-    expect(rule("exhibitStageLabel")).toContain("width: 140px");
-    expect(rule("exhibitStageLabel")).toContain("min-height: 56px");
-    expect(stylesheet).not.toContain(".exhibitStageLink");
+  it("keeps the exhibition stage links stable and accessible", () => {
+    expect(rule("exhibitStageLabel")).toContain("font-size: 1.38rem");
+    expect(rule("exhibitStageAction")).toContain("min-height: 30px");
+    expect(rule("exhibitBay")).toContain("text-decoration: none");
     expect(stylesheet).not.toContain("@keyframes exhibitFloat");
   });
 

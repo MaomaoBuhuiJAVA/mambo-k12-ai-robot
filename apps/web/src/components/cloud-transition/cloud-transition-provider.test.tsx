@@ -5,6 +5,7 @@ import {
   CloudTransitionProvider,
   useCloudTransition,
 } from "./cloud-transition-provider";
+import { CLOUD_COVER_DURATION_MS } from "./cloud-transition-machine";
 
 const push = vi.fn();
 const prefetch = vi.fn();
@@ -18,8 +19,10 @@ function Trigger() {
     isTransitioning,
     notifyMapReady,
     notifyHomeReady,
+    notifyMiddleMapReady,
     startMapTransition,
     startHomeTransition,
+    startMiddleMapTransition,
   } = useCloudTransition();
 
   return (
@@ -28,6 +31,8 @@ function Trigger() {
       <button onClick={notifyMapReady} type="button">ready</button>
       <button onClick={() => startHomeTransition()} type="button">start home</button>
       <button onClick={notifyHomeReady} type="button">home ready</button>
+      <button onClick={() => startMiddleMapTransition()} type="button">start middle map</button>
+      <button onClick={notifyMiddleMapReady} type="button">middle map ready</button>
       <output>{String(isTransitioning)}</output>
     </>
   );
@@ -52,7 +57,7 @@ describe("CloudTransitionProvider", () => {
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "covering");
     expect(screen.getByText("true")).toBeInTheDocument();
 
-    act(() => vi.advanceTimersByTime(550));
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
 
     expect(push).toHaveBeenCalledWith("/map");
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "holding");
@@ -67,7 +72,7 @@ describe("CloudTransitionProvider", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "start" }));
     fireEvent.click(screen.getByRole("button", { name: "start" }));
-    act(() => vi.advanceTimersByTime(550));
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
 
     expect(push).toHaveBeenCalledTimes(1);
   });
@@ -79,13 +84,26 @@ describe("CloudTransitionProvider", () => {
 
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "covering");
 
-    act(() => vi.advanceTimersByTime(550));
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
 
     expect(push).toHaveBeenCalledWith("/preview");
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "holding");
 
     fireEvent.click(screen.getByRole("button", { name: "home ready" }));
 
+    expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "revealing");
+  });
+
+  it("covers, routes to the unified middle-school hub, then reveals without a map handshake", () => {
+    render(<CloudTransitionProvider><Trigger /></CloudTransitionProvider>);
+
+    fireEvent.click(screen.getByRole("button", { name: "start middle map" }));
+    expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-destination", "middle-map");
+    expect(screen.getByTestId("cloud-transition-overlay")).toHaveAccessibleName("正在前往初中学习中心");
+
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
+
+    expect(push).toHaveBeenCalledWith("/learn?stage=middle_school&grade=middle_1&view=courses");
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "revealing");
   });
 
@@ -142,7 +160,7 @@ describe("CloudTransitionProvider", () => {
     render(<CloudTransitionProvider><Trigger /></CloudTransitionProvider>);
 
     fireEvent.click(screen.getByRole("button", { name: "start" }));
-    act(() => vi.advanceTimersByTime(550));
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
     act(() => vi.advanceTimersByTime(5_000));
 
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "revealing");

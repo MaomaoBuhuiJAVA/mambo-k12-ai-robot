@@ -46,4 +46,20 @@ describe("cloud transition state machine", () => {
     expect(holding.phase).toBe("holding");
     expect(revealing.phase).toBe("revealing");
   });
+
+  it("supports a ready handshake for the middle-school laboratory map", () => {
+    const covering = transitionCloudState(initialCloudTransitionState, {
+      type: "START",
+      destination: "middle-map",
+    });
+    const holding = transitionCloudState(covering, { type: "COVERED" });
+    const revealing = transitionCloudState(holding, {
+      type: "PAGE_READY",
+      destination: "middle-map",
+    });
+
+    expect(covering.destination).toBe("middle-map");
+    expect(holding.phase).toBe("holding");
+    expect(revealing).toMatchObject({ phase: "revealing", destination: "middle-map", pageReady: true });
+  });
 });

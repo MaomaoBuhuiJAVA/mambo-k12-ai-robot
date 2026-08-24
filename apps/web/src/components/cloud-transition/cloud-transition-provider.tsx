@@ -27,8 +27,10 @@ type CloudTransitionContextValue = {
   isTransitioning: boolean;
   notifyMapReady: () => void;
   notifyHomeReady: () => void;
+  notifyMiddleMapReady: () => void;
   startMapTransition: () => boolean;
   startHomeTransition: () => boolean;
+  startMiddleMapTransition: () => boolean;
 };
 
 type CloudLayer = "back" | "middle" | "front";
@@ -57,6 +59,18 @@ type CloudInstance = {
 type CloudStyle = CSSProperties & Record<`--${string}`, string>;
 
 const CloudTransitionContext = createContext<CloudTransitionContextValue | null>(null);
+
+const cloudTransitionPathnames: Record<CloudTransitionDestination, string> = {
+  map: "/map",
+  home: "/preview",
+  "middle-map": "/learn?stage=middle_school&grade=middle_1&view=courses",
+};
+
+const cloudTransitionLabels: Record<CloudTransitionDestination, string> = {
+  map: "正在前往小学学习地图",
+  home: "正在返回首页",
+  "middle-map": "正在前往初中学习中心",
+};
 
 const coverageCloudAssets = ["cloud-01.png", "cloud-03.png", "cloud-05.png", "cloud-07.png", "cloud-08.png", "cloud-10.png", "cloud-12.png"] as const;
 const coverageCloudSizes = ["42vw", "36vw", "48vw", "39vw", "45vw", "34vw", "41vw"] as const;
@@ -200,6 +214,7 @@ export function CloudTransitionProvider({ children }: { children: ReactNode }) {
 
   const startMapTransition = useCallback(() => startTransition("map"), [startTransition]);
   const startHomeTransition = useCallback(() => startTransition("home"), [startTransition]);
+  const startMiddleMapTransition = useCallback(() => startTransition("middle-map"), [startTransition]);
 
   const notifyPageReady = useCallback((destination: CloudTransitionDestination) => {
     dispatch({ type: "PAGE_READY", destination });
@@ -213,9 +228,14 @@ export function CloudTransitionProvider({ children }: { children: ReactNode }) {
     notifyPageReady("home");
   }, [notifyPageReady]);
 
+  const notifyMiddleMapReady = useCallback(() => {
+    notifyPageReady("middle-map");
+  }, [notifyPageReady]);
+
   useEffect(() => {
-    router.prefetch("/map");
-    router.prefetch("/preview");
+    for (const pathname of Object.values(cloudTransitionPathnames)) {
+      router.prefetch(pathname);
+    }
 
     for (const asset of new Set(cloudInstances.map((cloud) => cloud.asset))) {
       const image = new Image();
@@ -234,7 +254,13 @@ export function CloudTransitionProvider({ children }: { children: ReactNode }) {
 
     const timer = window.setTimeout(() => {
       dispatch({ type: "COVERED" });
-      router.push(destination === "home" ? "/preview" : "/map");
+      router.push(cloudTransitionPathnames[destination]);
+      // The retired map route has no page-ready handshake anymore. Mark the
+      // canonical learning hub ready immediately so the overlay cannot wait
+      // for the maximum hold timeout.
+      if (destination === "middle-map") {
+        dispatch({ type: "PAGE_READY", destination });
+      }
     }, CLOUD_COVER_DURATION_MS);
 
     return () => window.clearTimeout(timer);
@@ -267,9 +293,19 @@ export function CloudTransitionProvider({ children }: { children: ReactNode }) {
     isTransitioning,
     notifyMapReady,
     notifyHomeReady,
+    notifyMiddleMapReady,
     startMapTransition,
     startHomeTransition,
-  }), [isTransitioning, notifyHomeReady, notifyMapReady, startHomeTransition, startMapTransition]);
+    startMiddleMapTransition,
+  }), [
+    isTransitioning,
+    notifyHomeReady,
+    notifyMapReady,
+    notifyMiddleMapReady,
+    startHomeTransition,
+    startMapTransition,
+    startMiddleMapTransition,
+  ]);
 
   return (
     <CloudTransitionContext.Provider value={contextValue}>
@@ -277,7 +313,7 @@ export function CloudTransitionProvider({ children }: { children: ReactNode }) {
       {isTransitioning ? (
         <div
           aria-busy="true"
-          aria-label={state.destination === "home" ? "正在返回首页" : "正在前往小学学习地图"}
+          aria-label={state.destination ? cloudTransitionLabels[state.destination] : "正在切换学习场景"}
           className={styles.overlay}
           data-phase={state.phase}
           data-destination={state.destination ?? undefined}

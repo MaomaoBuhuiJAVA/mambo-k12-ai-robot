@@ -172,6 +172,43 @@
   pointer-events: auto;
 }
 
+.cardDeckContent {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(74%, 700px);
+  gap: 14px;
+  pointer-events: none;
+}
+
+.cardDeckHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 5px;
+  color: #fff9dc;
+  text-shadow: 0 2px 8px rgb(0 15 35 / 80%);
+}
+
+.cardDeckHeader span {
+  color: #9fe9d1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cardDeckHeader h2 {
+  margin: 4px 0 0;
+  font-size: clamp(16px, 2cqw, 23px);
+  line-height: 1.2;
+}
+
+.cardDeckHeader strong {
+  flex: 0 0 auto;
+  color: #fff0a8;
+  font-size: clamp(18px, 2.4cqw, 28px);
+}
+
 .goldParticle {
   position: absolute;
   z-index: 2;
@@ -196,12 +233,11 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
-  width: min(70%, 640px);
+  width: 100%;
   gap: clamp(10px, 2cqw, 26px);
   perspective: 1100px;
   pointer-events: none;
   transform-style: preserve-3d;
-  transform: translateY(3%);
 }
 
 .learningCard {
@@ -212,13 +248,38 @@
 
   position: relative;
   min-width: 0;
+  padding: 0;
+  border: 0;
   aspect-ratio: 0.64;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: transparent;
   isolation: isolate;
   pointer-events: auto;
+  cursor: pointer;
   transform-style: preserve-3d;
   animation: cardLaunch 840ms cubic-bezier(0.16, 0.76, 0.2, 1) both;
   animation-delay: calc(var(--card-index) * 90ms);
   will-change: transform, opacity;
+}
+
+.learningCard:focus-visible {
+  outline: 3px solid #fff3a8;
+  outline-offset: 5px;
+}
+
+.learningCard:disabled {
+  cursor: not-allowed;
+}
+
+.learningCard[data-status="pending"] .cardFace {
+  filter: saturate(0.66) brightness(0.82);
+}
+
+.learningCard[data-status="completed"] .cardFace {
+  border-color: #9fe9d1;
+  box-shadow: 0 0 0 3px rgb(20 102 125 / 58%), 0 0 24px rgb(112 242 193 / 55%);
 }
 
 .learningCard:nth-child(2) {
@@ -252,7 +313,6 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   width: 100%;
   height: 100%;
   padding: clamp(11px, 1.7cqw, 22px);
@@ -262,6 +322,13 @@
   box-shadow: 0 0 0 3px rgb(30 96 133 / 62%), 0 0 20px rgb(255 212 89 / 43%);
   transform: translateZ(8px);
   clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+
+.cardTopline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
 }
 
 .learningCard:nth-child(2) .cardFace {
@@ -283,20 +350,105 @@
   line-height: 1;
 }
 
-.cardFace p {
-  margin: auto 0 5px;
+.cardStatus {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+  color: #d9f5ff;
+  font-size: clamp(9px, 1.1cqw, 12px);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.cardStatus[data-status="completed"] {
+  color: #aaf4d5;
+}
+
+.cardStatus[data-status="pending"] {
+  color: #d3dce4;
+}
+
+.cardPreview,
+.cardPlaceholder {
+  position: relative;
+  display: grid;
+  width: 100%;
+  margin: auto 0;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  place-items: center;
+  border: 1px solid rgb(255 240 168 / 62%);
+  background: rgb(4 30 52 / 72%);
+  box-shadow: inset 0 0 18px rgb(0 12 27 / 46%);
+  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+
+.cardPreview img {
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.cardPlaceholder {
+  color: rgb(220 232 240 / 62%);
+}
+
+.cardCopy p {
+  margin: 0 0 5px;
   color: #a7e5ff;
   font-size: clamp(10px, 1.35cqw, 15px);
   font-weight: 700;
 }
 
-.cardFace h2 {
+.cardCopy h3 {
   margin: 0;
   color: #fff9dc;
   font-size: clamp(14px, 2.1cqw, 26px);
   font-weight: 850;
   line-height: 1.12;
   overflow-wrap: anywhere;
+}
+
+.cardDeckFooter {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.cardDeckFooter p,
+.cardDeckFooter button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid rgb(178 231 255 / 70%);
+  color: #e7f5fb;
+  font-size: 13px;
+  font-weight: 750;
+  background: rgb(4 42 76 / 88%);
+  box-shadow: 0 7px 17px rgb(0 20 47 / 38%);
+  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+
+.cardDeckFooter button {
+  border-color: #ffe17a;
+  color: #132f43;
+  cursor: pointer;
+  background: #ffe17a;
+}
+
+.cardDeckFooter button:hover {
+  background: #fff0a8;
+}
+
+.cardDeckFooter button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
 }
 
 @keyframes cardLaunch {
@@ -339,8 +491,20 @@
 }
 
 @media (max-width: 700px) {
-  .cardDeckCards {
+  .cardDeckContent {
     width: min(94%, 460px);
+    gap: 10px;
+  }
+
+  .cardDeckHeader {
+    align-items: center;
+  }
+
+  .cardDeckHeader h2 {
+    font-size: 15px;
+  }
+
+  .cardDeckCards {
     gap: 7px;
   }
 
@@ -350,6 +514,18 @@
 
   .goldParticle {
     width: clamp(4px, 1cqw, 8px);
+  }
+
+  .cardStatus {
+    max-width: 70px;
+    white-space: normal;
+  }
+
+  .cardDeckFooter p,
+  .cardDeckFooter button {
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 11px;
   }
 }
 
@@ -379,3 +555,4 @@
     transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) scale(var(--particle-scale));
   }
 }
+

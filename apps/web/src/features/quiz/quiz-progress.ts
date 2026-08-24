@@ -6,6 +6,7 @@ import {
   MAX_PERSISTED_STRING_LENGTH,
   updateMastery,
 } from "@/lib/learning-store";
+import { getMisconceptionForExercise } from "./middle-chapter-one-remediation";
 
 interface QuizAttemptInput {
   course: CurriculumCourse;
@@ -99,7 +100,9 @@ export function recordQuizAttempt(
     const consecutiveCorrect = score === 1
       ? previousCorrectStreak(state, id) + 1
       : 0;
-    const misconception = `needs-review:${input.exercise.id}`.slice(0, MAX_PERSISTED_STRING_LENGTH);
+    const misconception = (getMisconceptionForExercise(input.exercise.id)?.tag
+      ?? `needs-review:${input.exercise.id}`)
+      .slice(0, MAX_PERSISTED_STRING_LENGTH);
     const misconceptionTags = score === 1
       ? (previous?.misconceptionTags ?? []).filter((item) => item !== misconception)
       : [...new Set([...(previous?.misconceptionTags ?? []), misconception])].slice(-20);

@@ -1,0 +1,45 @@
+.player { display: flex; flex-direction: column; align-items: center; gap: 18px; width: 100%; color: #173f3a; }
+.pictureNavigation button:focus-visible, .options button:focus-visible { outline: 3px solid #f3b34c; outline-offset: 2px; }
+.page { display: flex; width: min(100vw, calc(100dvh * var(--page-aspect-ratio))); overflow: hidden; border: 0; border-radius: 0; background: #152d45; }
+.illustration { position: relative; width: 100%; aspect-ratio: var(--page-aspect-ratio); overflow: hidden; background: #152d45; }
+.illustration > img { object-fit: contain; }
+.dialogueBubble { position: absolute; top: var(--bubble-top); left: var(--bubble-left); z-index: 2; width: var(--bubble-width); max-width: 340px; padding: 8px 10px 9px; border: 1px solid #b7d9d0; border-radius: 5px; color: #264943; background: rgb(239 250 247 / 94%); box-shadow: 0 4px 10px rgb(17 45 69 / 20%); }
+.dialogueBubble::after { position: absolute; width: 12px; height: 12px; border-right: inherit; border-bottom: inherit; background: inherit; content: ""; }
+.dialogueBubble[data-speaker="starbao"] { border-color: #f0c566; background: rgb(255 249 230 / 95%); }
+.dialogueBubble[data-speaker="ai_sprite"], .dialogueBubble[data-speaker="teacher"] { border-color: #a9d8eb; background: rgb(239 250 255 / 95%); }
+.dialogueBubble[data-speaker="guardian"] { border-color: #d6c5a4; background: rgb(255 249 232 / 95%); }
+.dialogueBubble[data-speaker="system"] { border-color: #b8c9db; background: rgb(244 248 255 / 94%); }
+.dialogueBubble[data-tail="bottom"]::after { bottom: -7px; left: calc(var(--tail-offset) - 6px); transform: rotate(45deg); }
+.dialogueBubble[data-tail="top"]::after { top: -7px; left: calc(var(--tail-offset) - 6px); transform: rotate(225deg); }
+.dialogueBubble[data-tail="left"]::after { top: calc(var(--tail-offset) - 6px); left: -7px; transform: rotate(135deg); }
+.dialogueBubble[data-tail="right"]::after { top: calc(var(--tail-offset) - 6px); right: -7px; transform: rotate(-45deg); }
+.dialogueBubble > div { display: flex; align-items: baseline; gap: 6px; color: #176f66; }
+.dialogueBubble strong { font-size: 11px; }
+.dialogueBubble span { color: #68837e; font-size: 10px; }
+.dialogueBubble p { margin: 3px 0 0; font-size: 13px; line-height: 1.5; }
+.narrationPanel { position: absolute; right: 7%; bottom: 4%; left: 7%; z-index: 1; padding: 8px 11px 9px; border: 1px solid rgb(255 255 255 / 34%); border-radius: 5px; color: #fff; background: rgb(12 30 43 / 54%); box-shadow: 0 4px 14px rgb(0 0 0 / 16%); backdrop-filter: blur(3px); }
+.narrationPanel span { display: block; color: #f9df91; font-size: 11px; font-weight: 750; }
+.narrationPanel p { margin: 3px 0 0; font-size: 12px; line-height: 1.45; text-shadow: 0 1px 1px rgb(0 0 0 / 28%); }
+.pictureNavigation { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; pointer-events: none; }
+.pictureNavigation button { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 46px; border: 1px solid rgb(255 255 255 / 60%); border-radius: 5px; color: #fff; background: rgb(13 34 44 / 62%); box-shadow: 0 3px 10px rgb(0 0 0 / 18%); cursor: pointer; pointer-events: auto; }
+.pictureNavigation button:hover:not(:disabled) { background: rgb(13 86 78 / 83%); }
+.pictureNavigation button:disabled { opacity: 0; cursor: default; pointer-events: none; }
+.exitButton { position: absolute; top: 12px; right: 12px; z-index: 4; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid rgb(255 255 255 / 66%); border-radius: 5px; color: #fff; background: rgb(13 34 44 / 66%); box-shadow: 0 3px 10px rgb(0 0 0 / 20%); }
+.exitButton:hover { background: rgb(148 48 44 / 88%); }
+.exitButton:focus-visible { outline: 3px solid #f3b34c; outline-offset: 2px; }
+.question { padding: 16px 18px; border-left: 4px solid #e66d50; background: #fff6f2; }
+.question strong { color: #5d382f; font-size: 15px; line-height: 1.5; }
+.options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.options button { min-height: 38px; padding: 8px 12px; border: 1px solid #e7c9bf; border-radius: 5px; color: #604139; background: #fff; font-size: 14px; cursor: pointer; }
+.options button:hover, .options button[aria-pressed="true"] { border-color: #e66d50; background: #ffe3da; }
+.question p { margin: 11px 0 0; color: #91422f; font-size: 14px; line-height: 1.55; }
+.question p[data-correct="true"] { color: #176f66; }
+.completion { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 15px 17px; border: 1px solid #acd7c6; border-radius: 6px; color: #176f66; background: #eef9f4; }
+.completion > div { min-width: 0; }
+.completion strong { color: #174a43; font-size: 15px; }
+.completion p { margin: 4px 0 0; color: #52706b; font-size: 13px; line-height: 1.55; }
+.completion button, .completion a { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; gap: 6px; padding: 8px 12px; border: 1px solid #176f66; border-radius: 5px; color: #fff; background: #176f66; font-size: 13px; font-weight: 750; text-decoration: none; cursor: pointer; }
+.completion button:hover, .completion a:hover { background: #0e5e56; }
+.completion button:focus-visible, .completion a:focus-visible { outline: 3px solid #f3b34c; outline-offset: 2px; }
+.completion .completionError { grid-column: 1 / -1; margin: 0; color: #a53f2f; }
+@media (max-width: 720px) { .dialogueBubble { max-width: 54%; padding: 6px 8px 7px; } .dialogueBubble strong, .dialogueBubble span { font-size: 10px; } .dialogueBubble p { font-size: 11px; line-height: 1.4; } .narrationPanel { right: 5%; bottom: 3%; left: 5%; padding: 6px 8px 7px; } .narrationPanel span { font-size: 10px; } .narrationPanel p { font-size: 11px; line-height: 1.4; } .pictureNavigation { padding: 0 6px; } .pictureNavigation button { width: 34px; height: 42px; } .exitButton { top: 7px; right: 7px; width: 34px; height: 34px; } .completion { grid-template-columns: auto minmax(0, 1fr); } .completion button, .completion a { grid-column: 1 / -1; width: 100%; } }

@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { LearningState, MasteryRecord, Stage } from "@/lib/domain";
 import { createDefaultLearningState } from "@/lib/learning-store";
-import { recommendNextCourse } from "./recommendation";
+import {
+  getStageActivityStatuses,
+  recommendNextActivity,
+  recommendNextCourse,
+} from "./recommendation";
 
 const now = new Date("2026-07-18T08:00:00.000Z");
 
@@ -58,9 +62,43 @@ describe("recommendNextCourse", () => {
 
   it("chooses a featured same-stage course with an explainable reason when history is empty", () => {
     const recommendation = recommendNextCourse(state("middle_school"), now);
-    expect(recommendation.course.id).toBe("middle-neural-signals");
+    expect(recommendation.course.id).toBe("middle-ai-foundations");
     expect(recommendation.reason).toContain("当前学段");
     expect(recommendation.reason).not.toContain("兴趣");
+  });
+
+  it("limits middle-school recommendations to the learner profile grade", () => {
+    const value = state("middle_school");
+    value.profile.grade = 8;
+
+    const recommendation = recommendNextCourse(value, now);
+
+    expect([
+      "middle-python-basics",
+      "middle-neural-signals",
+      "middle-model-evaluation",
+      "middle-data-bias",
+    ]).toContain(recommendation.course.id);
+  });
+
+  it("lets an explicit grade override the saved profile grade", () => {
+    const value = state("high_school");
+    value.profile.grade = 10;
+
+    const recommendation = recommendNextCourse(value, now, "high_3");
+
+    expect([
+      "high-neural-network-training",
+      "high-generative-ai-rag",
+      "high-image-model-audit",
+      "high-multimodal-ai",
+    ]).toContain(recommendation.course.id);
+  });
+
+  it("ignores a cross-stage grade instead of recommending outside the learner stage", () => {
+    const value = state("middle_school");
+
+    expect(recommendNextCourse(value, now, "high_1").course.stage).toBe("middle_school");
   });
 
   it("keeps same-stage courses ahead of tempting cross-stage interest matches", () => {
@@ -98,5 +136,121 @@ describe("recommendNextCourse", () => {
     value.masteryByKnowledgePoint["lower-bubble-sort:相邻比较"] =
       mastery("lower-bubble-sort:相邻比较", 0.95, "2026-08-18T08:00:00.000Z", 6);
     expect(recommendNextCourse(value, now).course.id).toBe("lower-bubble-sort");
+  });
+});
+
+describe("stage activity progress", () => {
+  it("keeps the overview inside the requested stage and identifies missing prerequisites", () => {
+    const value = state("lower_primary");
+    const statuses = getStageActivityStatuses(value, "middle_school");
+
+    expect(statuses).toHaveLength(29);
+    expect(statuses.every((item) => item.activity.stage === "middle_school")).toBe(true);
+    expect(statuses[0]).toMatchObject({
+      activity: { id: "middle-ai-foundations-lesson" },
+      status: "available",
+    });
+    expect(statuses.find((item) => item.activity.id === "middle-neural-signals-guided-lab"))
+      .toMatchObject({
+        status: "locked",
+        missingPrerequisites: [{ id: "middle-neural-signals-demonstration" }],
+      });
+  });
+
+  it("filters a grade view without losing prerequisites from the full stage path", () => {
+    const value = state("middle_school");
+    const statuses = getStageActivityStatuses(value, "middle_school", "middle_2");
+
+    expect(statuses.length).toBeGreaterThan(0);
+    expect(statuses.every((item) => [
+      "middle-python-basics",
+      "middle-neural-signals",
+      "middle-model-evaluation",
+      "middle-data-bias",
+    ].includes(item.activity.courseId))).toBe(true);
+    expect(statuses[0]).toMatchObject({
+      activity: { id: "middle-python-basics-lesson" },
+      status: "locked",
+      missingPrerequisites: [{ id: "middle-data-and-algorithms-assessment" }],
+    });
+
+    value.stageProgressByStage.middle_school.completedActivityIds.push(
+      "middle-data-and-algorithms-assessment",
+    );
+    expect(getStageActivityStatuses(value, "middle_school", "middle_2")[0]).toMatchObject({
+      activity: { id: "middle-python-basics-lesson" },
+      status: "available",
+    });
+  });
+
+  it("includes deterministic Python lab evidence when ranking a middle-school course", () => {
+    const value = state("middle_school");
+    value.masteryByKnowledgePoint["middle.python-basics"] = mastery(
+      "middle.python-basics",
+      0.1,
+      "2026-07-17T08:00:00.000Z",
+    );
+
+    expect(recommendNextCourse(value, now)).toMatchObject({
+      course: { id: "middle-python-basics" },
+      kind: "review",
+    });
+  });
+
+  it("recommends a mapped misconception remediation after a failed first-chapter result interpretation", () => {
+    const value = state("middle_school");
+    value.masteryByKnowledgePoint["middle-ai-foundations:模型预测与误差"] = mastery(
+      "middle-ai-foundations:模型预测与误差",
+      0.1,
+      "2026-08-18T08:00:00.000Z",
+      1,
+    );
+    value.masteryByKnowledgePoint["middle-ai-foundations:模型预测与误差"].misconceptionTags = ["预测等于事实"];
+
+    expect(recommendNextCourse(value, now)).toMatchObject({
+      course: { id: "middle-ai-foundations" },
+      kind: "remediate",
+      reason: expect.stringContaining("预测等于事实"),
+    });
+  });
+
+  it("returns a deterministic resume recommendation before another available task", () => {
+    const value = state("middle_school");
+    value.stageProgressByStage.middle_school = {
+      completedActivityIds: [
+        "middle-ai-foundations-lesson",
+        "middle-ai-foundations-demonstration",
+        "middle-ai-foundations-assessment",
+        "middle-neural-signals-lesson",
+      ],
+      experimentEvidence: [],
+      activeActivityId: "middle-neural-signals-demonstration",
+    };
+
+    expect(recommendNextActivity(value, "middle_school")).toMatchObject({
+      activity: { id: "middle-neural-signals-demonstration" },
+      kind: "resume",
+      reason: expect.stringContaining("上次保存"),
+    });
+  });
+
+  it("recommends the first unlocked activity with an explainable reason", () => {
+    const value = state("high_school");
+
+    expect(recommendNextActivity(value, "high_school")).toMatchObject({
+      activity: { id: "high-python-data-lab-lesson" },
+      kind: "next",
+      reason: expect.stringContaining("起始任务"),
+    });
+  });
+
+  it("reports no next activity after every activity in the stage is complete", () => {
+    const value = state("middle_school");
+    value.stageProgressByStage.middle_school.completedActivityIds = getStageActivityStatuses(
+      value,
+      "middle_school",
+    ).map((item) => item.activity.id);
+
+    expect(recommendNextActivity(value, "middle_school")).toBeNull();
   });
 });

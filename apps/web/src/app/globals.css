@@ -1,4 +1,13 @@
+@font-face {
+  font-family: "Lemi Pixel";
+  src: url("/fonts/lemi-pixel.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 100 900;
+}
+
 :root {
+  --font-ui: "Lemi Pixel", var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
   --background: #ffffff;
   --surface-subtle: #f7f9f8;
   --surface-muted: #eef2f0;
@@ -39,14 +48,19 @@ html {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family:
-    var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC",
-    Arial, sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   line-height: 1.5;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Learning pages opt into natural document scrolling. Other app surfaces
+   intentionally remain fixed-viewport experiences. */
+body[data-learning-hub="true"] {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 a {
@@ -1508,3 +1522,4 @@ a[href] {
   .brand { gap: 7px; margin-right: 16px; font-size: 15px; }
   .brand__mark { width: 36px; height: 36px; }
 }
+

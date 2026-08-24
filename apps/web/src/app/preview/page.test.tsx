@@ -461,20 +461,21 @@ describe("PreviewPage Starbao chat", () => {
     expect(previewPageSource).toContain("styles.pixelWoodFrame");
   });
 
-  it("renders the growth exhibition with static school-stage labels", () => {
+  it("renders direct learning-center links for each school stage", () => {
     const { container } = render(<PreviewPage />);
 
-    expect(screen.queryByRole("button", { name: "Open primary learning path" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Open middle school learning path" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Open high school learning path" })).not.toBeInTheDocument();
     expect(container.querySelectorAll("img[src*='assets/learning-stages/']")).toHaveLength(3);
     expect(Array.from(container.querySelectorAll("[class*='exhibitStageLabel']")).map((label) => label.textContent)).toEqual(["小学", "初中", "高中"]);
     expect(screen.getByRole("region", { name: "成长展厅" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "从绘本到编程，星宝如影随形" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "初中，算法与模型，进入学习中心" })).toHaveAttribute("href", "/learn?stage=middle_school&grade=middle_1&view=courses");
+    expect(screen.getByRole("link", { name: "高中，代码与项目，进入学习中心" })).toHaveAttribute("href", "/learn?stage=high_school&view=path");
+    expect(screen.getByRole("link", { name: "小学，故事与发现，进入学习中心" })).toHaveAttribute("href", "/map");
+    expect(screen.getByRole("navigation", { name: "首页导航" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "星宝课堂" })).toHaveAttribute("href", "/preview");
     expect(screen.getByText("从小教到大")).toBeInTheDocument();
     expect(screen.getByText("Ai学习伙伴-星宝")).toBeInTheDocument();
 
-    expect(screen.queryByRole("group", { name: "选择学习阶段" })).not.toBeInTheDocument();
     expect(container.querySelector("[class*='exhibitBayLabel']")).not.toBeInTheDocument();
     expect(screen.queryByText("星宝的像素旅程")).not.toBeInTheDocument();
     expect(container.querySelector("a[href='#classroom']")).not.toBeInTheDocument();
@@ -487,16 +488,14 @@ describe("PreviewPage Starbao chat", () => {
     expect(screen.queryByText("桌面上的小伙伴")).not.toBeInTheDocument();
   });
 
-  it("keeps the exhibit artwork and labels free of hover routing behavior", () => {
+  it("keeps stage routes canonical instead of sending learners through the retired map", () => {
     const { container } = render(<PreviewPage />);
 
-    expect(screen.queryByText("读写启蒙")).not.toBeInTheDocument();
-    expect(screen.queryByText("思考进阶")).not.toBeInTheDocument();
-    expect(screen.queryByText("编程创造")).not.toBeInTheDocument();
-    expect(container.querySelectorAll("[class*='exhibitBayDetail']")).toHaveLength(0);
-    expect(container.querySelectorAll("[class*='exhibitStageLink']")).toHaveLength(0);
-    expect(previewPageSource).not.toContain("openSchoolStage");
-    expect(previewPageSource).not.toContain("activeExhibitStage");
+    expect(container.querySelector("a[href='/middle-map']")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "初中，算法与模型，进入学习中心" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "高中，代码与项目，进入学习中心" })).toBeInTheDocument();
+    expect(previewPageSource).not.toContain("workspaceHref");
+    expect(previewPageSource).not.toContain("openFutureStage");
   });
 
   it("uses intrinsic image dimensions for school-stage art instead of fill positioning", () => {

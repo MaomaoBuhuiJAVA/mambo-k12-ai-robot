@@ -9,6 +9,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiBattleQuestion } from "./ai-battle-engine";
 import { AiBattleGame } from "./ai-battle-game";
 
+const startMiddleMapTransition = vi.hoisted(() => vi.fn(() => true));
+
+vi.mock("@/components/cloud-transition/cloud-transition-provider", () => ({
+  useCloudTransition: () => ({ startMiddleMapTransition }),
+}));
+
 vi.mock("next/image", () => ({
   default: ({ src, alt, ...props }: { src?: string | { src: string }; alt?: string; priority?: boolean }) => {
     const imageSrc = typeof src === "string" ? src || "/test-image.png" : src?.src ?? "/test-image.png";
@@ -71,11 +77,14 @@ async function startBattle() {
 
 beforeEach(() => {
   arenaSpy.begin.mockImplementation((onComplete?: () => void) => onComplete?.());
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.clearAllMocks();
+  startMiddleMapTransition.mockReturnValue(true);
 });
 
 function expectHealth(name: string, value: number) {
@@ -201,7 +210,7 @@ describe("AiBattleGame", () => {
 
     act(() => completeEntrance?.());
 
-    expect(screen.getByRole("dialog", { name: "Component question 1" })).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("dialog", { name: "Component question 1" })).toBeVisible());
   });
 
   it("routes Starbao's attack to the Phaser cutout sprite", async () => {
@@ -375,6 +384,35 @@ describe("AiBattleGame", () => {
     expectHealth("星宝生命", 100);
     expect(screen.queryByRole("dialog", { name: "Component question 1" })).not.toBeInTheDocument();
   }, 15_000);
+
+  it("starts the cloud transition to the middle-school laboratory only after a tree guardian victory", async () => {
+    vi.useFakeTimers();
+    const treeSanctuary = {
+      id: "tree-sanctuary",
+      enemyName: "古树守卫",
+      arenaAsset: "/assets/game/battle-tree-sanctuary.jpg",
+      enemyAsset: "/assets/game/enemy-tree-guardian.png",
+      enemyScale: 1.08,
+      enemyAnimations: {
+        spawn: "/assets/game/enemy-videos/tree-guardian-spawn.mp4",
+        defeat: "/assets/game/enemy-videos/tree-guardian-defeat.mp4",
+      },
+    };
+
+    render(<AiBattleGame battleModule={treeSanctuary} questions={questions.slice(0, 1)} questionCount={1} random={() => 0} />);
+    await startBattle();
+
+    fireEvent.click(screen.getByRole("button", { name: "Correct 1" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_200);
+    });
+
+    expect(screen.getByRole("dialog", { name: "胜利" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "继续" }));
+    fireEvent.click(screen.getByRole("button", { name: "进入初中实验室" }));
+    expect(startMiddleMapTransition).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "再来一次" })).not.toBeInTheDocument();
+  });
 
   it("shows a failure summary after five incorrect answers", async () => {
     const user = userEvent.setup();

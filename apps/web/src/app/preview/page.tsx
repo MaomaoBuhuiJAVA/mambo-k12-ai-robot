@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
+import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpen,
+  Code2,
   Cloud,
+  GraduationCap,
   Send,
   Sparkles,
   Star,
@@ -23,14 +26,10 @@ import { resolvePatrolMotionState, type PatrolMotionState } from "./patrol-motio
 import { GESTURE_NAVIGATE_EVENT, type GestureNavigationDirection } from "@/components/robot/robot-gesture-provider";
 import { useSharedStarbaoConversation } from "@/features/starbao/use-shared-starbao-conversation";
 import type { Stage } from "@/lib/domain";
-import { workspaceHref } from "@/lib/workspace-route";
 
 type FloorId = "explore" | "create" | "future";
 type PetMood = Exclude<StarbaoMood, "walk">;
 type PetChatAnchor = "launcher" | "reference";
-type EntryDialog = "programming" | "future" | null;
-type LabFamiliarity = "first_steps" | "guided" | "ready";
-type HomepageFeature = "voice" | "storybook" | "coding";
 type PetPosition = { x: number; y: number };
 type PatrolPlayback = "running" | "paused" | "stopped";
 type PetPanelDrag = {
@@ -103,19 +102,6 @@ const floors: Array<{
   },
 ];
 
-const labStageOptions: Array<{ id: Stage; label: string; detail: string }> = [
-  { id: "lower_primary", label: "小学低年级", detail: "从图像、声音和小游戏开始" },
-  { id: "upper_primary", label: "小学高年级", detail: "把想法写成第一段代码" },
-  { id: "middle_school", label: "初中", detail: "理解算法和模型的规则" },
-  { id: "high_school", label: "高中", detail: "完成更完整的分析挑战" },
-];
-
-const labFamiliarityOptions: Array<{ id: LabFamiliarity; label: string; detail: string }> = [
-  { id: "first_steps", label: "第一次尝试", detail: "先用可视化线索理解步骤" },
-  { id: "guided", label: "会一点基础", detail: "带着分级提示完成练习" },
-  { id: "ready", label: "想独立挑战", detail: "直接进入算法或模型任务" },
-];
-
 const storyPreviewPages = [
   {
     title: "数字泡泡出发了",
@@ -134,12 +120,6 @@ const storyPreviewPages = [
   },
 ] as const;
 
-const homepageFeatureTargets: Record<HomepageFeature, string> = {
-  voice: "voice-dialogue",
-  storybook: "storybook-reading",
-  coding: "coding-practice",
-};
-
 const PET_PANEL_PREFERRED_HEIGHT = 382;
 const PET_SLEEP_DELAY_MS = 30_000;
 
@@ -148,16 +128,28 @@ const schoolStages = [
     id: "primary",
     image: "/assets/learning-stages/primary-reading.png",
     buttonLabel: "小学",
+    subtitle: "故事与发现",
+    description: "从绘本、地图和知识战斗开始。",
+    href: "/map",
+    icon: BookOpen,
   },
   {
     id: "middle",
     image: "/assets/learning-stages/middle-writing.png",
     buttonLabel: "初中",
+    subtitle: "算法与模型",
+    description: "通过课程、练习和实验建立 AI 基础。",
+    href: "/learn?stage=middle_school&grade=middle_1&view=courses",
+    icon: GraduationCap,
   },
   {
     id: "high",
     image: "/assets/learning-stages/high-coding.png",
     buttonLabel: "高中",
+    subtitle: "代码与项目",
+    description: "用数据、指标和项目证据完成研究。",
+    href: "/learn?stage=high_school&view=path",
+    icon: Code2,
   },
 ] as const;
 
@@ -261,7 +253,6 @@ function usePatrolMotionState(
 }
 
 export default function PreviewPage() {
-  const router = useRouter();
   const { notifyHomeReady } = useCloudTransition();
   const activeFloor: FloorId = "explore";
   const [petOpen, setPetOpen] = useState(false);
@@ -280,12 +271,7 @@ export default function PreviewPage() {
     error: starbaoError,
     sendTurn: sendStarbaoTurn,
   } = useSharedStarbaoConversation();
-  const [entryDialog, setEntryDialog] = useState<EntryDialog>(null);
-  const [labStage, setLabStage] = useState<Stage>("lower_primary");
-  const [labFamiliarity, setLabFamiliarity] = useState<LabFamiliarity>("first_steps");
-  const [activeFeature, setActiveFeature] = useState<HomepageFeature>("voice");
   const [storyPreviewPage, setStoryPreviewPage] = useState(0);
-  const [codingMatched, setCodingMatched] = useState(false);
   const petPanelDragRef = useRef<PetPanelDrag | null>(null);
   const petPatrolDragRef = useRef<PetPatrolDrag | null>(null);
   const petPatrolDidDragRef = useRef(false);
@@ -321,15 +307,6 @@ export default function PreviewPage() {
       if (petWaitingTimerRef.current) window.clearTimeout(petWaitingTimerRef.current);
     };
   }, [setPetMoodIfChanged]);
-
-  useEffect(() => {
-    if (!entryDialog) return;
-    const dismissOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setEntryDialog(null);
-    };
-    window.addEventListener("keydown", dismissOnEscape);
-    return () => window.removeEventListener("keydown", dismissOnEscape);
-  }, [entryDialog]);
 
   useEffect(() => {
     const navigateStorybook = (event: Event) => {
@@ -612,30 +589,6 @@ export default function PreviewPage() {
     top: `${petPatrolPosition.y}px`,
   } : undefined;
 
-  function openFutureStage(stage: "middle_school" | "high_school") {
-    setEntryDialog(null);
-    const courseId = stage === "middle_school" ? "middle-neural-signals" : "high-bubble-analysis";
-    router.push(workspaceHref({ course: courseId, hash: "workspace" }));
-  }
-
-  function scrollToFeature(feature: HomepageFeature) {
-    setActiveFeature(feature);
-    window.requestAnimationFrame(() => {
-      document.getElementById(homepageFeatureTargets[feature])?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
-
-  function openStorybook() {
-    playPetMood("drawing", 1300);
-    scrollToFeature("storybook");
-  }
-
-  function enterProgrammingLab() {
-    setCodingMatched(true);
-    setEntryDialog(null);
-    router.push(`/lab?stage=${labStage}&familiarity=${labFamiliarity}`);
-  }
-
   async function sendMessage() {
     const value = draft.trim();
     if (!value || starbaoSending) return;
@@ -661,7 +614,6 @@ export default function PreviewPage() {
   }
 
   const activeStory = storyPreviewPages[storyPreviewPage]!;
-  const selectedStage = labStageOptions.find((option) => option.id === labStage)!;
   const codingTemplate = "Hello World";
   const codingLines = ['print("Hello, World!")'];
 
@@ -677,10 +629,22 @@ export default function PreviewPage() {
       </div>
 
       <header className={styles.navbar}>
+        <Link className={styles.homeBrand} href="/preview">
+          <strong>星宝课堂</strong>
+        </Link>
         <nav className={styles.navLinks} aria-label="首页导航">
-          <button className={activeFeature === "coding" ? styles.navLinkActive : ""} type="button" onClick={() => scrollToFeature("coding")}>编程实验室</button>
-          <button className={activeFeature === "storybook" ? styles.navLinkActive : ""} type="button" onClick={openStorybook}>动漫绘本</button>
-          <button className={activeFeature === "voice" ? styles.navLinkActive : ""} type="button" onClick={() => scrollToFeature("voice")}>星宝</button>
+          <Link className={styles.navLinkActive} href="/preview">主页</Link>
+          <Link href="/learn?stage=middle_school&grade=middle_1&view=path">学习</Link>
+          <Link href="/learn/tutor/middle-ai-foundations%3Aconcepts%3Arules-and-models?stage=middle_school&grade=middle_1">AI 导师</Link>
+          <details className={styles.homeGradeMenu}>
+            <summary>年级</summary>
+            <div className={styles.homeGradeMenuPanel}>
+              <Link href="/map">小学</Link>
+              <Link href="/learn?stage=middle_school&grade=middle_1&view=courses">初中</Link>
+              <Link href="/learn?stage=high_school&view=path">高中</Link>
+            </div>
+          </details>
+          <Link href="/learn?stage=high_school&view=path">项目</Link>
         </nav>
       </header>
 
@@ -733,11 +697,15 @@ export default function PreviewPage() {
           <h2 id="scene-gallery-title">从绘本到编程，星宝如影随形</h2>
         </div>
         <div className={styles.exhibitHall} role="region" aria-label="成长展厅">
-          {schoolStages.map((stage, index) => (
-            <article
+          {schoolStages.map((stage, index) => {
+            const StageIcon = stage.icon;
+            return (
+            <Link
               className={styles.exhibitBay}
               data-stage={stage.id}
+              href={stage.href}
               key={stage.id}
+              aria-label={`${stage.buttonLabel}，${stage.subtitle}，进入学习中心`}
             >
               <span className={styles.exhibitArtwork} aria-hidden="true">
                 <Image src={stage.image} alt="" width={982} height={1024} sizes="(max-width: 680px) 72vw, 420px" loading={stage.id === "primary" ? "eager" : "lazy"} />
@@ -745,11 +713,15 @@ export default function PreviewPage() {
               <div className={styles.exhibitFooter}>
                 <div className={styles.exhibitMeta}>
                   <span className={styles.exhibitBayNumber}>0{index + 1}</span>
+                  <span className={styles.exhibitStageSubtitle}>{stage.subtitle}</span>
+                  <strong className={styles.exhibitStageLabel}>{stage.buttonLabel}</strong>
+                  <small className={styles.exhibitStageDescription}>{stage.description}</small>
                 </div>
-                <span className={styles.exhibitStageLabel}>{stage.buttonLabel}</span>
+                <span className={styles.exhibitStageAction}><StageIcon aria-hidden="true" size={16} />进入</span>
               </div>
-            </article>
-          ))}
+            </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -816,7 +788,7 @@ export default function PreviewPage() {
               <div className={styles.codeGutter}>{codingLines.map((_, index) => <span key={index}>{index + 1}</span>)}</div>
               <code>{codingLines.map((line, index) => <span key={index}>{line}</span>)}</code>
             </div>
-            <div className={styles.codingMatch} data-ready={codingMatched}><span>{codingMatched ? `>>> ready: ${selectedStage.label} · ${codingTemplate}` : ">>> waiting for stage selection"}</span><strong>{codingMatched ? "run exercise" : "idle"}</strong></div>
+            <div className={styles.codingMatch}><span>{`>>> ${codingTemplate} · choose a learning path`}</span><strong>ready</strong></div>
           </div>
         </div>
       </section>
@@ -834,56 +806,6 @@ export default function PreviewPage() {
           </div>
         </div>
       </section>
-
-      {entryDialog ? (
-        <div className={styles.entryBackdrop} role="presentation" onClick={() => setEntryDialog(null)}>
-          {entryDialog === "programming" ? (
-            <section className={styles.entryDialog} role="dialog" aria-modal="true" aria-labelledby="programming-dialog-title" onClick={(event) => event.stopPropagation()}>
-              <div className={styles.entryDialogHeader}>
-                <div><span>编程实验室</span><h2 id="programming-dialog-title">先认识你，再匹配练习</h2></div>
-                <button className={styles.entryClose} type="button" onClick={() => setEntryDialog(null)} aria-label="关闭"><X size={18} /></button>
-              </div>
-              <p className={styles.entryDialogLead}>选择学段和目前的熟悉程度，实验室会带你进入对应难度的 Python 练习。</p>
-              <fieldset className={styles.choiceGroup}>
-                <legend>你现在在哪个学习阶段？</legend>
-                <div className={styles.stageChoices}>
-                  {labStageOptions.map((option) => (
-                    <button className={labStage === option.id ? styles.choiceActive : ""} type="button" key={option.id} aria-pressed={labStage === option.id} onClick={() => setLabStage(option.id)}>
-                      <strong>{option.label}</strong><small>{option.detail}</small>
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-              <fieldset className={styles.choiceGroup}>
-                <legend>你对编程的熟悉程度？</legend>
-                <div className={styles.familiarityChoices}>
-                  {labFamiliarityOptions.map((option) => (
-                    <button className={labFamiliarity === option.id ? styles.choiceActive : ""} type="button" key={option.id} aria-pressed={labFamiliarity === option.id} onClick={() => setLabFamiliarity(option.id)}>
-                      <strong>{option.label}</strong><small>{option.detail}</small>
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-              <div className={styles.entryDialogActions}>
-                <button className={styles.dialogCancel} type="button" onClick={() => setEntryDialog(null)}>稍后再说</button>
-                <button className={styles.dialogConfirm} type="button" onClick={enterProgrammingLab}>开始匹配练习 <ArrowRight size={16} /></button>
-              </div>
-            </section>
-          ) : (
-            <section className={styles.entryDialog} role="dialog" aria-modal="true" aria-labelledby="future-dialog-title" onClick={(event) => event.stopPropagation()}>
-              <div className={styles.entryDialogHeader}>
-                <div><span>未来研究所</span><h2 id="future-dialog-title">选择你的学习阶段</h2></div>
-                <button className={styles.entryClose} type="button" onClick={() => setEntryDialog(null)} aria-label="关闭"><X size={18} /></button>
-              </div>
-              <p className={styles.entryDialogLead}>同一层里准备了不同深度的算法、模型和项目任务。选好后会直接进入你的专属学习页。</p>
-              <div className={styles.futureStageChoices}>
-                <button type="button" onClick={() => openFutureStage("middle_school")}><span><strong>我是初中生</strong><small>从模型观察和算法实验开始</small></span><ArrowRight size={20} /></button>
-                <button type="button" onClick={() => openFutureStage("high_school")}><span><strong>我是高中生</strong><small>进入更完整的分析和项目挑战</small></span><ArrowRight size={20} /></button>
-              </div>
-            </section>
-          )}
-        </div>
-      ) : null}
 
       {petOpen ? (
         <aside className={`${styles.petPanel} ${petPanelPosition ? styles.petPanelAttached : ""} ${petPanelDragging ? styles.petPanelDragging : ""}`} style={petPanelStyle} ref={petPanelRef} aria-label="星星智能体面板">

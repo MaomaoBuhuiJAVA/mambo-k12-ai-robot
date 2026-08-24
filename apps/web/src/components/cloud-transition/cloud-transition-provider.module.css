@@ -14,15 +14,18 @@
   z-index: 0;
   inset: -4vw;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgb(255 255 255 / 10%), rgb(255 255 255 / 18%) 52%, rgb(255 255 255 / 24%));
+  background: linear-gradient(to bottom, #dceeff, #f7fcff 52%, #e4f2ff);
   filter: blur(1.2vw);
   opacity: 0;
-  transition: opacity 180ms ease-out;
+  transition: opacity 240ms ease-out;
 }
 
-.overlay[data-phase="covering"] .cloudVeil,
+.overlay[data-phase="covering"] .cloudVeil {
+  opacity: 0.92;
+}
+
 .overlay[data-phase="holding"] .cloudVeil {
-  opacity: 0.74;
+  opacity: 1;
 }
 
 .overlay[data-phase="revealing"] .cloudVeil {

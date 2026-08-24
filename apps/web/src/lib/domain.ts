@@ -67,6 +67,35 @@ export interface MasteryRecord {
   misconceptionTags: string[];
 }
 
+export type LearningPathStage = Extract<
+  Stage,
+  "middle_school" | "high_school"
+>;
+
+export type ExperimentMode =
+  | "guided"
+  | "independent"
+  | "research"
+  | "project";
+
+export interface ExperimentEvidence {
+  runId: string;
+  activityId: string;
+  courseId: string;
+  templateId: string;
+  mode: ExperimentMode;
+  variables: Record<string, string | number | boolean>;
+  metrics: Record<string, number>;
+  conclusion: string;
+  completedAt: string;
+}
+
+export interface StageProgress {
+  completedActivityIds: string[];
+  experimentEvidence: ExperimentEvidence[];
+  activeActivityId: string | null;
+}
+
 export interface LearningState {
   schemaVersion: number;
   profile: StudentProfile;
@@ -75,5 +104,6 @@ export interface LearningState {
   recentTopics: string[];
   interests: string[];
   lastCourseId: string | null;
+  stageProgressByStage: Record<LearningPathStage, StageProgress>;
   updatedAt: string;
 }

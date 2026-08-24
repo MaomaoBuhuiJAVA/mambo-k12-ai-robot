@@ -26,12 +26,13 @@ describe("LearningWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "初中" }));
 
     const courseList = screen.getByRole("list", { name: "初中课程" });
+    expect(within(courseList).getByText("人工智能基础：从规则到学习")).toBeVisible();
     expect(within(courseList).getByText("图像分类与神经网络")).toBeVisible();
     expect(within(courseList).getByText("数据偏差侦探社")).toBeVisible();
     expect(within(courseList).queryByText("冒泡排序")).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: "图像分类与神经网络",
+        name: "人工智能基础：从规则到学习",
         level: 1,
       }),
     ).toBeInTheDocument();

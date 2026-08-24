@@ -1,0 +1,37 @@
+.experiment { border: 2px solid rgba(104, 168, 192, 0.8); background: #102c3d; box-shadow: 5px 5px 0 rgba(6, 20, 32, 0.68); color: #eaf6f5; margin: 18px 20px 0; padding: 17px; }
+.header { align-items: flex-start; border-bottom: 1px solid rgba(173, 218, 228, 0.27); display: flex; gap: 12px; justify-content: space-between; padding-bottom: 12px; }
+.header p, .header h3, .connections p, .prediction p { margin: 0; }
+.header p, .inputs h4, .connections h4, .scores h4, .prediction span { color: #a5ddea; font-size: 12px; font-weight: 800; letter-spacing: 0; }
+.header h3 { color: #fff6d8; font-size: 18px; line-height: 1.35; margin-top: 4px; }
+.header svg { color: #f2cb6e; flex: 0 0 auto; }
+.presets { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
+.presets button { align-items: center; background: #1c485d; border: 1px solid #88bcca; color: #effcfb; cursor: pointer; display: inline-flex; font: inherit; font-size: 12px; font-weight: 760; gap: 5px; min-height: 33px; padding: 5px 9px; }
+.presets button:hover, .presets button:focus-visible { background: #28667b; outline: 2px solid #f0ca70; outline-offset: 2px; }
+.pipeline { display: grid; grid-template-columns: minmax(205px, 0.9fr) minmax(260px, 1.25fr) minmax(205px, 0.85fr); gap: 13px; margin-top: 15px; }
+.inputs, .connections, .scores { border: 1px solid rgba(172, 218, 228, 0.35); min-width: 0; padding: 12px; }
+.inputs h4, .connections h4, .scores h4 { color: #fff6d8; font-size: 14px; margin: 0 0 10px; }
+.inputs { display: grid; gap: 10px; }
+.inputs label { display: grid; gap: 5px; grid-template-columns: minmax(0, 1fr) auto; }
+.inputs label span { min-width: 0; }
+.inputs strong { display: block; color: #f2f8fb; font-size: 13px; }
+.inputs small { color: #b9d5dd; display: block; font-size: 11px; line-height: 1.4; margin-top: 2px; }
+.inputs output { color: #f4cf76; font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 800; }
+.inputs input { accent-color: #e9be5b; grid-column: 1 / -1; width: 100%; }
+.connections p { color: #bdd9dd; font-size: 12px; line-height: 1.5; }
+.connections ul { display: grid; gap: 6px; list-style: none; margin: 10px 0 0; padding: 0; }
+.connections li { background: rgba(4, 23, 37, 0.52); border-left: 3px solid #6ab2c7; display: grid; gap: 3px; padding: 6px 8px; }
+.connections li span { color: #d3e9eb; font-size: 11px; }
+.connections li strong { color: #f4cf76; font-size: 12px; font-variant-numeric: tabular-nums; }
+.scores { display: grid; align-content: start; gap: 9px; }
+.scores h4 { margin-bottom: 1px; }
+.score { align-items: center; border-left: 3px solid #7994a0; display: grid; gap: 7px; grid-template-columns: 44px minmax(0, 1fr) 42px; padding: 6px; }
+.score[data-leading="true"] { background: rgba(233, 190, 91, 0.16); border-left-color: #efc75f; }
+.score span:first-child, .score strong { font-size: 13px; font-weight: 800; }
+.score strong { color: #f4cf76; font-variant-numeric: tabular-nums; text-align: right; }
+.scoreTrack { background: #244c5d; height: 8px; overflow: hidden; }
+.scoreTrack span { background: #72c5cf; display: block; height: 100%; }
+.prediction { border-top: 1px solid rgba(172, 218, 228, 0.35); margin-top: 3px; padding-top: 10px; }
+.prediction strong { color: #f8d878; display: block; font-size: 20px; margin-top: 2px; }
+.prediction p { color: #cae4e5; font-size: 12px; line-height: 1.55; margin-top: 5px; }
+@media (max-width: 1080px) { .pipeline { grid-template-columns: 1fr 1fr; } .scores { grid-column: 1 / -1; } }
+@media (max-width: 720px) { .experiment { margin-inline: 12px; } .pipeline { grid-template-columns: 1fr; } .scores { grid-column: auto; } }

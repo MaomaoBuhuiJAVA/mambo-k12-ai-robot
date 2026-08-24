@@ -5,6 +5,8 @@ import Image from "next/image";
 import { ArrowRight, HeartPulse, RotateCcw, Swords, Trophy } from "lucide-react";
 
 import starPersonHeadAsset from "@/assets/star-person-head.png";
+import { useCloudTransition } from "@/components/cloud-transition/cloud-transition-provider";
+import { readCompletedImportedStorybookIds } from "@/features/storybook/imported-storybook-progress";
 import { AI_BATTLE_QUESTIONS } from "./ai-battle-questions";
 import { DEFAULT_AI_BATTLE_MODULE, type AiBattleModule } from "./ai-battle-modules";
 import {
@@ -28,6 +30,104 @@ const STORY_TYPEWRITER_INTERVAL_MS = 28;
 const VICTORY_EXPLOSION_SPARKS = Array.from({ length: 14 }, (_, index) => index);
 const STORY_STARBAO_IDLE_STILL = "/assets/game/starbao-idle-still.png";
 
+const BATTLE_KNOWLEDGE_POINTS: Record<string, string> = {
+  "castle-1": "castle:ordered-observation",
+  "core-lab": "core:data-and-patterns",
+  "desert-temple": "desert:evidence-and-reliability",
+  "lava-cavern": "lava:ai-safety-and-privacy",
+  "tree-sanctuary": "tree:responsible-ai-use",
+};
+
+const BATTLE_STORYBOOK_IDS: Record<string, readonly string[]> = {
+  "castle-1": ["castle-lesson-01", "castle-lesson-02", "castle-lesson-03"],
+  "core-lab": ["technology-lesson-01", "technology-lesson-02", "technology-lesson-03"],
+  "desert-temple": ["desert-lesson-07", "desert-lesson-08", "desert-lesson-09"],
+  "lava-cavern": ["lava-lesson-01", "lava-lesson-02", "lava-lesson-03"],
+  "tree-sanctuary": ["forest-lesson-01", "forest-lesson-02", "forest-lesson-03"],
+};
+
+function battleAgentContext(battleModule: AiBattleModule) {
+  const moduleStorybookIds = BATTLE_STORYBOOK_IDS[battleModule.id] ?? [];
+  const completedStorybooks = typeof window === "undefined"
+    ? []
+    : readCompletedImportedStorybookIds(window.localStorage);
+  const completedStorybookIds = moduleStorybookIds.filter((id) => completedStorybooks.includes(id));
+  return {
+    schemaVersion: 1,
+    traceId: `trace:battle:${battleModule.id}:${Date.now()}`,
+    anonymousLearnerId: "anon:web-battle",
+    stage: "lower_primary" as const,
+    grade: 2,
+    teachingMode: "battle" as const,
+    activityId: `primary-battle:${battleModule.id}`,
+    courseId: null,
+    moduleId: battleModule.id,
+    storybookId: completedStorybookIds[0] ?? null,
+    pageNumber: null,
+    knowledgePointIds: [BATTLE_KNOWLEDGE_POINTS[battleModule.id] ?? "ai:responsible-use"],
+    completedActivityIds: completedStorybookIds,
+    masterySummary: [],
+    misconceptionTags: [],
+    recentEvidenceSummary: [],
+    allowedActionIds: [],
+  };
+}
+
+type BattleAgentPayload = {
+  questionId?: string;
+  topic?: string;
+  prompt?: string;
+  options?: string[];
+  answerIndex?: number;
+  explanation?: string;
+};
+
+async function fetchBattleAgentQuestion(
+  context: ReturnType<typeof battleAgentContext>,
+  questionIndex: number,
+  allowedKnowledgePointIds: string[],
+  signal: AbortSignal,
+): Promise<AiBattleQuestion | null> {
+  try {
+    const response = await fetch("/api/ai/battle/question", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        context,
+        questionIndex,
+        difficulty: questionIndex < 3 ? "introductory" : questionIndex < 7 ? "standard" : "challenge",
+        excludedQuestionIds: [],
+        allowedKnowledgePointIds,
+      }),
+      signal,
+    });
+    if (!response.ok) return null;
+    const body = await response.json() as { data?: { payload?: BattleAgentPayload } };
+    const payload = body.data?.payload;
+    if (!payload?.questionId || !payload.topic || !payload.prompt || !Array.isArray(payload.options)
+      || payload.options.length !== 4 || typeof payload.answerIndex !== "number"
+      || !Number.isInteger(payload.answerIndex) || payload.answerIndex < 0 || payload.answerIndex > 3
+      || !payload.explanation) return null;
+    return {
+      id: payload.questionId,
+      topic: payload.topic,
+      prompt: payload.prompt,
+      options: payload.options as [string, string, string, string],
+      answerIndex: payload.answerIndex,
+      explanation: payload.explanation,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function replaceBattleQuestion(session: BattleSession, index: number, question: AiBattleQuestion): BattleSession {
+  if (index < 0 || index >= session.questions.length) return session;
+  const questions = [...session.questions];
+  questions[index] = question;
+  return { ...session, questions, sourceQuestions: questions };
+}
+
 type StoryPhase = "intro" | "battle" | "outro";
 
 export interface AiBattleGameProps {
@@ -43,6 +143,7 @@ export function AiBattleGame({
   questionCount = 10,
   random = Math.random,
 }: AiBattleGameProps) {
+  const { startMiddleMapTransition } = useCloudTransition();
   const arenaElement = useRef<HTMLDivElement | null>(null);
   const arenaController = useRef<AiBattleArenaController | null>(null);
   const arenaEntranceRequested = useRef(false);
@@ -50,7 +151,9 @@ export function AiBattleGame({
   const randomizationApplied = useRef(false);
   const turnResolutionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attackImpactTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const agentQuestionController = useRef<AbortController | null>(null);
   const [session, setSession] = useState<BattleSession>(() => createBattleSession(questions, questionCount, HYDRATION_RANDOM));
+  const [agentQuestionState, setAgentQuestionState] = useState<"loading" | "ready" | "fallback">("loading");
   const [storyPhase, setStoryPhase] = useState<StoryPhase>("intro");
   const [storyIndex, setStoryIndex] = useState(0);
   const [turnDialogue, setTurnDialogue] = useState<BattleStoryLine | null>(null);
@@ -65,7 +168,7 @@ export function AiBattleGame({
       ? session.status === "won" ? story.victory : story.defeat
       : null;
   const activeStoryLine = activeStoryLines?.[storyIndex] ?? null;
-  const showQuestionDialog = storyPhase === "battle" && isArenaEntranceComplete && session.status === "playing" && !isResolvingTurn;
+  const showQuestionDialog = storyPhase === "battle" && isArenaEntranceComplete && session.status === "playing" && !isResolvingTurn && agentQuestionState !== "loading";
 
   useEffect(() => {
     if (randomizationApplied.current) return;
@@ -76,6 +179,30 @@ export function AiBattleGame({
     setTurnDialogue(null);
     setIsArenaEntranceComplete(false);
   }, [questionCount, questions, random]);
+
+  useEffect(() => {
+    // Do not spend or abort a Dify request during the intro. The first question
+    // is generated only after the arena entrance has completed, when the battle
+    // dialog can safely be revealed.
+    if (typeof window === "undefined" || storyPhase !== "battle" || !isArenaEntranceComplete) return;
+    const controller = new AbortController();
+    agentQuestionController.current?.abort();
+    agentQuestionController.current = controller;
+    const context = battleAgentContext(battleModule);
+    const allowedKnowledgePointIds = [BATTLE_KNOWLEDGE_POINTS[battleModule.id] ?? "ai:responsible-use"];
+    void fetchBattleAgentQuestion(context, 0, allowedKnowledgePointIds, controller.signal)
+      .then((agentQuestion) => {
+        if (controller.signal.aborted) return;
+        setSession((current) => agentQuestion
+          ? replaceBattleQuestion(current, 0, agentQuestion)
+          : current);
+        setAgentQuestionState(agentQuestion ? "ready" : "fallback");
+      });
+    return () => {
+      controller.abort();
+      if (agentQuestionController.current === controller) agentQuestionController.current = null;
+    };
+  }, [battleModule, isArenaEntranceComplete, questionCount, questions, storyPhase]);
 
   useEffect(() => {
     const parent = arenaElement.current;
@@ -106,6 +233,7 @@ export function AiBattleGame({
 
   useEffect(() => {
     return () => {
+      agentQuestionController.current?.abort();
       if (turnResolutionTimer.current !== null) {
         clearTimeout(turnResolutionTimer.current);
       }
@@ -133,13 +261,34 @@ export function AiBattleGame({
     if (isResolvingTurn || session.status !== "playing") return;
 
     const result = answerBattleQuestion(session, answerIndex);
+    if (result.session.status === "playing") {
+      const nextQuestionIndex = result.session.currentQuestionIndex + 1;
+      const context = battleAgentContext(battleModule);
+      const allowedKnowledgePointIds = [BATTLE_KNOWLEDGE_POINTS[battleModule.id] ?? "ai:responsible-use"];
+      const controller = new AbortController();
+      agentQuestionController.current?.abort();
+      agentQuestionController.current = controller;
+      setAgentQuestionState("loading");
+      void fetchBattleAgentQuestion(context, nextQuestionIndex, allowedKnowledgePointIds, controller.signal)
+        .then((agentQuestion) => {
+          if (controller.signal.aborted) return;
+          setSession((current) => agentQuestion
+            ? replaceBattleQuestion(current, nextQuestionIndex, agentQuestion)
+            : current);
+          setAgentQuestionState(agentQuestion ? "ready" : "fallback");
+        });
+    }
     clearTurnResolution();
     setIsResolvingTurn(true);
     setTurnDialogue(getBattleTurnDialogue(result.isCorrect, result.explanation));
     arenaController.current?.emit(result.events);
     attackImpactTimer.current = setTimeout(() => {
       attackImpactTimer.current = null;
-      setSession(result.session);
+      setSession((current) => ({
+        ...result.session,
+        questions: current.questions,
+        sourceQuestions: current.sourceQuestions,
+      }));
       if (result.session.status === "won") {
         setIsVictoryExplosionVisible(true);
       }
@@ -152,7 +301,11 @@ export function AiBattleGame({
     turnResolutionTimer.current = setTimeout(() => {
       turnResolutionTimer.current = null;
       if (result.session.status === "playing") {
-        setSession(advanceBattleQuestion(result.session));
+        setSession((current) => advanceBattleQuestion({
+          ...result.session,
+          questions: current.questions,
+          sourceQuestions: current.sourceQuestions,
+        }));
         arenaController.current?.idle();
         setTurnDialogue(null);
       } else {
@@ -167,6 +320,8 @@ export function AiBattleGame({
 
   function restart() {
     clearTurnResolution();
+    agentQuestionController.current?.abort();
+    setAgentQuestionState("loading");
     arenaEntranceRequested.current = false;
     arenaEntranceRun.current += 1;
     setSession((current) => restartBattleSession(current, random));
@@ -209,7 +364,7 @@ export function AiBattleGame({
   }
 
   return (
-    <section className={styles.game} aria-labelledby="ai-battle-title">
+    <section className={styles.game} aria-labelledby="ai-battle-title" data-agent-question={agentQuestionState}>
       <h1 id="ai-battle-title" className={styles.screenReaderOnly}>星宝 AI 知识大作战</h1>
 
       <div className={styles.arena} aria-label={`星宝与${battleModule.enemyName}的战斗动画`}>
@@ -245,6 +400,12 @@ export function AiBattleGame({
         />
       ) : null}
 
+      {storyPhase === "battle" && isArenaEntranceComplete && agentQuestionState === "loading" ? (
+        <div className={styles.agentQuestionLoading} role="status" aria-live="polite">
+          正在根据已学绘本生成题目…
+        </div>
+      ) : null}
+
       {activeStoryLine ? (
         <StoryDialogue
           key={`${storyPhase}-${session.status}-${storyIndex}-${activeStoryLine.text}`}
@@ -252,10 +413,12 @@ export function AiBattleGame({
           phase={storyPhase}
           status={session.status}
           score={session.score}
+          battleModuleId={battleModule.id}
           enemyName={battleModule.enemyName}
           enemyAsset={battleModule.enemyAsset}
           isLastLine={storyIndex === activeStoryLines!.length - 1}
           onAdvance={advanceStory}
+          onStartMiddleMapTransition={startMiddleMapTransition}
         />
       ) : null}
     </section>
@@ -373,22 +536,27 @@ function StoryDialogue({
   phase,
   status,
   score,
+  battleModuleId,
   enemyName,
   enemyAsset,
   isLastLine,
   onAdvance,
+  onStartMiddleMapTransition,
 }: {
   line: BattleStoryLine;
   phase: StoryPhase;
   status: BattleSession["status"];
   score: number;
+  battleModuleId: string;
   enemyName: string;
   enemyAsset: string;
   isLastLine: boolean;
   onAdvance: () => void;
+  onStartMiddleMapTransition: () => boolean;
 }) {
   const isResult = phase === "outro";
   const isVictory = status === "won";
+  const hasMiddleSchoolNextStep = isLastLine && isResult && isVictory && battleModuleId === "tree-sanctuary";
   const speakerName = line.speaker === "starbao" ? "星宝" : enemyName;
   const actionLabel = isLastLine
     ? isResult ? isVictory ? "再来一次" : "再试一次" : "开始答题"
@@ -414,10 +582,17 @@ function StoryDialogue({
           </div>
           <h2 id="battle-story-title">{isResult ? isVictory ? "胜利" : "挑战失败" : speakerName}</h2>
           <p className={styles.storyText} data-typing={storyText.isTyping} data-testid="battle-story-text">{storyText.text}</p>
-          <button type="button" onClick={onAdvance}>
-            {isLastLine && isResult ? <RotateCcw size={17} aria-hidden="true" /> : <ArrowRight size={17} aria-hidden="true" />}
-            {actionLabel}
-          </button>
+          {hasMiddleSchoolNextStep ? (
+            <button className={styles.storyAction} type="button" onClick={onStartMiddleMapTransition}>
+              <ArrowRight size={17} aria-hidden="true" />
+              进入初中实验室
+            </button>
+          ) : (
+            <button className={styles.storyAction} type="button" onClick={onAdvance}>
+              {isLastLine && isResult ? <RotateCcw size={17} aria-hidden="true" /> : <ArrowRight size={17} aria-hidden="true" />}
+              {actionLabel}
+            </button>
+          )}
         </div>
         {isResult ? (
           <div className={styles.storyResultIcon} aria-hidden="true">

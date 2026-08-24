@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className={geistSans.variable}>
+    <html lang="zh-CN" className={geistSans.variable} data-scroll-behavior="smooth">
       <body>
         <CloudTransitionProvider>
           <RobotGestureProvider>{children}</RobotGestureProvider>

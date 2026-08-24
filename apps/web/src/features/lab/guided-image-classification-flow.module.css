@@ -1,0 +1,255 @@
+.flow {
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  background: #252525;
+  box-shadow: none;
+  padding: 17px;
+}
+
+.header {
+  border-bottom: 1px solid #3c3c3c;
+  margin-bottom: 13px;
+  padding-bottom: 11px;
+}
+
+.header p,
+.header h2,
+.step p,
+.fixedVariable p,
+.runState,
+.saveNotice {
+  margin: 0;
+}
+
+.header p,
+.stepLabel,
+.fixedVariable span,
+.status {
+  color: #60a5fa;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.header h2 {
+  color: #f3f4f6;
+  font-size: 18px;
+  line-height: 1.3;
+  margin-top: 5px;
+}
+
+.steps {
+  display: grid;
+  gap: 11px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step {
+  border-left: 3px solid #4b5563;
+  padding: 2px 0 2px 11px;
+}
+
+.step[data-complete="true"] {
+  border-left-color: #22c55e;
+}
+
+.step[data-active="true"] {
+  border-left-color: #22c55e;
+}
+
+.stepLabel {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.step p,
+.runState {
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.fixedVariable {
+  align-items: center;
+  background: #202020;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+
+.fixedVariable strong {
+  color: #fbbf24;
+  font-size: 14px;
+}
+
+.sampleSet {
+  background: #202020;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  margin-top: 9px;
+  overflow-x: auto;
+  padding: 8px;
+}
+
+.sampleSetHeading {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.sampleSetHeading span,
+.sampleSetHeading small,
+.sampleSet th,
+.sampleSet td,
+.conclusionField span {
+  color: #cbd5e1;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.sampleSetHeading span,
+.conclusionField span {
+  font-weight: 800;
+}
+
+.sampleSetHeading small {
+  color: #94a3b8;
+}
+
+.sampleSet table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.sampleSet th,
+.sampleSet td {
+  border-bottom: 1px solid rgba(159, 211, 199, 0.2);
+  padding: 5px 4px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sampleSet th:nth-child(1),
+.sampleSet td:nth-child(1) {
+  width: 18%;
+}
+
+.sampleSet th:nth-child(2),
+.sampleSet td:nth-child(2),
+.sampleSet th:nth-child(3),
+.sampleSet td:nth-child(3),
+.sampleSet th:nth-child(4),
+.sampleSet td:nth-child(4) {
+  width: 16%;
+}
+
+.sampleSet th:nth-child(5),
+.sampleSet td:nth-child(5) {
+  width: 34%;
+}
+
+.sampleSet th {
+  color: #94a3b8;
+  font-weight: 800;
+}
+
+.sampleSet tr:last-child td {
+  border-bottom: 0;
+}
+
+.predictionChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.predictionChoices button,
+.saveButton {
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+  color: #dbeafe;
+  background: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 760;
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.predictionChoices button[aria-pressed="true"] {
+  border-color: #22c55e;
+  color: #dcfce7;
+  background: #166534;
+}
+
+.predictionChoices button:focus-visible,
+.saveButton:focus-visible,
+.observation:focus-visible {
+  outline: 2px solid #ffe09a;
+  outline-offset: 2px;
+}
+
+.observation {
+  box-sizing: border-box;
+  display: block;
+  min-height: 82px;
+  resize: vertical;
+  width: 100%;
+  margin-top: 9px;
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+  color: #e5e7eb;
+  background: #181818;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 8px;
+}
+
+.conclusionField {
+  display: block;
+  margin-top: 9px;
+}
+
+.conclusionField .observation {
+  margin-top: 5px;
+}
+
+.saveButton {
+  margin-top: 9px;
+  border-color: #16a34a;
+  color: #dcfce7;
+  background: #166534;
+}
+
+.saveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.saveNotice {
+  color: #b8dfd2;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .predictionChoices button,
+  .saveButton {
+    transition: none;
+  }
+}

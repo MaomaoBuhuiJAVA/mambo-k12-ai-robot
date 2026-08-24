@@ -34,13 +34,38 @@ function normalizeText(value: unknown): string | null {
   return normalized.length > 0 ? normalized : null;
 }
 
+function normalizeCodeFill(value: unknown): string | null {
+  const normalized = normalizeText(value);
+  return normalized?.replace(/\s+/g, " ") ?? null;
+}
+
 function isCorrect(exercise: CourseExercise, submitted: unknown): boolean {
+  if (exercise.type === "classification") {
+    const normalized = normalizeText(submitted);
+    return normalized !== null && normalized === normalizeText(exercise.answer);
+  }
+
+  if (exercise.type === "multi_select") {
+    if (!Array.isArray(submitted) || submitted.length !== exercise.answers.length) return false;
+    const normalizedSubmitted = submitted.map(normalizeText);
+    const normalizedAnswers = exercise.answers.map(normalizeText);
+    if (normalizedSubmitted.some((item) => item === null) || normalizedAnswers.some((item) => item === null)) return false;
+    if (new Set(normalizedSubmitted).size !== normalizedSubmitted.length) return false;
+    return normalizedSubmitted.every((item) => normalizedAnswers.includes(item))
+      && normalizedAnswers.every((item) => normalizedSubmitted.includes(item));
+  }
+
   if (exercise.type === "order") {
     if (!Array.isArray(submitted) || submitted.length !== exercise.answer.length) return false;
     const normalized = submitted.map(normalizeText);
     if (normalized.some((item) => item === null)) return false;
     if (new Set(normalized).size !== normalized.length) return false;
     return normalized.every((item, index) => item === normalizeText(exercise.answer[index]));
+  }
+
+  if (exercise.type === "code_fill") {
+    const normalized = normalizeCodeFill(submitted);
+    return normalized !== null && normalized === normalizeCodeFill(exercise.answer);
   }
 
   const normalized = normalizeText(submitted);

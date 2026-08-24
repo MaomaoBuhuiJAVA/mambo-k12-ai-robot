@@ -1,0 +1,41 @@
+.experiment { border: 2px solid rgba(104, 168, 192, .8); background: #102c3d; box-shadow: 5px 5px 0 rgba(6, 20, 32, .68); color: #eaf6f5; margin: 18px 20px 0; padding: 17px; }
+.header { align-items: flex-start; border-bottom: 1px solid rgba(173, 218, 228, .27); display: flex; gap: 12px; justify-content: space-between; padding-bottom: 12px; }
+.header p, .header h3, .splitSelector p, .metrics p, .matrix p, .interpretation { margin: 0; }
+.header p, .splitSelector h4, .testCases h4, .metrics h4, .matrix h4 { color: #a5ddea; font-size: 12px; font-weight: 800; letter-spacing: 0; }
+.header h3 { color: #fff6d8; font-size: 18px; line-height: 1.35; margin-top: 4px; }
+.header svg { color: #f2cb6e; flex: 0 0 auto; }
+.splitSelector { align-items: end; border-bottom: 1px solid rgba(173, 218, 228, .27); display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) auto; padding: 14px 0; }
+.splitSelector h4, .testCases h4, .metrics h4, .matrix h4 { align-items: center; color: #fff6d8; display: flex; font-size: 14px; gap: 6px; margin: 0 0 6px; }
+.splitSelector p, .metrics p, .matrix p { color: #c9e2e5; font-size: 12px; line-height: 1.55; }
+.batchButtons { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.batchButtons button { background: #1c485d; border: 1px solid #88bcca; color: #effcfb; cursor: pointer; font: inherit; font-size: 12px; font-weight: 760; min-height: 33px; padding: 5px 9px; }
+.batchButtons button:hover, .batchButtons button:focus-visible, .batchButtons button[aria-pressed="true"] { background: #28667b; border-color: #f0ca70; outline: 2px solid transparent; }
+.datasetSummary { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-top: 14px; }
+.datasetSummary section { border-left: 3px solid #6ab2c7; min-width: 0; padding: 7px 10px; }
+.datasetSummary section + section { border-left-color: #efc75f; }
+.datasetSummary span { color: #a5ddea; display: block; font-size: 12px; font-weight: 800; }
+.datasetSummary strong { color: #fff6d8; display: block; font-size: 16px; margin-top: 3px; }
+.datasetSummary p { color: #c9e2e5; font-size: 12px; line-height: 1.5; margin: 4px 0 0; }
+.analysisGrid { display: grid; gap: 13px; grid-template-columns: minmax(0, 1.55fr) minmax(220px, .7fr); margin-top: 14px; }
+.testCases, .metrics, .matrix { border: 1px solid rgba(172, 218, 228, .35); min-width: 0; padding: 12px; }
+.testCases table, .matrix table { border-collapse: collapse; font-size: 12px; width: 100%; }
+.testCases caption { color: #bdd9dd; font-size: 11px; padding-bottom: 7px; text-align: left; }
+.testCases th, .testCases td, .matrix th, .matrix td { border: 1px solid rgba(172, 218, 228, .24); padding: 6px 7px; text-align: left; }
+.testCases thead, .matrix thead { background: rgba(4, 23, 37, .52); color: #d5ecee; }
+.testCases tbody th, .matrix tbody th { color: #d5ecee; font-weight: 750; }
+.testCases tr[data-correct="false"] td:last-child { color: #ffb7aa; font-weight: 800; }
+.testCases tr[data-correct="true"] td:last-child { color: #91e1c4; font-weight: 800; }
+.metrics { display: grid; align-content: start; gap: 10px; }
+.metrics dl { display: grid; gap: 8px; margin: 0; }
+.metrics dl div { background: rgba(4, 23, 37, .52); border-left: 3px solid #6ab2c7; padding: 8px; }
+.metrics dl div + div { border-left-color: #f0a065; }
+.metrics dt { color: #c9e2e5; font-size: 12px; }
+.metrics dd { color: #f4cf76; font-size: 25px; font-variant-numeric: tabular-nums; font-weight: 850; margin: 2px 0; }
+.metrics small { color: #b7d4da; font-size: 11px; }
+.matrix { margin-top: 13px; }
+.matrix table { margin-top: 10px; max-width: 500px; }
+.matrix td { color: #eaf6f5; font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 800; text-align: center; }
+.matrix td[data-diagonal="true"] { background: rgba(111, 201, 164, .18); color: #a6e8cc; }
+.interpretation { border-left: 4px solid #efc75f; color: #d9edeb; font-size: 12px; line-height: 1.6; margin-top: 14px; padding: 9px 11px; }
+@media (max-width: 1080px) { .splitSelector, .analysisGrid { grid-template-columns: 1fr; } .batchButtons { justify-content: flex-start; } }
+@media (max-width: 720px) { .experiment { margin-inline: 12px; } .datasetSummary { grid-template-columns: 1fr; } .testCases { overflow-x: auto; } }

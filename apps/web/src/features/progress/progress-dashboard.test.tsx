@@ -8,6 +8,20 @@ import { createSeedStorybook } from "@/features/storybook/storybook";
 import { STORYBOOK_STORAGE_KEY } from "@/features/storybook/storybook-storage";
 import { ProgressDashboard } from "./progress-dashboard";
 
+const completedThroughPython = [
+  "middle-ai-foundations-lesson",
+  "middle-ai-foundations-demonstration",
+  "middle-ai-foundations-assessment",
+  "middle-data-and-algorithms-lesson",
+  "middle-data-and-algorithms-demonstration",
+  "middle-data-and-algorithms-lab",
+  "middle-data-and-algorithms-assessment",
+  "middle-python-basics-lesson",
+  "middle-python-basics-demonstration",
+  "middle-python-basics-lab",
+  "middle-python-basics-assessment",
+];
+
 describe("ProgressDashboard", () => {
   beforeEach(() => window.localStorage.clear());
 
@@ -23,6 +37,48 @@ describe("ProgressDashboard", () => {
       "href",
       expect.stringMatching(/^\/workspace\?course=/),
     );
+  });
+
+  it("renders only the requested middle-school path with explicit unlock reasons", async () => {
+    const state = createDefaultLearningState();
+    state.profile.stage = "lower_primary";
+    state.masteryByKnowledgePoint["lower-bubble-sort:相邻比较"] = {
+      knowledgePointId: "lower-bubble-sort:相邻比较",
+      mastery: 0.8,
+      confidence: 0.7,
+      evidenceCount: 1,
+      lastPracticedAt: "2026-08-21T08:00:00.000Z",
+      nextReviewAt: null,
+      misconceptionTags: [],
+    };
+    state.stageProgressByStage.middle_school = {
+      completedActivityIds: [
+        ...completedThroughPython,
+        "middle-neural-signals-lesson",
+      ],
+      experimentEvidence: [],
+      activeActivityId: "middle-neural-signals-demonstration",
+    };
+    saveLearningState(state);
+
+    render(<ProgressDashboard stage="middle_school" now={new Date("2026-08-22T08:00:00.000Z")} />);
+
+    expect(await screen.findByRole("heading", { name: "阶段任务" })).toBeVisible();
+    expect(screen.getByText("人工智能基础小课")).toBeVisible();
+    expect(screen.getByText("图像分类基础小课")).toBeVisible();
+    expect(screen.getAllByText("星宝前向传播示范")).toHaveLength(3);
+    expect(screen.getByText("进行中")).toBeVisible();
+    expect(screen.getByText("需要先完成：星宝前向传播示范。")).toBeVisible();
+    expect(screen.getByRole("link", { name: /前往完成当前步骤/ })).toHaveAttribute(
+      "href",
+      "/workspace?course=middle-neural-signals&tab=animation",
+    );
+    expect(screen.getByRole("link", { name: /继续当前任务/ })).toHaveAttribute(
+      "href",
+      "/workspace?course=middle-neural-signals&tab=animation",
+    );
+    expect(screen.queryByText("相邻比较")).not.toBeInTheDocument();
+    expect(screen.queryByText("排序算法概念复习")).not.toBeInTheDocument();
   });
 
   it("shows persisted mastery, due review, and recent attempts without fabricated totals", async () => {
