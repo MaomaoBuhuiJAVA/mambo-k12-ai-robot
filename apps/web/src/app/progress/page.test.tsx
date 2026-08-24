@@ -19,7 +19,7 @@ describe("ProgressPage", () => {
     }));
 
     expect(await screen.findByRole("heading", { name: "个人画像" })).toBeVisible();
-    expect(screen.getAllByText("初中阶段").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "年级 · 初一" })).toBeVisible();
   });
 
   it("redirects the unscoped legacy entry to the unified learner profile", async () => {
