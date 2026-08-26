@@ -47,14 +47,18 @@ export async function POST(request: Request): Promise<Response> {
     const allowedSourceIds = context.teachingMode === "storybook" || context.teachingMode === "dialogue"
       ? context.storybookId ? [`${context.storybookId}.txt`] : undefined
       : [];
+    const difyTeachingMode = context.teachingMode === "dialogue" ? "storybook" : context.teachingMode;
     const result = await requestDifyDialogue({
-      context_json: JSON.stringify(context),
+      context_json: JSON.stringify({
+        ...context,
+        teachingMode: difyTeachingMode,
+      }),
       trace_id: context.traceId,
       anonymous_learner_id: context.anonymousLearnerId,
       stage: context.stage,
       // The shared Chatflow uses `storybook` as the common reading/dialogue
       // branch; preserve the original mode inside context_json for auditing.
-      teaching_mode: context.teachingMode === "dialogue" ? "storybook" : context.teachingMode,
+      teaching_mode: difyTeachingMode,
       activity_id: context.activityId,
       storybook_id: context.storybookId,
       page_number: context.pageNumber,

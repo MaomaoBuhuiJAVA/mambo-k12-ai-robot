@@ -99,7 +99,7 @@ describe("POST /api/ai/tutor/guide", () => {
       lesson_title: "规则、样本与模型",
     });
     expect(sent.inputs.context_json).toContain(`"lessonId":"${lessonId}"`);
-    expect(sent.inputs.context_json).toContain('"teachingMode":"dialogue"');
+    expect(sent.inputs.context_json).toContain('"teachingMode":"storybook"');
     expect(sent.inputs.teaching_mode).toBe("storybook");
     expect(sent.query).toContain("course_id=middle-ai-foundations");
     expect(sent.query).toContain(`lesson_id=${lessonId}`);

@@ -11,8 +11,25 @@ export type DifyDialogueResult =
 type DifySseEvent = {
   event?: string;
   answer?: unknown;
+  data?: {
+    answer?: unknown;
+    outputs?: { answer?: unknown };
+    metadata?: { retriever_resources?: Array<{ document_name?: unknown }> };
+  };
   metadata?: { retriever_resources?: Array<{ document_name?: unknown }> };
 };
+
+function eventAnswer(event: DifySseEvent): string {
+  const candidates = [
+    event.answer,
+    event.data?.answer,
+  ];
+  return candidates.find((value): value is string => typeof value === "string") ?? "";
+}
+
+function workflowOutputAnswer(event: DifySseEvent): string {
+  return typeof event.data?.outputs?.answer === "string" ? event.data.outputs.answer : "";
+}
 
 function compactContextJson(value: unknown): string {
   if (typeof value !== "string") return "{}";
@@ -61,7 +78,10 @@ function eventLine(type: "start" | "delta" | "sources" | "complete", payload: Re
 }
 
 function sourceIds(event: DifySseEvent, allowedSourceIds?: ReadonlySet<string>): string[] {
-  return (event.metadata?.retriever_resources ?? [])
+  return [
+    ...(event.metadata?.retriever_resources ?? []),
+    ...(event.data?.metadata?.retriever_resources ?? []),
+  ]
     .map((resource) => typeof resource.document_name === "string" ? resource.document_name : "")
     .filter((value) => allowedSourceIds === undefined || allowedSourceIds.has(value))
     .filter((value) => /^[\w.:-]{1,160}$/u.test(value));
@@ -172,6 +192,8 @@ export function transformDifyDialogueStream(
   let started = false;
   let completed = false;
   const emittedSources = new Set<string>();
+  let receivedStreamingAnswer = false;
+  let deferredWorkflowAnswer = "";
   const sourceAllowList = allowedSourceIds === undefined ? undefined : new Set(allowedSourceIds);
   const thinkFilter = createThinkFilter();
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -207,8 +229,11 @@ export function transformDifyDialogueStream(
               clearStreamTimeout();
               const tail = buffer.trim();
               const parsed = tail ? parseData(tail) : null;
-              const tailAnswer = typeof parsed?.answer === "string" ? parsed.answer : "";
-              const tailText = thinkFilter.consume(tailAnswer) + thinkFilter.flush();
+              const tailAnswer = parsed ? eventAnswer(parsed) : "";
+              const tailWorkflowAnswer = parsed ? workflowOutputAnswer(parsed) : "";
+              if (tailWorkflowAnswer) deferredWorkflowAnswer = tailWorkflowAnswer;
+              const finalAnswer = tailAnswer || (!receivedStreamingAnswer ? deferredWorkflowAnswer : "");
+              const tailText = thinkFilter.consume(finalAnswer) + thinkFilter.flush();
               if (tailText) controller.enqueue(eventLine("delta", { text: tailText }));
               controller.enqueue(eventLine("complete", { traceId, degraded: false }));
               controller.close();
@@ -222,13 +247,16 @@ export function transformDifyDialogueStream(
           buffer = buffer.slice(newline + 1);
           const parsed = parseData(line);
           if (!parsed) continue;
-          const answer = typeof parsed.answer === "string" ? parsed.answer : "";
+          const workflowAnswer = workflowOutputAnswer(parsed);
+          if (workflowAnswer) deferredWorkflowAnswer = workflowAnswer;
+          const answer = eventAnswer(parsed);
           const sources = [...new Set(sourceIds(parsed, sourceAllowList))].filter((id) => !emittedSources.has(id));
           if (sources.length) {
             sources.forEach((id) => emittedSources.add(id));
             controller.enqueue(eventLine("sources", { sourceIds: sources }));
           }
           if (answer) {
+            receivedStreamingAnswer = true;
             const text = thinkFilter.consume(answer);
             if (text) {
               controller.enqueue(eventLine("delta", { text }));

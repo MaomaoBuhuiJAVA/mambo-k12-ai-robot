@@ -1,21 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("ai", () => ({
-  generateText: vi.fn(),
-}));
-
-vi.mock("@/lib/ai/provider", () => ({
-  getChatModel: vi.fn(),
-}));
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/starbao-core", () => ({
   appendStarbaoMessage: vi.fn(),
   getStarbaoSnapshot: vi.fn(),
 }));
 
-import { generateText } from "ai";
-import { getChatModel } from "@/lib/ai/provider";
+vi.mock("@/lib/dify/dialogue-client", () => ({
+  requestDifyDialogue: vi.fn(),
+}));
+
 import { appendStarbaoMessage, getStarbaoSnapshot } from "@/lib/starbao-core";
+import { requestDifyDialogue } from "@/lib/dify/dialogue-client";
 import { resetLocalStarbaoChatForTests } from "@/lib/local-starbao-chat";
 
 import { POST } from "./route";
@@ -74,11 +69,16 @@ function turnRequest(body: Record<string, unknown>) {
   });
 }
 
-describe("POST /api/starbao/turn", () => {
-  beforeEach(() => {
-    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
+function difyStream(text: string) {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(`event: delta\ndata: ${JSON.stringify({ text })}\n\n`));
+      controller.close();
+    },
   });
+}
 
+describe("POST /api/starbao/turn", () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
@@ -86,7 +86,6 @@ describe("POST /api/starbao/turn", () => {
   });
 
   it("persists a canonical user turn, generates a reply, and marks it for OrangePi speech", async () => {
-    vi.mocked(getChatModel).mockReturnValue("deepseek-model" as never);
     vi.mocked(getStarbaoSnapshot).mockResolvedValue({
       conversation,
       messages: [earlierMessage],
@@ -95,7 +94,7 @@ describe("POST /api/starbao/turn", () => {
     vi.mocked(appendStarbaoMessage)
       .mockResolvedValueOnce(userMessage)
       .mockResolvedValueOnce(assistantMessage);
-    vi.mocked(generateText).mockResolvedValue({ text: assistantMessage.content } as never);
+    vi.mocked(requestDifyDialogue).mockResolvedValue({ ok: true, stream: difyStream(assistantMessage.content), latencyMs: 12 });
 
     const response = await POST(turnRequest({
       clientMessageId: "web-turn-1",
@@ -127,17 +126,13 @@ describe("POST /api/starbao/turn", () => {
       content: "What should I try next?",
       announceOnOrangePi: false,
     });
-    expect(generateText).toHaveBeenCalledWith(expect.objectContaining({
-      model: "deepseek-model",
-      instructions: expect.stringContaining("Mambo"),
-      messages: expect.arrayContaining([
-        { role: "assistant", content: "Let's keep exploring." },
-        { role: "user", content: "What should I try next?" },
-      ]),
-      maxOutputTokens: 120,
-      maxRetries: 0,
-      providerOptions: { deepseek: { thinking: { type: "disabled" } } },
-    }));
+    expect(requestDifyDialogue).toHaveBeenCalledWith(expect.objectContaining({
+      stage: "lower_primary",
+      teaching_mode: "storybook",
+      course_id: "lower-bubble-sort",
+      question: "What should I try next?",
+      messages_json: expect.stringContaining("Let's keep exploring."),
+    }), { allowedSourceIds: [] });
     expect(appendStarbaoMessage).toHaveBeenNthCalledWith(2, {
       clientMessageId: "web-turn-1:assistant",
       role: "assistant",
@@ -165,12 +160,11 @@ describe("POST /api/starbao/turn", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ assistantMessage: { messageId: "message-9" } });
-    expect(generateText).not.toHaveBeenCalled();
+    expect(requestDifyDialogue).not.toHaveBeenCalled();
     expect(appendStarbaoMessage).toHaveBeenCalledTimes(1);
   });
 
   it("preserves an OrangePi microphone origin in the canonical user event", async () => {
-    vi.mocked(getChatModel).mockReturnValue("deepseek-model" as never);
     vi.mocked(getStarbaoSnapshot).mockResolvedValue({
       conversation,
       messages: [],
@@ -179,7 +173,7 @@ describe("POST /api/starbao/turn", () => {
     vi.mocked(appendStarbaoMessage)
       .mockResolvedValueOnce({ ...userMessage, origin: "asr" })
       .mockResolvedValueOnce(assistantMessage);
-    vi.mocked(generateText).mockResolvedValue({ text: assistantMessage.content } as never);
+    vi.mocked(requestDifyDialogue).mockResolvedValue({ ok: true, stream: difyStream(assistantMessage.content), latencyMs: 12 });
 
     const response = await POST(turnRequest({
       clientMessageId: "web-turn-1",
@@ -194,7 +188,6 @@ describe("POST /api/starbao/turn", () => {
   });
 
   it("keeps a reply to an OrangePi-originated turn playable even when remote broadcast is off", async () => {
-    vi.mocked(getChatModel).mockReturnValue("deepseek-model" as never);
     vi.mocked(getStarbaoSnapshot).mockResolvedValue({
       conversation: { ...conversation, speak_on_orangepi: false },
       messages: [],
@@ -203,7 +196,7 @@ describe("POST /api/starbao/turn", () => {
     vi.mocked(appendStarbaoMessage)
       .mockResolvedValueOnce({ ...userMessage, origin: "orangepi" })
       .mockResolvedValueOnce(assistantMessage);
-    vi.mocked(generateText).mockResolvedValue({ text: assistantMessage.content } as never);
+    vi.mocked(requestDifyDialogue).mockResolvedValue({ ok: true, stream: difyStream(assistantMessage.content), latencyMs: 12 });
 
     const response = await POST(turnRequest({
       clientMessageId: "orangepi-turn-1",
@@ -220,7 +213,6 @@ describe("POST /api/starbao/turn", () => {
   });
 
   it("starts the idempotent user write while the snapshot loads without duplicating it in model history", async () => {
-    vi.mocked(getChatModel).mockReturnValue("deepseek-model" as never);
     let resolveSnapshot: ((value: {
       conversation: typeof conversation;
       messages: typeof userMessage[];
@@ -244,7 +236,7 @@ describe("POST /api/starbao/turn", () => {
         return userMessage;
       })
       .mockResolvedValueOnce(assistantMessage);
-    vi.mocked(generateText).mockResolvedValue({ text: assistantMessage.content } as never);
+    vi.mocked(requestDifyDialogue).mockResolvedValue({ ok: true, stream: difyStream(assistantMessage.content), latencyMs: 12 });
 
     const pending = POST(turnRequest({
       clientMessageId: "web-turn-1",
@@ -268,9 +260,9 @@ describe("POST /api/starbao/turn", () => {
     const response = await pending;
 
     expect(response.status).toBe(200);
-    expect(generateText).toHaveBeenCalledWith(expect.objectContaining({
-      messages: [{ role: "user", content: userMessage.content }],
-    }));
+    expect(requestDifyDialogue).toHaveBeenCalledWith(expect.objectContaining({
+      messages_json: JSON.stringify([{ role: "user", content: userMessage.content }]),
+    }), { allowedSourceIds: [] });
   });
 
   it("rejects an invalid course-stage pairing before writing a message", async () => {
@@ -290,8 +282,7 @@ describe("POST /api/starbao/turn", () => {
   it("runs a local browser test turn without requiring the Core conversation service", async () => {
     vi.stubEnv("LOCAL_AI_CHAT", "true");
     vi.stubEnv("NODE_ENV", "development");
-    vi.mocked(getChatModel).mockReturnValue("deepseek-model" as never);
-    vi.mocked(generateText).mockResolvedValue({ text: "Let's make a small AI experiment." } as never);
+    vi.mocked(requestDifyDialogue).mockResolvedValue({ ok: true, stream: difyStream("Let's make a small AI experiment."), latencyMs: 12 });
 
     const response = await POST(turnRequest({
       clientMessageId: "local-turn-1",

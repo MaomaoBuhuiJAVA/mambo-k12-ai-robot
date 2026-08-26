@@ -79,7 +79,12 @@ export async function POST(request: Request): Promise<Response> {
     const { context } = parsed.data;
     const knowledgePointIds = lessonKnowledgePointIds(course.course.id, lesson.knowledgePointTags);
     const result = await requestDifyDialogue({
-      context_json: JSON.stringify({ ...context, lessonId: lesson.id, knowledgePointIds }),
+      context_json: JSON.stringify({
+        ...context,
+        teachingMode: "storybook",
+        lessonId: lesson.id,
+        knowledgePointIds,
+      }),
       trace_id: context.traceId,
       anonymous_learner_id: context.anonymousLearnerId,
       stage: context.stage,

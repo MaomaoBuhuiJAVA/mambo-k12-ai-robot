@@ -41,6 +41,18 @@ describe("Dify dialogue client", () => {
     expect(output).toContain('"degraded":false');
   });
 
+  it("reads answers from Dify workflow output events", async () => {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"event":"workflow_finished","data":{"outputs":{"answer":"云端工作流已回复"}}}\n\n'));
+        controller.close();
+      },
+    });
+    const output = await read(transformDifyDialogueStream(body, "trace:workflow-output"));
+    expect(output).toContain('"text":"云端工作流已回复"');
+    expect(output).toContain('"degraded":false');
+  });
+
   it("filters DeepSeek think tags even when tags cross stream chunks", async () => {
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
