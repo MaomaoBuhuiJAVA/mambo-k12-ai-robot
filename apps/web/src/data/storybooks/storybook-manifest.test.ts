@@ -14,7 +14,7 @@ describe("imported storybook manifest schema", () => {
   });
 
   it("keeps every imported Word storybook on a complete ten-page sequence", () => {
-    expect(IMPORTED_STORYBOOKS).toHaveLength(10);
+    expect(IMPORTED_STORYBOOKS).toHaveLength(15);
     for (const storybook of IMPORTED_STORYBOOKS) {
       expect(importedStorybookManifestSchema.parse(storybook)).toEqual(storybook);
       expect(storybook.pages.map((page) => page.pageNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);

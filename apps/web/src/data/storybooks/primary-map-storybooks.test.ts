@@ -29,4 +29,9 @@ describe("primary map storybook modules", () => {
     expect(isPrimaryMapBattleUnlocked(castle, new Set(["castle-lesson-01", "castle-lesson-02"]))).toBe(false);
     expect(isPrimaryMapBattleUnlocked(castle, new Set(castle.storybooks.map((storybook) => storybook.storybookId)))).toBe(true);
   });
+
+  it("exposes the newly imported castle and technology storybooks", () => {
+    expect(PRIMARY_MAP_STORYBOOK_MODULES.castle.storybooks.map((storybook) => storybook.available)).toEqual([true, true, true]);
+    expect(PRIMARY_MAP_STORYBOOK_MODULES.technology.storybooks.map((storybook) => storybook.available)).toEqual([true, true, true]);
+  });
 });

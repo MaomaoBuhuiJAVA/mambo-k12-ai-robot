@@ -48,7 +48,7 @@ const paragraphs = [...documentXml.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)
   .filter((paragraph) => paragraph.text || paragraph.images.length > 0 || paragraph.pageBreak);
 
 const images = Object.values(archive.files)
-  .filter((entry) => /^word\/media\/image\d+\.(?:png|jpe?g)$/i.test(entry.name))
+  .filter((entry) => /^word\/media\/[^/]+\.(?:png|jpe?g)$/i.test(entry.name))
   .map((entry) => entry.name);
 
 console.log(JSON.stringify({ images, paragraphs }, null, 2));

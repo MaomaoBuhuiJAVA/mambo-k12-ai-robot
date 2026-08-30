@@ -38,6 +38,56 @@ const BOOKS = [
     knowledgePointIds: ["最小权限", "安全规则", "危险内容", "停止操作", "寻求帮助"],
   },
   {
+    id: "castle-lesson-02",
+    fileName: "第2课时_重复图案怎样接下去.docx",
+    sourceDirectory: FOLDER_SOURCE_DIRECTORY,
+    moduleId: "castle-1",
+    lessonNumber: 2,
+    title: "星宝的城堡图案规律奇遇记",
+    summary: "星宝来到天空之城城堡，学习从重复和变化中发现规律，分开观察颜色与形状，并用新位置验证规律。",
+    knowledgePointIds: ["重复规律", "多项观察", "颜色与形状", "规律验证", "唯一答案"],
+  },
+  {
+    id: "castle-lesson-03",
+    fileName: "第3课时绘本无拼音.docx",
+    sourceDirectory: FOLDER_SOURCE_DIRECTORY,
+    moduleId: "castle-1",
+    lessonNumber: 3,
+    title: "城堡的最终秘密",
+    summary: "星宝在城堡最终之地理解观察镜的秘密，学习从大量图像中提取线索、发现规律并持续验证。",
+    knowledgePointIds: ["观察线索", "可见特征", "发现规律", "样本积累", "持续验证"],
+  },
+  {
+    id: "technology-lesson-01",
+    fileName: "核心实验室第四绘本.docx",
+    sourceDirectory: FOLDER_SOURCE_DIRECTORY,
+    moduleId: "core-lab",
+    lessonNumber: 1,
+    title: "星宝核心实验室 数据小卫士",
+    summary: "星宝在核心实验室认识能量晶体，学习制作数据表，记录颜色、形状、亮度和重量，并核对观察数据。",
+    knowledgePointIds: ["数据记录", "数据表", "可见特征", "观察对比", "数据核对"],
+  },
+  {
+    id: "technology-lesson-02",
+    fileName: "核心实验室第五绘本.docx",
+    sourceDirectory: FOLDER_SOURCE_DIRECTORY,
+    moduleId: "core-lab",
+    lessonNumber: 2,
+    title: "星宝核心实验室 分类小卫士",
+    summary: "星宝在核心实验室按照颜色和形状给能量水晶分组，学习寻找共同特征并用不同规则进行分类。",
+    knowledgePointIds: ["分类", "共同特征", "颜色分类", "形状分类", "多种分类规则"],
+  },
+  {
+    id: "technology-lesson-03",
+    fileName: "核心实验室第六绘本.docx",
+    sourceDirectory: FOLDER_SOURCE_DIRECTORY,
+    moduleId: "core-lab",
+    lessonNumber: 3,
+    title: "星宝核心实验室 AI 规则小卫士",
+    summary: "星宝和 AI 机器人学习使用 AI 的安全规则，学会管理权限、写清规则，遇到危险内容及时停止并求助。",
+    knowledgePointIds: ["AI 使用规则", "权限管理", "清晰规则", "风险识别", "停止与求助"],
+  },
+  {
     id: "forest-lesson-01",
     fileName: "第7课时绘本无拼音.docx",
     sourceDirectory: FOLDER_SOURCE_DIRECTORY,
@@ -136,7 +186,7 @@ function pageHeading(text) {
 }
 
 function dialogueCue(text, pageNumber, order) {
-  const match = text.match(/^(旁白|星宝|AI\s*小?精灵|守卫|系统|合成语音)\s*(?:[：:]\s*|（([^）]+)）\s*[：:]?\s*)(.+)$/);
+  const match = text.match(/^(旁白|星宝|AI\s*小?精灵|AI\s*机器人|城堡守卫|守卫|机器人|系统|合成语音)\s*(?:[：:]\s*|（([^）]+)）\s*[：:]?\s*)(.+)$/);
   if (!match) return null;
   const speaker = match[1].replace(/\s/g, "");
   const directionMatch = match[3].match(/^（([^）]+)）\s*(.+)$/);
@@ -145,7 +195,7 @@ function dialogueCue(text, pageNumber, order) {
     ? "narrator"
     : speaker === "星宝"
       ? "starbao"
-      : speaker === "守卫"
+      : speaker === "守卫" || speaker === "城堡守卫"
         ? "guardian"
         : speaker === "系统" || speaker === "合成语音"
           ? "system"
@@ -219,7 +269,12 @@ function parsePages(documentXml, relationshipsXml) {
     }
     const options = text.match(/^选项[：:]\s*(.+)$/);
     if (options) {
-      currentPage.optionLine = options[1].split("|").map((option) => option.trim()).filter(Boolean);
+      const rawOptions = options[1].trim();
+      currentPage.optionLine = (rawOptions.includes("|")
+        ? rawOptions.split("|")
+        : rawOptions.split(/\s+(?=[A-D][.、)）])/))
+        .map((option) => option.trim())
+        .filter(Boolean);
       continue;
     }
     const answer = text.match(/^(?:答案|标准答案)[：:]\s*(.+)$/);

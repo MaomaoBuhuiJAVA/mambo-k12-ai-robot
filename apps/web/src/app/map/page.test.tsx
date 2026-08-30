@@ -218,8 +218,8 @@ describe("Learning map route", () => {
     expect(screen.getByRole("region", { name: "城堡绘本卡片" })).toBeInTheDocument();
     const firstStorybook = screen.getByRole("button", { name: "01 星宝城堡 AI，开始学习" });
     expect(firstStorybook).toBeEnabled();
-    expect(screen.getByRole("button", { name: "02 城堡绘本 2，内容待接入" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "03 城堡绘本 3，内容待接入" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "02 星宝的城堡图案规律奇遇记，开始学习" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "03 城堡的最终秘密，开始学习" })).toBeEnabled();
     expect(screen.getByText("还需完成 3 本绘本才能挑战怪兽")).toBeVisible();
 
     fireEvent.click(firstStorybook);

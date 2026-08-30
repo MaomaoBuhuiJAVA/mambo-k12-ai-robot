@@ -8,8 +8,8 @@ import { getStorybookSource, STORYBOOK_SOURCE_REGISTRY } from "./source-registry
 
 describe("storybook source registry", () => {
   it("registers every imported source book without duplicate content IDs", () => {
-    expect(STORYBOOK_SOURCE_REGISTRY).toHaveLength(10);
-    expect(new Set(STORYBOOK_SOURCE_REGISTRY.map((source) => source.contentId)).size).toBe(10);
+    expect(STORYBOOK_SOURCE_REGISTRY).toHaveLength(15);
+    expect(new Set(STORYBOOK_SOURCE_REGISTRY.map((source) => source.contentId)).size).toBe(15);
     expect(getStorybookSource("lava-lesson-03")?.supersedes).toHaveLength(1);
   });
 

@@ -37,17 +37,42 @@ export const PRIMARY_MAP_STORYBOOK_MODULES: Record<PrimaryMapRegionId, PrimaryMa
         available: true,
         coverSrc: "/assets/storybooks/castle-lesson-01/page-01.jpeg",
       },
-      { storybookId: "castle-lesson-02", title: "城堡绘本 2", available: false },
-      { storybookId: "castle-lesson-03", title: "城堡绘本 3", available: false },
+      {
+        storybookId: "castle-lesson-02",
+        title: "星宝的城堡图案规律奇遇记",
+        available: true,
+        coverSrc: "/assets/storybooks/castle-lesson-02/page-01.png",
+      },
+      {
+        storybookId: "castle-lesson-03",
+        title: "城堡的最终秘密",
+        available: true,
+        coverSrc: "/assets/storybooks/castle-lesson-03/page-01.jpeg",
+      },
     ],
   },
   technology: {
     regionName: "科技岛",
     battleModuleId: "core-lab",
     storybooks: [
-      { storybookId: "technology-lesson-01", title: "科技绘本 1", available: false },
-      { storybookId: "technology-lesson-02", title: "科技绘本 2", available: false },
-      { storybookId: "technology-lesson-03", title: "科技绘本 3", available: false },
+      {
+        storybookId: "technology-lesson-01",
+        title: "星宝核心实验室 数据小卫士",
+        available: true,
+        coverSrc: "/assets/storybooks/technology-lesson-01/page-01.jpeg",
+      },
+      {
+        storybookId: "technology-lesson-02",
+        title: "星宝核心实验室 分类小卫士",
+        available: true,
+        coverSrc: "/assets/storybooks/technology-lesson-02/page-01.jpeg",
+      },
+      {
+        storybookId: "technology-lesson-03",
+        title: "星宝核心实验室 AI 规则小卫士",
+        available: true,
+        coverSrc: "/assets/storybooks/technology-lesson-03/page-01.jpeg",
+      },
     ],
   },
   desert: {
