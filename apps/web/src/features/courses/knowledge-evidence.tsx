@@ -11,7 +11,21 @@ interface KnowledgeEvidenceProps {
 
 export function KnowledgeEvidence({ courseId, variant }: KnowledgeEvidenceProps) {
   const context = getKnowledgeContextForCourse(courseId);
-  if (!context) return null;
+  if (!context) {
+    return (
+      <section className={styles.evidence} data-variant={variant}>
+        <h3>
+          <BadgeCheck size={16} aria-hidden="true" />
+          {variant === "facts" ? "事实依据" : "权威参考"}
+        </h3>
+        <p>
+          {variant === "facts"
+            ? "本课事实依据正在审核，当前材料不作为官方教材版本声明。"
+            : "本课的权威来源正在审核，当前材料不作为官方教材版本声明。"}
+        </p>
+      </section>
+    );
+  }
   const sourceNumberById = new Map(
     context.sources.map((source, index) => [source.id, index + 1]),
   );

@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, LockKeyhole, Swords } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import { useCloudTransition } from "@/components/cloud-transition/cloud-transition-provider";
+import {
+  isPrimaryMapBattleUnlocked,
+  PRIMARY_MAP_STORYBOOK_MODULES,
+  type PrimaryMapRegionId,
+  type PrimaryMapStorybookCard,
+} from "@/data/storybooks/primary-map-storybooks";
+import { readCompletedImportedStorybookIds } from "@/features/storybook/imported-storybook-progress";
 import styles from "./page.module.css";
 import regionLayout from "./region-layout.json";
 
-type MapRegionId = "forest" | "castle" | "technology" | "desert" | "volcano";
+type MapRegionId = PrimaryMapRegionId;
 
 type MapRegion = {
   id: MapRegionId;
@@ -20,14 +28,10 @@ type MapRegion = {
   path: string;
 };
 
-type LearningCard = {
-  eyebrow: string;
-  title: string;
-};
-
 const mapWidth = regionLayout.mapWidth;
 const mapHeight = regionLayout.mapHeight;
 const glowPadding = 80;
+const mapArtworkSrc = "/assets/learning-map/starbao-learning-islands-transparent-water.png";
 
 const regionLabels: Record<MapRegionId, string> = {
   forest: "森林热点",
@@ -35,42 +39,6 @@ const regionLabels: Record<MapRegionId, string> = {
   technology: "科技岛热点",
   desert: "沙漠热点",
   volcano: "火山热点",
-};
-
-const regionNames: Record<MapRegionId, string> = {
-  forest: "森林",
-  castle: "城堡",
-  technology: "科技岛",
-  desert: "沙漠",
-  volcano: "火山",
-};
-
-const learningCards: Record<MapRegionId, readonly LearningCard[]> = {
-  forest: [
-    { eyebrow: "故事", title: "绘本漫游" },
-    { eyebrow: "观察", title: "自然任务" },
-    { eyebrow: "互动", title: "问答挑战" },
-  ],
-  castle: [
-    { eyebrow: "机关", title: "逻辑探索" },
-    { eyebrow: "关卡", title: "故事任务" },
-    { eyebrow: "创造", title: "创意工坊" },
-  ],
-  technology: [
-    { eyebrow: "实验", title: "AI实验" },
-    { eyebrow: "装置", title: "智能装置" },
-    { eyebrow: "未来", title: "未来任务" },
-  ],
-  desert: [
-    { eyebrow: "遗迹", title: "解谜探险" },
-    { eyebrow: "文明", title: "沙海故事" },
-    { eyebrow: "发现", title: "探索挑战" },
-  ],
-  volcano: [
-    { eyebrow: "实验", title: "火山观察" },
-    { eyebrow: "能量", title: "动力任务" },
-    { eyebrow: "安全", title: "防护挑战" },
-  ],
 };
 
 type CardEdgeParticle = {
@@ -120,21 +88,31 @@ const mapRegions: MapRegion[] = regionLayout.regions.map((region) => {
   const id = region.id as MapRegionId;
   return { ...region, id, label: regionLabels[id] };
 });
+const persistentBaseRegions = mapRegions.filter((region) => region.id === "castle");
 
 function regionAsset(id: MapRegionId, suffix: "mask" | "zoom") {
   return `/assets/learning-map/primary-regions/${id}-${suffix}.png`;
 }
 
 export default function LearningMapPage() {
+  const router = useRouter();
   const { isTransitioning, notifyMapReady, startHomeTransition } = useCloudTransition();
   const [activeRegion, setActiveRegion] = useState<MapRegionId | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<MapRegionId | null>(null);
   const [deckLaunchKey, setDeckLaunchKey] = useState(0);
   const [mapImageLoaded, setMapImageLoaded] = useState(false);
+  const [completedStorybookIds, setCompletedStorybookIds] = useState<ReadonlySet<string>>(() => new Set());
 
   useEffect(() => {
     if (mapImageLoaded) notifyMapReady();
   }, [mapImageLoaded, notifyMapReady]);
+
+  useEffect(() => {
+    const restore = window.setTimeout(() => {
+      setCompletedStorybookIds(new Set(readCompletedImportedStorybookIds(window.localStorage)));
+    }, 0);
+    return () => window.clearTimeout(restore);
+  }, []);
 
   function selectRegion(id: MapRegionId) {
     setActiveRegion(id);
@@ -151,6 +129,19 @@ export default function LearningMapPage() {
     startHomeTransition();
   }
 
+  function openStorybook(card: PrimaryMapStorybookCard) {
+    if (!card.available) return;
+    router.push(`/storybook/${card.storybookId}`);
+  }
+
+  const selectedModule = selectedRegion ? PRIMARY_MAP_STORYBOOK_MODULES[selectedRegion] : null;
+  const completedStorybookCount = selectedModule
+    ? selectedModule.storybooks.filter((storybook) => completedStorybookIds.has(storybook.storybookId)).length
+    : 0;
+  const battleUnlocked = selectedModule
+    ? isPrimaryMapBattleUnlocked(selectedModule, completedStorybookIds)
+    : false;
+
   return (
     <main className={styles.page}>
       <section className={styles.mapSection} aria-label="小学学习地图">
@@ -166,16 +157,21 @@ export default function LearningMapPage() {
             <ArrowLeft aria-hidden="true" size={18} />
             <span>返回首页</span>
           </button>
-          <Image
-            className={styles.mapArtwork}
-            src="/assets/learning-map/starbao-learning-islands-transparent-water.png"
-            alt="小学学习地图"
-            width={mapWidth}
-            height={mapHeight}
-            onLoad={() => setMapImageLoaded(true)}
-            priority
-          />
-          <svg className={styles.hotspotOverlay} viewBox={`0 0 ${mapWidth} ${mapHeight}`} aria-label="学习地图热点区域">
+          <div
+            className={styles.mapCanvas}
+            data-map-aspect={`${mapWidth}/${mapHeight}`}
+            data-testid="map-canvas"
+          >
+            <Image
+              className={styles.mapArtwork}
+              src={mapArtworkSrc}
+              alt="小学学习地图"
+              fill
+              onLoad={() => setMapImageLoaded(true)}
+              priority
+              sizes="100vw"
+            />
+            <svg className={styles.hotspotOverlay} viewBox={`0 0 ${mapWidth} ${mapHeight}`} aria-label="学习地图热点区域">
             <defs>
               {mapRegions.map((region) => (
                 <filter
@@ -205,6 +201,24 @@ export default function LearningMapPage() {
             </defs>
 
             <g aria-hidden="true">
+              {persistentBaseRegions.map((region) => {
+                const isActive = activeRegion === region.id || selectedRegion === region.id;
+                return (
+                  <image
+                    className={styles.regionBase}
+                    data-active={isActive ? "true" : undefined}
+                    data-region={region.id}
+                    data-testid={`map-region-base-${region.id}`}
+                    height={region.height}
+                    href={regionAsset(region.id, "zoom")}
+                    key={`base-${region.id}`}
+                    pointerEvents="none"
+                    width={region.width}
+                    x={region.x}
+                    y={region.y}
+                  />
+                );
+              })}
               {mapRegions.map((region) => {
                 const isActive = activeRegion === region.id || selectedRegion === region.id;
                 return (
@@ -268,11 +282,12 @@ export default function LearningMapPage() {
                 />
               );
             })}
-          </svg>
+            </svg>
+          </div>
 
-          {selectedRegion ? (
+          {selectedRegion && selectedModule ? (
             <section
-              aria-label={`${regionNames[selectedRegion]}学习卡片`}
+              aria-label={`${selectedModule.regionName}绘本卡片`}
               className={styles.cardDeck}
               key={`${selectedRegion}-${deckLaunchKey}`}
             >
@@ -284,37 +299,81 @@ export default function LearningMapPage() {
                 type="button"
               />
 
-              <div className={styles.cardDeckCards}>
-                {learningCards[selectedRegion].map((card, index) => (
-                  <article
-                    className={styles.learningCard}
-                    data-testid="learning-card"
-                    key={card.title}
-                    style={{ "--card-index": index } as CSSProperties}
-                  >
-                    <div className={styles.cardFace}>
-                      <span className={styles.cardNumber}>{String(index + 1).padStart(2, "0")}</span>
-                      <p>{card.eyebrow}</p>
-                      <h2>{card.title}</h2>
-                    </div>
-                    {cardEdgeParticles[index].map((particle, particleIndex) => (
-                      <span
-                        aria-hidden="true"
-                        className={styles.goldParticle}
-                        data-testid="gold-particle"
-                        key={particleIndex}
-                        style={{
-                          "--particle-delay": `${840 + index * 90 + particle.delay}ms`,
-                          "--particle-origin-x": particle.originX,
-                          "--particle-origin-y": particle.originY,
-                          "--particle-scale": particle.scale,
-                          "--particle-x": particle.x,
-                          "--particle-y": particle.y,
-                        } as CSSProperties}
-                      />
-                    ))}
-                  </article>
-                ))}
+              <div className={styles.cardDeckContent}>
+                <header className={styles.cardDeckHeader}>
+                  <div>
+                    <span>{selectedModule.regionName}学习</span>
+                    <h2>完成三本绘本，解锁怪兽战斗</h2>
+                  </div>
+                  <strong>{completedStorybookCount} / 3</strong>
+                </header>
+
+                <div className={styles.cardDeckCards}>
+                  {selectedModule.storybooks.map((card, index) => {
+                    const completed = completedStorybookIds.has(card.storybookId);
+                    const statusLabel = completed ? "已完成" : card.available ? "开始学习" : "内容待接入";
+                    return (
+                      <button
+                        aria-label={`${String(index + 1).padStart(2, "0")} ${card.title}，${statusLabel}`}
+                        className={styles.learningCard}
+                        data-status={completed ? "completed" : card.available ? "available" : "pending"}
+                        data-testid="learning-card"
+                        disabled={!card.available}
+                        key={card.storybookId}
+                        onClick={() => openStorybook(card)}
+                        style={{ "--card-index": index } as CSSProperties}
+                        type="button"
+                      >
+                        <div className={styles.cardFace}>
+                          <div className={styles.cardTopline}>
+                            <span className={styles.cardNumber}>{String(index + 1).padStart(2, "0")}</span>
+                            <span className={styles.cardStatus} data-status={completed ? "completed" : card.available ? "available" : "pending"}>
+                              {completed ? <BookOpenCheck aria-hidden="true" size={14} /> : !card.available ? <LockKeyhole aria-hidden="true" size={14} /> : null}
+                              {statusLabel}
+                            </span>
+                          </div>
+                          {card.coverSrc ? (
+                            <span className={styles.cardPreview} aria-hidden="true">
+                              <Image alt="" fill sizes="180px" src={card.coverSrc} />
+                            </span>
+                          ) : (
+                            <span className={styles.cardPlaceholder} aria-hidden="true"><LockKeyhole size={26} /></span>
+                          )}
+                          <div className={styles.cardCopy}>
+                            <p>绘本 {index + 1}</p>
+                            <h3>{card.title}</h3>
+                          </div>
+                        </div>
+                        {cardEdgeParticles[index].map((particle, particleIndex) => (
+                          <span
+                            aria-hidden="true"
+                            className={styles.goldParticle}
+                            data-testid="gold-particle"
+                            key={particleIndex}
+                            style={{
+                              "--particle-delay": `${840 + index * 90 + particle.delay}ms`,
+                              "--particle-origin-x": particle.originX,
+                              "--particle-origin-y": particle.originY,
+                              "--particle-scale": particle.scale,
+                              "--particle-x": particle.x,
+                              "--particle-y": particle.y,
+                            } as CSSProperties}
+                          />
+                        ))}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <footer className={styles.cardDeckFooter}>
+                  {battleUnlocked ? (
+                    <button type="button" onClick={() => router.push(`/ai-battle?module=${selectedModule.battleModuleId}`)}>
+                      <Swords aria-hidden="true" size={18} />挑战怪兽
+                    </button>
+                  ) : (
+                    <p><LockKeyhole aria-hidden="true" size={15} />还需完成 {3 - completedStorybookCount} 本绘本才能挑战怪兽</p>
+                  )}
+                </footer>
               </div>
             </section>
           ) : null}

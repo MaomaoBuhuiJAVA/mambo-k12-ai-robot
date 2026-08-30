@@ -5,6 +5,15 @@ const MAX_REGISTERED_EXTENSIONS = 500;
 const LAB_KNOWLEDGE_POINT_IDS = [
   "algorithm.bubble-sort",
   "ai.image-classification-features",
+  "middle.python-basics",
+  "high.python-data-basics",
+  "high.bubble-sort-analysis",
+  "high.dataset-split",
+  "high.classification-metrics",
+  "high.gradient-descent",
+  "high.multimodal-input",
+  "high.rag-citation-check",
+  "high.model-audit",
 ] as const;
 
 const curriculumKnowledgePointIds = CURRICULUM.flatMap((course) =>

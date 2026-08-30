@@ -28,7 +28,9 @@ function randomToken(): string {
 
 async function fetchAsset(fetcher: typeof fetch, url: string): Promise<string> {
   const response = await fetcher(url, {
-    cache: "force-cache",
+    // The runtime core is a versioned course contract. A stale public asset can
+    // reject a template that the current catalog already exposes.
+    cache: "no-store",
     credentials: "omit",
     headers: { Accept: "text/html, text/javascript;q=0.9, text/plain;q=0.8" },
   });

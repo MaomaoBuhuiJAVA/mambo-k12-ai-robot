@@ -30,6 +30,10 @@ class Settings:
     baidu_secret_key: str
     baidu_asr_dev_pid: int
     baidu_tts_per: int
+    xfyun_app_id: str
+    xfyun_api_key: str
+    xfyun_api_secret: str
+    xfyun_voice_name: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -55,6 +59,10 @@ class Settings:
             baidu_secret_key=os.getenv("BAIDU_SECRET_KEY", "").strip(),
             baidu_asr_dev_pid=max(1, int(os.getenv("BAIDU_ASR_DEV_PID", "1537"))),
             baidu_tts_per=max(0, int(os.getenv("BAIDU_TTS_PER", "110"))),
+            xfyun_app_id=os.getenv("XFYUN_APP_ID", "").strip(),
+            xfyun_api_key=os.getenv("XFYUN_API_KEY", "").strip(),
+            xfyun_api_secret=os.getenv("XFYUN_API_SECRET", "").strip(),
+            xfyun_voice_name=os.getenv("XFYUN_VOICE_NAME", "x4_yezi").strip() or "x4_yezi",
         )
 
 

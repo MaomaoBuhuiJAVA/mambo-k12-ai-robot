@@ -1,4 +1,4 @@
-export type GuardRoute = "chat" | "transcribe" | "storybook";
+export type GuardRoute = "chat" | "transcribe" | "storybook" | "battle" | "lab" | "defense" | "recommendation" | "tutor";
 
 export interface RequestLimits {
   minute: number;
@@ -48,6 +48,13 @@ const DEFAULT_LIMITS: Record<GuardRoute, RequestLimits> = {
   chat: { minute: 12, day: 200, clientConcurrency: 2, routeConcurrency: 16 },
   transcribe: { minute: 4, day: 40, clientConcurrency: 1, routeConcurrency: 6 },
   storybook: { minute: 4, day: 30, clientConcurrency: 1, routeConcurrency: 4 },
+  // A ten-question battle may make one grounded generation request per turn.
+  // Keep enough headroom for a complete session while still bounding abuse.
+  battle: { minute: 20, day: 200, clientConcurrency: 2, routeConcurrency: 8 },
+  lab: { minute: 8, day: 80, clientConcurrency: 2, routeConcurrency: 8 },
+  defense: { minute: 4, day: 40, clientConcurrency: 1, routeConcurrency: 4 },
+  recommendation: { minute: 4, day: 40, clientConcurrency: 1, routeConcurrency: 4 },
+  tutor: { minute: 4, day: 40, clientConcurrency: 1, routeConcurrency: 4 },
 };
 const OVERALL_CONCURRENCY = 20;
 export const AI_LEASE_DURATION_MS = 180_000;
@@ -335,7 +342,10 @@ function unavailable(): AcquireResult {
 }
 
 export async function acquireRequestLease(request: Request, route: GuardRoute): Promise<AcquireResult> {
-  if (process.env.VERCEL !== "1" || (process.env.LOCAL_AI_CHAT === "true" && process.env.NODE_ENV !== "production")) {
+  // LOCAL_AI_CHAT is an explicit local-preview switch. It must not be set in
+  // the deployed environment, and lets the preview call Dify without a local
+  // Redis instance while retaining durable protection on Vercel production.
+  if (process.env.VERCEL !== "1" || process.env.LOCAL_AI_CHAT === "true") {
     return memoryRequestGuard.acquire(request, route);
   }
   const config = redisConfig();

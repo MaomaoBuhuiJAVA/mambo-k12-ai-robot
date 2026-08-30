@@ -1,0 +1,180 @@
+.flow {
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  background: #252525;
+  box-shadow: none;
+  padding: 17px;
+}
+
+.header,
+.runTable,
+.summary,
+.field,
+.variablePicker,
+.valuePicker {
+  display: grid;
+}
+
+.header {
+  border-bottom: 1px solid #3c3c3c;
+  gap: 4px;
+  margin-bottom: 13px;
+  padding-bottom: 11px;
+}
+
+.header p,
+.header h2,
+.intro,
+.runTable p,
+.summary p,
+.field span,
+.status {
+  margin: 0;
+}
+
+.header p,
+.field span,
+.label {
+  color: #60a5fa;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.header h2 {
+  color: #f3f4f6;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.intro,
+.runTable p,
+.summary p {
+  color: #dce6f2;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.variablePicker,
+.valuePicker {
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.pickerButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.pickerButtons button,
+.saveButton {
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+  color: #dbeafe;
+  background: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 760;
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.pickerButtons button[aria-pressed="true"] {
+  border-color: #22c55e;
+  color: #dcfce7;
+  background: #166534;
+}
+
+.pickerButtons button:disabled,
+.saveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.runTable {
+  border-top: 1px solid rgba(219, 196, 245, 0.3);
+  gap: 8px;
+  margin-top: 15px;
+  padding-top: 13px;
+}
+
+.runTable h3,
+.summary h3 {
+  color: #fff6da;
+  font-size: 15px;
+  margin: 0;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  min-width: 100%;
+  width: 100%;
+}
+
+.table th,
+.table td {
+  border: 1px solid rgba(186, 177, 226, 0.42);
+  color: #eaf1f3;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 7px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  color: #1b2740;
+  background: #cbb8e6;
+  font-weight: 800;
+}
+
+.summary {
+  border-top: 1px solid rgba(219, 196, 245, 0.3);
+  gap: 9px;
+  margin-top: 15px;
+  padding-top: 13px;
+}
+
+.field {
+  gap: 5px;
+}
+
+.field textarea {
+  box-sizing: border-box;
+  min-height: 62px;
+  resize: vertical;
+  width: 100%;
+  border: 1px solid #afa4d5;
+  color: #eef2fa;
+  background: #141c39;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px;
+}
+
+.saveButton {
+  border-color: #f0ca70;
+  color: #172631;
+  background: #f0ca70;
+  justify-self: start;
+}
+
+.notice {
+  color: #cde6dc;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pickerButtons button:focus-visible,
+.field textarea:focus-visible,
+.saveButton:focus-visible {
+  outline: 2px solid #ffe09a;
+  outline-offset: 2px;
+}

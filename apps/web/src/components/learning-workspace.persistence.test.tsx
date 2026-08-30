@@ -33,7 +33,7 @@ describe("LearningWorkspace persisted navigation", () => {
     await waitFor(() => {
       const state = loadLearningState();
       expect(state.profile.stage).toBe("middle_school");
-      expect(state.lastCourseId).toBe("middle-neural-signals");
+      expect(state.lastCourseId).toBe("middle-ai-foundations");
     });
   });
 });

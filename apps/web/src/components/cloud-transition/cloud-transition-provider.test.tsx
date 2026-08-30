@@ -5,6 +5,7 @@ import {
   CloudTransitionProvider,
   useCloudTransition,
 } from "./cloud-transition-provider";
+import { CLOUD_COVER_DURATION_MS } from "./cloud-transition-machine";
 
 const push = vi.fn();
 const prefetch = vi.fn();
@@ -18,8 +19,10 @@ function Trigger() {
     isTransitioning,
     notifyMapReady,
     notifyHomeReady,
+    notifyMiddleMapReady,
     startMapTransition,
     startHomeTransition,
+    startMiddleMapTransition,
   } = useCloudTransition();
 
   return (
@@ -28,6 +31,8 @@ function Trigger() {
       <button onClick={notifyMapReady} type="button">ready</button>
       <button onClick={() => startHomeTransition()} type="button">start home</button>
       <button onClick={notifyHomeReady} type="button">home ready</button>
+      <button onClick={() => startMiddleMapTransition()} type="button">start middle map</button>
+      <button onClick={notifyMiddleMapReady} type="button">middle map ready</button>
       <output>{String(isTransitioning)}</output>
     </>
   );
@@ -44,7 +49,7 @@ describe("CloudTransitionProvider", () => {
     vi.useRealTimers();
   });
 
-  it("covers, routes, holds two seconds, then reveals after map readiness", () => {
+  it("covers, routes, then reveals as soon as the map is ready", () => {
     render(<CloudTransitionProvider><Trigger /></CloudTransitionProvider>);
 
     fireEvent.click(screen.getByRole("button", { name: "start" }));
@@ -52,17 +57,12 @@ describe("CloudTransitionProvider", () => {
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "covering");
     expect(screen.getByText("true")).toBeInTheDocument();
 
-    act(() => vi.advanceTimersByTime(550));
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
 
     expect(push).toHaveBeenCalledWith("/map");
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "holding");
 
     fireEvent.click(screen.getByRole("button", { name: "ready" }));
-    act(() => vi.advanceTimersByTime(1_999));
-
-    expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "holding");
-
-    act(() => vi.advanceTimersByTime(1));
 
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "revealing");
   });
@@ -72,26 +72,38 @@ describe("CloudTransitionProvider", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "start" }));
     fireEvent.click(screen.getByRole("button", { name: "start" }));
-    act(() => vi.advanceTimersByTime(550));
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
 
     expect(push).toHaveBeenCalledTimes(1);
   });
 
-  it("covers, routes home, holds two seconds, then reveals after home readiness", () => {
+  it("covers, routes home, then reveals as soon as home is ready", () => {
     render(<CloudTransitionProvider><Trigger /></CloudTransitionProvider>);
 
     fireEvent.click(screen.getByRole("button", { name: "start home" }));
 
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "covering");
 
-    act(() => vi.advanceTimersByTime(550));
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
 
     expect(push).toHaveBeenCalledWith("/preview");
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "holding");
 
     fireEvent.click(screen.getByRole("button", { name: "home ready" }));
-    act(() => vi.advanceTimersByTime(2_000));
 
+    expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "revealing");
+  });
+
+  it("covers, routes to the unified middle-school hub, then reveals without a map handshake", () => {
+    render(<CloudTransitionProvider><Trigger /></CloudTransitionProvider>);
+
+    fireEvent.click(screen.getByRole("button", { name: "start middle map" }));
+    expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-destination", "middle-map");
+    expect(screen.getByTestId("cloud-transition-overlay")).toHaveAccessibleName("正在前往初中学习中心");
+
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
+
+    expect(push).toHaveBeenCalledWith("/learn?stage=middle_school&grade=middle_1&view=courses");
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "revealing");
   });
 
@@ -100,8 +112,9 @@ describe("CloudTransitionProvider", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "start" }));
 
-    expect(screen.getAllByTestId("cloud-transition-cloud")).toHaveLength(39);
-    expect(screen.getAllByTestId("cloud-transition-sprite")).toHaveLength(39);
+    expect(screen.getAllByTestId("cloud-transition-cloud")).toHaveLength(108);
+    expect(screen.getAllByTestId("cloud-transition-sprite")).toHaveLength(108);
+    expect(screen.getByTestId("cloud-transition-veil")).toBeInTheDocument();
     expect(
       screen
         .getAllByTestId("cloud-transition-cloud")
@@ -119,11 +132,35 @@ describe("CloudTransitionProvider", () => {
     ).toHaveLength(5);
   });
 
+  it("keeps the dense coverage grid large enough to overlap between rows", () => {
+    render(<CloudTransitionProvider><Trigger /></CloudTransitionProvider>);
+
+    fireEvent.click(screen.getByRole("button", { name: "start" }));
+
+    const coverageClouds = screen
+      .getAllByTestId("cloud-transition-cloud")
+      .filter((element) => element.getAttribute("data-coverage") === "true");
+
+    expect(coverageClouds).toHaveLength(69);
+    expect(coverageClouds[0]?.style.getPropertyValue("--cloud-size")).toBe("29vw");
+    expect(
+      coverageClouds.some((element) => element.style.getPropertyValue("--cloud-covered-x") === "85vw"),
+    ).toBe(true);
+    const rightCoverageClouds = screen
+      .getAllByTestId("cloud-transition-cloud")
+      .filter((element) => element.getAttribute("data-right-coverage") === "true");
+
+    expect(rightCoverageClouds).toHaveLength(27);
+    expect(
+      rightCoverageClouds.every((element) => element.style.getPropertyValue("--cloud-opacity") === "1"),
+    ).toBe(true);
+  });
+
   it("reveals after the fallback wait when map readiness is unavailable", () => {
     render(<CloudTransitionProvider><Trigger /></CloudTransitionProvider>);
 
     fireEvent.click(screen.getByRole("button", { name: "start" }));
-    act(() => vi.advanceTimersByTime(550));
+    act(() => vi.advanceTimersByTime(CLOUD_COVER_DURATION_MS));
     act(() => vi.advanceTimersByTime(5_000));
 
     expect(screen.getByTestId("cloud-transition-overlay")).toHaveAttribute("data-phase", "revealing");

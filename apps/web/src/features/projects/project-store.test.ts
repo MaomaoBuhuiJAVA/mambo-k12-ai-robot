@@ -1,0 +1,9 @@
+import { describe, expect, it } from "vitest"; import { createProject } from "./project-schema"; import { loadProject, saveProject } from "./project-store";
+describe("project store", () => { it("restores a saved structured project", () => { const values = new Map<string, string>(); const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => void values.set(key, value) } as Storage; const project = createProject("capstone"); project.researchQuestion = "固定研究问题"; project.currentStep = "data"; project.evidenceRefs = ["experiment:one:v1"]; expect(saveProject(project, storage)).toBe(true); expect(loadProject("capstone", storage)).toMatchObject({ researchQuestion: "固定研究问题", currentStep: "data", evidenceRefs: ["experiment:one:v1"], schemaVersion: 2 }); }); it("migrates the legacy nine-field project without losing content", () => { const values = new Map<string, string>([["mambo.high-projects.v1", JSON.stringify({ capstone: { schemaVersion: 1, id: "capstone", researchQuestion: "旧项目问题", defenseAnswers: ["旧回答"] } })]]); const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => void values.set(key, value) } as Storage; expect(loadProject("capstone", storage)).toMatchObject({ schemaVersion: 2, researchQuestion: "旧项目问题", defenseAnswers: ["旧回答"], currentStep: "question", evidenceRefs: [] }); }); });
+it("rejects unknown project ids without creating a storage record", () => {
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => void values.set(key, value) } as Storage;
+  expect(saveProject(createProject("unknown"), storage)).toBe(false);
+  expect(loadProject("unknown", storage)).toBeNull();
+  expect(values.has("mambo.high-projects.v1")).toBe(false);
+});

@@ -21,6 +21,14 @@ describe("lab worker protocol", () => {
     expect(parseRunRequest(validRequest)).toEqual(validRequest);
   });
 
+  it("accepts a script run without applying a course challenge version", () => {
+    expect(parseRunRequest({
+      ...validRequest,
+      executionMode: "script",
+      challengeVersion: 999,
+    })).toMatchObject({ executionMode: "script", challengeVersion: 999 });
+  });
+
   it("rejects a request above the execution limit", () => {
     expect(() =>
       parseRunRequest({ ...validRequest, timeoutMs: 30_000 }),
@@ -79,5 +87,12 @@ describe("lab worker protocol", () => {
 
     expect(error.message.length).toBeLessThanOrEqual(1_000);
     expect(error.line).toBe(12);
+  });
+
+  it("prefers the learner source line over a Pyodide internal stack line", () => {
+    const error = toSafeLabError(
+      new Error('File "_base.py", line 597\nFile "<exec>", line 4\nSyntaxError'),
+    );
+    expect(error.line).toBe(4);
   });
 });

@@ -17,7 +17,7 @@
 | `/api/materials/pptx` | 根据课程数据生成 PPTX；锚点课增加参考来源页 |
 | `/api/device` | 服务端读取 Core API，向浏览器返回清洗后的只读设备状态 |
 | `/api/device/command` | 服务端校验后的设备白名单命令代理 |
-| `/api/voice/asr`、`/api/voice/tts` | 服务端代理 Core 的百度语音接口 |
+| `/api/voice/asr`、`/api/voice/tts` | 服务端代理 Core 的语音接口；ASR 保留百度，TTS 使用讯飞 MP3 |
 
 当前课程是项目内原创、固定版本的种子数据：四个学段各 2 门，共 8 门。冒泡排序与神经网络/图像分类锚点课另有版本化参考目录，页面展示经核对事实以及 NIST、PyTorch、scikit-learn 来源，提示词要求模型用 `[S#]` 标注受支持事实。这是小规模权威来源 grounding，不是教材选择、文档检索或完整 RAG；教材上传、教师审核后台和任意主题内容生成尚未实现。
 
@@ -56,7 +56,7 @@ npm run dev --workspace apps/web
 | `CORE_DEVICE_ID` | 可选 | 指定展示的设备；为空时选 Core 返回的第一台设备 |
 | `TRUST_PROXY_HEADERS` | 仅自托管本地限流可选 | 设为 `true` 才信任普通 `x-forwarded-for`；Vercel 使用平台转发头和 Redis 限流 |
 
-百度语音凭据属于 Core 环境，不放在 `apps/web/.env.local`：根目录 `.env` 中配置 `BAIDU_APP_ID`、`BAIDU_API_KEY`、`BAIDU_SECRET_KEY`，Web 只配置 `CORE_API_URL` 与 `CORE_API_ADMIN_TOKEN`。
+语音凭据属于 Core 环境，不放在 `apps/web/.env.local`：根目录 `.env` 中配置 `XFYUN_APP_ID`、`XFYUN_API_KEY`、`XFYUN_API_SECRET`，可选配置 `XFYUN_VOICE_NAME=x4_yezi`。Core 的 ASR 仍使用原百度配置 `BAIDU_APP_ID`、`BAIDU_API_KEY`、`BAIDU_SECRET_KEY`；Web 只配置 `CORE_API_URL` 与 `CORE_API_ADMIN_TOKEN`。
 
 Vercel 会自动设置 `VERCEL=1`，不要手工伪造。该标记下，`/api/chat`、`/api/transcribe` 和 AI 模式的 `/api/storybook` 必须成功访问 Redis REST；凭证缺失或 Redis 故障时返回 503，而不是退回单实例内存限流。
 

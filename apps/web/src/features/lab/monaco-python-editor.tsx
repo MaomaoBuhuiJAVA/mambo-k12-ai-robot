@@ -29,7 +29,7 @@ export function MonacoPythonEditor({ value, onChange }: MonacoPythonEditorProps)
         onChange={(nextValue: string | undefined) => onChange(nextValue ?? "")}
         options={{
           automaticLayout: true,
-          fontFamily: "Cascadia Code, Cascadia Mono, Consolas, monospace",
+          fontFamily: "Lemi Pixel",
           fontSize: 15,
           lineHeight: 23,
           minimap: { enabled: false },

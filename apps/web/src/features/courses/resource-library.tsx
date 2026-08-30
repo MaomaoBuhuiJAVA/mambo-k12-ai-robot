@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Download, FileText, Presentation, Video } from "lucide-react";
 
 import type { CurriculumCourse } from "@/data/curriculum";
 import { StarbaoSprite } from "@/components/starbao/starbao-sprite";
+import { practiceSetIdForCourse } from "@/features/learning-hub/practice-data";
+import { getHighSchoolRemediationForCourse } from "@/features/quiz/high-school-remediation";
 
 import { KnowledgeEvidence } from "./knowledge-evidence";
+import { getCourseLibraryContent } from "@/data/course-library-content";
 import styles from "./resource-library.module.css";
 
 type Format = "docx" | "pptx";
@@ -41,6 +45,8 @@ async function downloadMaterial(course: CurriculumCourse, format: Format) {
 export function ResourceLibrary({ course }: { course: CurriculumCourse }) {
   const [activeDownload, setActiveDownload] = useState<Format | null>(null);
   const [status, setStatus] = useState("可生成适配当前学段的讲义与课件");
+  const libraryContent = getCourseLibraryContent(course.id);
+  const remediation = course.stage === "high_school" ? getHighSchoolRemediationForCourse(course.id) : undefined;
 
   async function startDownload(format: Format) {
     setActiveDownload(format);
@@ -77,6 +83,27 @@ export function ResourceLibrary({ course }: { course: CurriculumCourse }) {
         <p>把本课动画步骤录成 3–5 分钟短讲解，暂停在每个检查点让学生先预测再验证。</p>
         <ul>{course.materials.map((material) => <li key={material.name}><strong>{material.name}</strong><span>{material.purpose}</span></li>)}</ul>
       </div>
+      {libraryContent ? <>
+        <section className={styles.glossary} aria-labelledby="library-terms-title">
+          <h4 id="library-terms-title">本课术语 <small>资料版本 {libraryContent.version}</small></h4>
+          <dl>{libraryContent.terms.map((item) => <div key={item.term}><dt>{item.term}</dt><dd>{item.definition}</dd></div>)}</dl>
+        </section>
+        <section className={styles.failureCases} aria-labelledby="library-failure-title">
+          <h4 id="library-failure-title">失败案例与补救</h4>
+          {libraryContent.failureCases.map((item) => <article key={item.title}><strong>{item.title}</strong><p><b>观察：</b>{item.observation}</p><p><b>下一步：</b>{item.nextStep}</p></article>)}
+        </section>
+      </> : null}
+      {course.stage === "middle_school" || course.stage === "high_school" ? (
+        <div className={styles.remediationAction}>
+          <div>
+            <strong>需要再练一次？</strong>
+            <span>从本课题目开始补救，错误记录会保留并形成新的证据。</span>
+          </div>
+          <Link href={remediation?.route ?? `/learn/practice/${practiceSetIdForCourse(course.id)}?stage=${course.stage}`}>
+            进入本课补救练习
+          </Link>
+        </div>
+      ) : null}
       <KnowledgeEvidence courseId={course.id} variant="sources" />
     </section>
   );

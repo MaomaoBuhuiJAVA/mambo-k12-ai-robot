@@ -11,7 +11,7 @@ from ..config import settings
 from ..voice.baidu_asr import BaiduAsr, BaiduAsrConfig
 from ..voice.baidu_errors import BaiduVoiceError
 from ..voice.baidu_token import BaiduTokenProvider
-from ..voice.baidu_tts import BaiduTts, BaiduTtsConfig
+from ..voice.xfyun_tts import XfyunTts, XfyunTtsConfig, XfyunVoiceError
 
 
 MAX_AUDIO_BYTES = 1_920_000
@@ -26,13 +26,13 @@ router = APIRouter(
 @dataclass(frozen=True)
 class VoiceServices:
     asr: BaiduAsr
-    tts: BaiduTts
+    tts: XfyunTts
 
 
 _services: VoiceServices | None = None
 
 
-def get_voice_services() -> tuple[BaiduAsr, BaiduTts]:
+def get_voice_services() -> tuple[BaiduAsr, XfyunTts]:
     global _services
     if _services is None:
         token_provider = BaiduTokenProvider(
@@ -49,15 +49,18 @@ def get_voice_services() -> tuple[BaiduAsr, BaiduTts]:
                 ),
                 token_provider=token_provider,
             ),
-            tts=BaiduTts(
-                BaiduTtsConfig(cuid="mambo-robot", per=settings.baidu_tts_per),
-                token_provider=token_provider,
-            ),
+            tts=XfyunTts(XfyunTtsConfig(
+                app_id=settings.xfyun_app_id,
+                api_key=settings.xfyun_api_key,
+                api_secret=settings.xfyun_api_secret,
+                voice_name=settings.xfyun_voice_name,
+            )),
         )
     return _services.asr, _services.tts
 
 
-def _voice_error(error: BaiduVoiceError) -> JSONResponse:
+def _voice_error(error: BaiduVoiceError | XfyunVoiceError) -> JSONResponse:
+    prefix = "XFYUN" if isinstance(error, XfyunVoiceError) else "BAIDU"
     status = {
         "not_configured": 503,
         "invalid_audio": 400,
@@ -71,7 +74,7 @@ def _voice_error(error: BaiduVoiceError) -> JSONResponse:
         "invalid_audio_response": 502,
     }.get(error.code, 502)
     return JSONResponse(
-        {"error": f"BAIDU_VOICE_{error.code.upper()}"},
+        {"error": f"{prefix}_VOICE_{error.code.upper()}"},
         status_code=status,
         headers={"Cache-Control": "no-store"},
     )
@@ -95,7 +98,7 @@ async def transcribe(request: Request) -> Response:
     asr, _ = get_voice_services()
     try:
         result = await asr.transcribe(audio)
-    except BaiduVoiceError as error:
+    except (BaiduVoiceError, XfyunVoiceError) as error:
         return _voice_error(error)
     return JSONResponse(
         {"text": result.text, "duration_ms": result.duration_ms},
@@ -108,7 +111,7 @@ async def synthesize(request: TtsRequest) -> Response:
     _, tts = get_voice_services()
     try:
         audio = await tts.synthesize(request.text)
-    except BaiduVoiceError as error:
+    except XfyunVoiceError as error:
         return _voice_error(error)
     return Response(
         content=audio,

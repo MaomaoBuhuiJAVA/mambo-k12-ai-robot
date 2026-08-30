@@ -14,7 +14,7 @@
   margin: 0 auto;
   padding: 32px 0 84px;
   color: var(--archive-paper);
-  font-family: var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-ui);
 }
 
 .header,
@@ -288,6 +288,112 @@
   gap: 10px;
   margin-top: 15px;
   list-style: none;
+}
+
+.stageTaskList {
+  display: grid;
+  gap: 10px;
+  margin-top: 15px;
+  list-style: none;
+}
+
+.stageTaskList li {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  min-height: 96px;
+  border: 1px solid rgba(115, 167, 155, 0.6);
+  border-left: 5px solid var(--archive-line);
+  background: rgba(16, 32, 66, 0.72);
+}
+
+.stageTaskList li[data-status="completed"] {
+  border-left-color: var(--archive-moss);
+}
+
+.stageTaskList li[data-status="active"] {
+  border-color: rgba(244, 202, 97, 0.88);
+  border-left-color: var(--archive-gold);
+  background: rgba(42, 67, 70, 0.84);
+}
+
+.stageTaskList li[data-status="locked"] {
+  border-left-color: var(--archive-coral);
+  background: rgba(20, 28, 54, 0.6);
+}
+
+.taskOrder {
+  display: grid;
+  place-items: start center;
+  padding-top: 17px;
+  color: var(--archive-gold);
+  font-size: 12px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  background: rgba(5, 18, 45, 0.34);
+}
+
+.taskContent {
+  min-width: 0;
+  padding: 13px 15px 14px 0;
+}
+
+.taskContent > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.taskContent strong {
+  min-width: 0;
+  color: var(--archive-paper);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.taskStatus {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 1px solid rgba(115, 167, 155, 0.7);
+  color: var(--archive-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.taskStatus[data-status="completed"] {
+  border-color: rgba(79, 141, 121, 0.9);
+  color: #bce8c8;
+}
+
+.taskStatus[data-status="active"] {
+  border-color: var(--archive-gold);
+  color: var(--archive-gold);
+}
+
+.taskStatus[data-status="locked"] {
+  border-color: rgba(231, 133, 100, 0.7);
+  color: #ffc0a8;
+}
+
+.taskContent p {
+  margin-top: 7px;
+  color: var(--archive-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.taskContent a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--archive-gold);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.taskContent a:hover {
+  color: #ffe190;
+  text-decoration: underline;
 }
 
 .masteryList li,
@@ -697,3 +803,4 @@
     transition: none;
   }
 }
+

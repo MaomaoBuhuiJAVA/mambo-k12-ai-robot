@@ -23,6 +23,12 @@ describe("local Starbao chat store", () => {
     expect(isLocalStarbaoChatEnabled()).toBe(false);
   });
 
+  it("can use the local store as an explicit production fallback when Core is unavailable", () => {
+    vi.stubEnv("STARBAO_CORE_OPTIONAL", "true");
+    vi.stubEnv("NODE_ENV", "production");
+    expect(isLocalStarbaoChatEnabled()).toBe(true);
+  });
+
   it("keeps an ordered idempotent local conversation", async () => {
     const first = await appendLocalStarbaoMessage({
       clientMessageId: "local-user-1",

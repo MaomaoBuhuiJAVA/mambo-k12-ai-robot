@@ -1,0 +1,208 @@
+.sequence {
+  --sequence-ink: #fff3cf;
+  --sequence-muted: #b8d2ca;
+  --sequence-line: #73a79b;
+  --sequence-gold: #f4ca61;
+  --sequence-deep: #102f35;
+  border: 2px solid var(--sequence-line);
+  box-shadow: 6px 6px 0 rgba(4, 13, 34, 0.58), inset 0 0 0 3px rgba(8, 25, 50, 0.63);
+  background: rgba(13, 48, 54, 0.92);
+  color: var(--sequence-ink);
+}
+
+.header {
+  display: flex;
+  min-height: 66px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 20px;
+  border-bottom: 2px solid rgba(115, 167, 155, 0.5);
+}
+
+.header span,
+.stepLabel {
+  color: var(--sequence-gold);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.header h2 {
+  margin-top: 3px;
+  color: var(--sequence-ink);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.header > strong {
+  color: var(--sequence-gold);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.currentStep {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 13px;
+  padding: 20px 20px 16px;
+}
+
+.stepMarker {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--sequence-gold);
+  color: var(--sequence-gold);
+  background: rgba(7, 24, 51, 0.72);
+}
+
+.currentStep h3 {
+  margin-top: 4px;
+  color: var(--sequence-ink);
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.currentStep > div > p:last-child {
+  margin-top: 7px;
+  color: var(--sequence-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 20px;
+  border-top: 1px solid rgba(115, 167, 155, 0.48);
+  border-bottom: 1px solid rgba(115, 167, 155, 0.48);
+}
+
+.details > div {
+  min-width: 0;
+  padding: 13px 14px;
+}
+
+.details > div + div {
+  border-left: 1px solid rgba(115, 167, 155, 0.48);
+}
+
+.details dt {
+  color: var(--sequence-gold);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.details dd {
+  margin-top: 5px;
+  color: var(--sequence-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 16px 20px 0;
+  color: var(--sequence-ink);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.confirmation input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  accent-color: var(--sequence-gold);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 18px 20px 20px;
+}
+
+.actions a,
+.actions button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid rgba(244, 202, 97, 0.76);
+  box-shadow: 3px 3px 0 rgba(8, 22, 48, 0.66);
+  color: var(--sequence-ink);
+  background: rgba(8, 28, 49, 0.84);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.actions a:hover {
+  background: rgba(55, 78, 74, 0.94);
+  transform: translate(-1px, -1px);
+}
+
+.actions button {
+  border-color: var(--sequence-gold);
+  color: #352340;
+  background: var(--sequence-gold);
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  border-color: rgba(115, 167, 155, 0.56);
+  box-shadow: none;
+  color: rgba(184, 210, 202, 0.62);
+  background: rgba(12, 36, 58, 0.72);
+  cursor: not-allowed;
+}
+
+.locked,
+.notice,
+.completedMessage {
+  margin: 0 20px 18px;
+  color: var(--sequence-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.locked {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #ffc0a8;
+}
+
+.notice {
+  color: var(--sequence-gold);
+}
+
+.completedMessage {
+  padding-top: 18px;
+}
+
+@media (max-width: 720px) {
+  .details {
+    grid-template-columns: 1fr;
+  }
+
+  .details > div + div {
+    border-top: 1px solid rgba(115, 167, 155, 0.48);
+    border-left: 0;
+  }
+
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

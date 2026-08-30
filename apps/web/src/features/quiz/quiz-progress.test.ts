@@ -204,4 +204,30 @@ describe("recordQuizAttempt", () => {
       course, exercise, score: 1, hints: 0, completedAt: "2026-02-30T00:00:00.000Z", attemptId: "bad-date",
     })).toBe(state);
   });
+
+  it("keeps the original failed evidence but clears a mapped misconception after a correct retest", () => {
+    const foundations = getCourseById("middle-ai-foundations")!;
+    const interpretation = foundations.exercises.find((item) => item.type === "result_interpretation")!;
+    const failed = recordQuizAttempt(createDefaultLearningState(), {
+      course: foundations,
+      exercise: interpretation,
+      score: 0,
+      hints: 0,
+      completedAt: now,
+      attemptId: "prediction-failed",
+    });
+    const id = `${foundations.id}:${interpretation.knowledgePointTags[0]}`;
+    expect(failed.masteryByKnowledgePoint[id].misconceptionTags).toContain("预测等于事实");
+
+    const retested = recordQuizAttempt(failed, {
+      course: foundations,
+      exercise: interpretation,
+      score: 1,
+      hints: 1,
+      completedAt: "2026-07-18T09:00:00.000Z",
+      attemptId: "prediction-retest",
+    });
+    expect(retested.attempts).toHaveLength(2);
+    expect(retested.masteryByKnowledgePoint[id].misconceptionTags).not.toContain("预测等于事实");
+  });
 });

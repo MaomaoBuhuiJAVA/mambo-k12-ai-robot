@@ -161,6 +161,9 @@ function CourseView({ course }: { course: CurriculumCourse }) {
 }
 
 function AnimationView({ course }: { course: CurriculumCourse }) {
+  if (course.animation.template === "rule-and-data-classification") {
+    return <CourseAnimationTimeline course={course} />;
+  }
   if (/bubble|sort/i.test(`${course.id} ${course.animation.template}`)) {
     return <BubbleSortAnimation stage={course.stage} />;
   }
@@ -168,6 +171,10 @@ function AnimationView({ course }: { course: CurriculumCourse }) {
     return <NeuralNetworkAnimation stage={course.stage} />;
   }
 
+  return <CourseAnimationTimeline course={course} />;
+}
+
+function CourseAnimationTimeline({ course }: { course: CurriculumCourse }) {
   return (
     <div className="animation-view">
       <div className="animation-view__title">

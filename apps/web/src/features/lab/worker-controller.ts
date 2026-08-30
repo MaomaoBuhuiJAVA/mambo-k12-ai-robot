@@ -16,7 +16,7 @@ import type {
 export type LabRunnerStatus = "loading" | "ready" | "running" | "error";
 export type LabRunInput = Pick<
   LabRunRequest,
-  "templateId" | "challengeVersion" | "code" | "timeoutMs"
+  "templateId" | "challengeVersion" | "code" | "timeoutMs" | "executionMode"
 >;
 type StatusListener = (status: LabRunnerStatus) => void;
 export const LAB_RUNTIME_INIT_TIMEOUT_MS = 30_000;
@@ -272,5 +272,5 @@ export function createPyodideWorkerController(): LabRunner {
 }
 
 export function isLabTemplateId(value: string): value is LabTemplateId {
-  return value === "bubble-sort" || value === "image-classifier";
+  return ["bubble-sort", "image-classifier", "middle-python-basics", "python-data-basics", "bubble-sort-analysis", "dataset-split", "classification-metrics", "gradient-descent-demo", "multimodal-input-audit", "rag-citation-check", "model-audit"].includes(value);
 }

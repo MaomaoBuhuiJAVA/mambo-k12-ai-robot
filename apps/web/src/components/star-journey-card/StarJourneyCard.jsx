@@ -82,7 +82,7 @@ export default function StarJourneyCard() {
               <div aria-hidden="true" className={cardStyles.mascotFrame} style={styles.mascotFrame}>
                 <span className={cardStyles.mascotSparkleOne} />
                 <span className={cardStyles.mascotSparkleTwo} />
-                <img src="/assets/starbao-nav-peek.png" alt="" style={styles.mascotImage} />
+                <Image src="/assets/starbao-nav-peek.png" alt="" width={426} height={693} unoptimized style={styles.mascotImage} />
               </div>
             </div>
           </Step>
@@ -134,7 +134,7 @@ export default function StarJourneyCard() {
           </Step>
         </Stepper>
       </div>
-      <Image className={cardStyles.vineFrame} src={forestVineFrame} alt="" aria-hidden="true" fill sizes="(max-width: 680px) calc(100vw - 30px), min(49.7vw, 640px)" />
+      <Image className={cardStyles.vineFrame} src={forestVineFrame} alt="" aria-hidden="true" fill loading="eager" sizes="(max-width: 680px) calc(100vw - 30px), min(49.7vw, 640px)" />
     </div>
   );
 }

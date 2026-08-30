@@ -11,6 +11,11 @@ import {
   LEARNING_STATE_STORAGE_KEY,
   LEGACY_LEARNING_STATE_STORAGE_KEY,
   MAX_PERSISTED_ATTEMPTS,
+  MAX_PERSISTED_COMPLETED_ACTIVITIES,
+  MAX_PERSISTED_EXPERIMENT_CONCLUSION_LENGTH,
+  MAX_PERSISTED_EXPERIMENT_EVIDENCE,
+  MAX_PERSISTED_EXPERIMENT_METRICS,
+  MAX_PERSISTED_EXPERIMENT_VARIABLES,
   MAX_PERSISTED_INTERESTS,
   MAX_PERSISTED_MASTERY_RECORDS,
   MAX_PERSISTED_RECENT_TOPICS,
@@ -169,6 +174,173 @@ describe("learning state storage", () => {
     );
   });
 
+  it("migrates v1 state without losing existing quiz, lab, or progress records", () => {
+    const legacyState = {
+      ...createDefaultLearningState(profile),
+      schemaVersion: 1,
+      masteryByKnowledgePoint: { [TEST_KNOWLEDGE_POINT_ID]: makeMastery() },
+      attempts: [makeAttempt(1)],
+      recentTopics: [TEST_KNOWLEDGE_POINT_ID],
+      interests: ["robotics"],
+      lastCourseId: "middle-neural-signals",
+    };
+
+    const migrated = parseLearningState(JSON.stringify(legacyState));
+
+    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.masteryByKnowledgePoint).toEqual(legacyState.masteryByKnowledgePoint);
+    expect(migrated.attempts).toHaveLength(1);
+    expect(migrated.recentTopics).toEqual([TEST_KNOWLEDGE_POINT_ID]);
+    expect(migrated.interests).toEqual(["robotics"]);
+    expect(migrated.lastCourseId).toBe("middle-neural-signals");
+    expect(migrated.stageProgressByStage).toEqual({
+      middle_school: {
+        completedActivityIds: [],
+        experimentEvidence: [],
+        activeActivityId: null,
+      },
+      high_school: {
+        completedActivityIds: [],
+        experimentEvidence: [],
+        activeActivityId: null,
+      },
+    });
+  });
+
+  it("keeps only valid, ordered activities and structured experiment evidence", () => {
+    const state = createDefaultLearningState();
+    state.lastCourseId = "unknown-course";
+    state.stageProgressByStage.middle_school = {
+      completedActivityIds: [
+        "middle-ai-foundations-lesson",
+        "middle-ai-foundations-demonstration",
+        "middle-ai-foundations-assessment",
+        "middle-data-and-algorithms-lesson",
+        "middle-data-and-algorithms-demonstration",
+        "middle-data-and-algorithms-lab",
+        "middle-data-and-algorithms-assessment",
+        "middle-python-basics-lesson",
+        "middle-python-basics-demonstration",
+        "middle-python-basics-lab",
+        "middle-python-basics-assessment",
+        "middle-neural-signals-lesson",
+        "middle-neural-signals-demonstration",
+        "middle-neural-signals-lesson",
+        "middle-data-bias-assessment",
+        "unknown-activity",
+      ],
+      activeActivityId: "middle-neural-signals-guided-lab",
+      experimentEvidence: [
+        {
+          runId: "valid-run",
+          activityId: "middle-neural-signals-guided-lab",
+          courseId: "middle-neural-signals",
+          templateId: "image-classifier",
+          mode: "guided",
+          variables: { threshold: 0.6, enabled: true, label: "cat" },
+          metrics: { accuracy: 0.8 },
+          conclusion: "The controlled run improved accuracy.",
+          completedAt: "2026-08-22T00:00:00.000Z",
+        },
+        {
+          runId: "forged-run",
+          activityId: "middle-neural-signals-guided-lab",
+          courseId: "forged-course",
+          templateId: "image-classifier",
+          mode: "guided",
+          variables: {},
+          metrics: {},
+          conclusion: "forged",
+          completedAt: "2026-08-22T00:00:00.000Z",
+        },
+        {
+          runId: "wrong-mode-run",
+          activityId: "middle-neural-signals-guided-lab",
+          courseId: "middle-neural-signals",
+          templateId: "image-classifier",
+          mode: "project",
+          variables: {},
+          metrics: {},
+          conclusion: "wrong mode",
+          completedAt: "2026-08-22T00:00:00.000Z",
+        },
+      ],
+    };
+
+    const prepared = prepareLearningStateForStorage(state);
+    const progress = prepared.stageProgressByStage.middle_school;
+
+    expect(prepared.lastCourseId).toBeNull();
+    expect(progress.completedActivityIds).toEqual([
+      "middle-ai-foundations-lesson",
+      "middle-ai-foundations-demonstration",
+      "middle-ai-foundations-assessment",
+      "middle-data-and-algorithms-lesson",
+      "middle-data-and-algorithms-demonstration",
+      "middle-data-and-algorithms-lab",
+      "middle-data-and-algorithms-assessment",
+      "middle-python-basics-lesson",
+      "middle-python-basics-demonstration",
+      "middle-python-basics-lab",
+      "middle-python-basics-assessment",
+      "middle-neural-signals-lesson",
+      "middle-neural-signals-demonstration",
+    ]);
+    expect(progress.activeActivityId).toBe("middle-neural-signals-guided-lab");
+    expect(progress.experimentEvidence).toHaveLength(1);
+    expect(progress.experimentEvidence[0]).toMatchObject({
+      runId: "valid-run",
+      courseId: "middle-neural-signals",
+      templateId: "image-classifier",
+    });
+  });
+
+  it("bounds experiment evidence and its structured values", () => {
+    const state = createDefaultLearningState();
+    state.stageProgressByStage.middle_school = {
+      completedActivityIds: Array.from(
+        { length: MAX_PERSISTED_COMPLETED_ACTIVITIES + 5 },
+        () => "middle-ai-foundations-lesson",
+      ),
+      activeActivityId: null,
+      experimentEvidence: Array.from(
+        { length: MAX_PERSISTED_EXPERIMENT_EVIDENCE + 5 },
+        (_, index) => ({
+          runId: `run-${index}`,
+          activityId: "middle-neural-signals-guided-lab",
+          courseId: "middle-neural-signals",
+          templateId: "image-classifier",
+          mode: "guided" as const,
+          variables: Object.fromEntries(Array.from(
+            { length: MAX_PERSISTED_EXPERIMENT_VARIABLES + 5 },
+            (_, variableIndex) => [`variable-${variableIndex}`, variableIndex],
+          )),
+          metrics: Object.fromEntries(Array.from(
+            { length: MAX_PERSISTED_EXPERIMENT_METRICS + 5 },
+            (_, metricIndex) => [`metric-${metricIndex}`, metricIndex],
+          )),
+          conclusion: "c".repeat(MAX_PERSISTED_EXPERIMENT_CONCLUSION_LENGTH + 20),
+          completedAt: "2026-08-22T00:00:00.000Z",
+        })),
+    };
+
+    const prepared = prepareLearningStateForStorage(state);
+    const progress = prepared.stageProgressByStage.middle_school;
+
+    expect(progress.completedActivityIds).toEqual(["middle-ai-foundations-lesson"]);
+    expect(progress.experimentEvidence).toHaveLength(MAX_PERSISTED_EXPERIMENT_EVIDENCE);
+    expect(progress.experimentEvidence[0]?.runId).toBe("run-5");
+    expect(Object.keys(progress.experimentEvidence[0]?.variables ?? {})).toHaveLength(
+      MAX_PERSISTED_EXPERIMENT_VARIABLES,
+    );
+    expect(Object.keys(progress.experimentEvidence[0]?.metrics ?? {})).toHaveLength(
+      MAX_PERSISTED_EXPERIMENT_METRICS,
+    );
+    expect(progress.experimentEvidence[0]?.conclusion).toHaveLength(
+      MAX_PERSISTED_EXPERIMENT_CONCLUSION_LENGTH,
+    );
+  });
+
   it("migrates a legacy schema while removing identifying profile data", () => {
     const migrated = parseLearningState(
       JSON.stringify({
@@ -178,7 +350,7 @@ describe("learning state storage", () => {
         attempts: [],
         recentTopics: [TEST_KNOWLEDGE_POINT_ID],
         interests: ["robots"],
-        lastCourseId: "legacy-course",
+        lastCourseId: "middle-neural-signals",
         updatedAt: "2026-07-17T00:00:00.000Z",
       }),
     );
@@ -197,7 +369,7 @@ describe("learning state storage", () => {
       evidenceCount: 0,
     });
     expect(migrated.recentTopics).toEqual([TEST_KNOWLEDGE_POINT_ID]);
-    expect(migrated.lastCourseId).toBe("legacy-course");
+    expect(migrated.lastCourseId).toBe("middle-neural-signals");
   });
 
   it("loads the legacy key once and migrates it to the stable key", () => {
@@ -218,6 +390,7 @@ describe("learning state storage", () => {
   it("loosely migrates oversized legacy v1 data without losing progress", () => {
     const legacyState: LearningState = {
       ...createDefaultLearningState(profile),
+      schemaVersion: 1,
       masteryByKnowledgePoint: { [TEST_KNOWLEDGE_POINT_ID]: makeMastery() },
       attempts: Array.from(
         { length: MAX_PERSISTED_ATTEMPTS + 5 },
@@ -265,6 +438,7 @@ describe("learning state storage", () => {
     const longAnswer = "a".repeat(20_001);
     const legacyState = {
       ...createDefaultLearningState(profile),
+      schemaVersion: 1,
       profile: {
         ...profile,
         goals: Array.from(

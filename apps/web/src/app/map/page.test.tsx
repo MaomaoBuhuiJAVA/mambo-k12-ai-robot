@@ -1,26 +1,39 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LearningMapPage from "./page";
+import { IMPORTED_STORYBOOK_PROGRESS_STORAGE_KEY } from "@/features/storybook/imported-storybook-progress";
 
 const mapStylesSource = readFileSync(resolve(process.cwd(), "src/app/map/page.module.css"), "utf8");
 const notifyMapReady = vi.fn();
 const startHomeTransition = vi.fn(() => true);
+const routerPush = vi.fn();
 
 vi.mock("@/components/cloud-transition/cloud-transition-provider", () => ({
   useCloudTransition: () => ({ notifyMapReady, startHomeTransition, isTransitioning: false }),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPush }),
+}));
+
 vi.mock("next/image", () => ({
-  default: ({ alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => <img alt={alt} {...props} />,
+  default: ({ alt, fill, sizes, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; sizes?: string }) => {
+    void fill;
+    void sizes;
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img alt={alt} {...props} />;
+  },
 }));
 
 describe("Learning map route", () => {
   beforeEach(() => {
     notifyMapReady.mockReset();
+    routerPush.mockReset();
+    localStorage.clear();
   });
 
   it("publishes a standalone interactive map page", () => {
@@ -39,6 +52,18 @@ describe("Learning map route", () => {
     expect(mapStylesSource).toContain(".oceanBackdrop");
     expect(mapStylesSource).toContain("background-image:");
     expect(mapStylesSource).toContain("object-fit: contain;");
+  });
+
+  it("keeps the hotspot coordinate system inside the same aspect-ratio canvas as the artwork", () => {
+    render(<LearningMapPage />);
+
+    const artwork = screen.getByRole("img", { name: "小学学习地图" });
+    const canvas = screen.getByTestId("map-canvas");
+    const hotspotOverlay = screen.getByLabelText("学习地图热点区域");
+
+    expect(canvas).toContainElement(artwork);
+    expect(canvas).toContainElement(hotspotOverlay);
+    expect(canvas).toHaveAttribute("data-map-aspect", "1536/1024");
   });
 
   it("reports readiness after the full map artwork has loaded", () => {
@@ -74,6 +99,40 @@ describe("Learning map route", () => {
     expect(screen.getByLabelText("沙漠热点")).toBeInTheDocument();
     expect(screen.getByLabelText("火山热点")).toBeInTheDocument();
     expect(document.querySelectorAll("img")).toHaveLength(1);
+  });
+
+  it("uses complete transparent region assets for zoom layers instead of clipping the full map", () => {
+    render(<LearningMapPage />);
+
+    const zoomLayers = screen.getAllByTestId(/map-region-zoom-/);
+    const castleZoom = screen.getByTestId("map-region-zoom-castle");
+
+    expect(zoomLayers.every((layer) => layer.tagName.toLowerCase() === "image")).toBe(true);
+    expect(castleZoom).toHaveAttribute("href", "/assets/learning-map/primary-regions/castle-zoom.png");
+    expect(castleZoom).not.toHaveAttribute("clip-path");
+    expect(document.querySelectorAll('use[href="#learning-map-artwork-source"]')).toHaveLength(0);
+    expect(mapStylesSource).toContain("transform-box: fill-box;");
+    expect(mapStylesSource).toContain("transform-origin: center;");
+  });
+
+  it("keeps the castle's complete cloud silhouette visible before hover", () => {
+    render(<LearningMapPage />);
+
+    const castleBase = screen.getByTestId("map-region-base-castle");
+
+    expect(castleBase.tagName.toLowerCase()).toBe("image");
+    expect(castleBase).toHaveAttribute("href", "/assets/learning-map/primary-regions/castle-zoom.png");
+    expect(screen.getAllByTestId(/map-region-base-/)).toHaveLength(1);
+    expect(mapStylesSource).toContain(".regionBase");
+  });
+
+  it("keeps focused hotspot artwork at map scale so it stays aligned with the background", () => {
+    expect(mapStylesSource).toContain(`.regionZoom[data-active="true"] {
+  opacity: 1;
+  transform: scale(1);
+}`);
+    expect(mapStylesSource).not.toContain("transform: scale(1.04);");
+    expect(mapStylesSource).not.toContain("transform: scale(1.014);");
   });
 
   it("only activates the matching region glow and zoom layer when a region is hovered", () => {
@@ -127,7 +186,7 @@ describe("Learning map route", () => {
 
     fireEvent.click(screen.getByLabelText("科技岛热点"));
 
-    expect(screen.getByRole("region", { name: "科技岛学习卡片" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "科技岛绘本卡片" })).toBeInTheDocument();
     expect(screen.getByTestId("card-deck-backdrop")).toBeInTheDocument();
     expect(screen.getAllByTestId("learning-card")).toHaveLength(3);
     expect(screen.getAllByTestId("gold-particle")).toHaveLength(48);
@@ -149,5 +208,38 @@ describe("Learning map route", () => {
     expect(screen.queryByTestId("card-deck-backdrop")).not.toBeInTheDocument();
     expect(screen.queryAllByTestId("learning-card")).toHaveLength(0);
     expect(technologyGlow).not.toHaveAttribute("data-active", "true");
+  });
+
+  it("uses the three castle cards as storybook entries instead of generic activities", () => {
+    render(<LearningMapPage />);
+
+    fireEvent.click(screen.getByLabelText("城堡热点"));
+
+    expect(screen.getByRole("region", { name: "城堡绘本卡片" })).toBeInTheDocument();
+    const firstStorybook = screen.getByRole("button", { name: "01 星宝城堡 AI，开始学习" });
+    expect(firstStorybook).toBeEnabled();
+    expect(screen.getByRole("button", { name: "02 星宝的城堡图案规律奇遇记，开始学习" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "03 城堡的最终秘密，开始学习" })).toBeEnabled();
+    expect(screen.getByText("还需完成 3 本绘本才能挑战怪兽")).toBeVisible();
+
+    fireEvent.click(firstStorybook);
+    expect(routerPush).toHaveBeenCalledWith("/storybook/castle-lesson-01");
+  });
+
+  it("unlocks the castle battle only after all three storybooks are complete", async () => {
+    localStorage.setItem(IMPORTED_STORYBOOK_PROGRESS_STORAGE_KEY, JSON.stringify([
+      { storybookId: "castle-lesson-01", pageIndex: 9, completed: true, updatedAt: "2026-08-22T09:03:00.000Z" },
+      { storybookId: "castle-lesson-02", pageIndex: 9, completed: true, updatedAt: "2026-08-22T09:02:00.000Z" },
+      { storybookId: "castle-lesson-03", pageIndex: 9, completed: true, updatedAt: "2026-08-22T09:01:00.000Z" },
+    ]));
+    render(<LearningMapPage />);
+
+    fireEvent.click(screen.getByLabelText("城堡热点"));
+    await waitFor(() => {
+      expect(screen.getByText("3 / 3")).toBeVisible();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "挑战怪兽" }));
+
+    expect(routerPush).toHaveBeenCalledWith("/ai-battle?module=castle-1");
   });
 });

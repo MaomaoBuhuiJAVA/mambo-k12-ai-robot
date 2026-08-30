@@ -1,0 +1,66 @@
+{
+  "mapWidth": 1872,
+  "mapHeight": 560,
+  "regions": [
+    {
+      "id": "mission-board",
+      "label": "任务总览",
+      "target": "stage-progress",
+      "x": 338,
+      "y": 42,
+      "width": 390,
+      "height": 396,
+      "centerX": 533,
+      "centerY": 240,
+      "path": "M 338 42 L 728 42 L 728 438 L 338 438 Z"
+    },
+    {
+      "id": "knowledge-library",
+      "label": "知识资料室",
+      "target": "course-resources",
+      "x": 744,
+      "y": 42,
+      "width": 390,
+      "height": 244,
+      "centerX": 939,
+      "centerY": 164,
+      "path": "M 744 42 L 1134 42 L 1134 286 L 744 286 Z"
+    },
+    {
+      "id": "ai-foundations",
+      "label": "人工智能基础",
+      "target": "ai-foundations-course",
+      "x": 1128,
+      "y": 42,
+      "width": 704,
+      "height": 246,
+      "centerX": 1480,
+      "centerY": 165,
+      "path": "M 1128 42 L 1832 42 L 1832 288 L 1128 288 Z"
+    },
+    {
+      "id": "guided-lab",
+      "label": "引导实验",
+      "target": "guided-image-lab",
+      "x": 744,
+      "y": 298,
+      "width": 420,
+      "height": 226,
+      "centerX": 954,
+      "centerY": 411,
+      "path": "M 744 298 L 1164 298 L 1164 524 L 744 524 Z"
+    },
+    {
+      "id": "model-studio",
+      "label": "模型训练",
+      "target": "independent-image-lab",
+      "x": 1158,
+      "y": 288,
+      "width": 676,
+      "height": 236,
+      "centerX": 1496,
+      "centerY": 406,
+      "path": "M 1158 288 L 1834 288 L 1834 524 L 1158 524 Z"
+    }
+  ]
+}

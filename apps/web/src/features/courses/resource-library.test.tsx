@@ -7,6 +7,8 @@ import { getCourseById } from "@/data/curriculum";
 import { ResourceLibrary } from "./resource-library";
 
 const course = getCourseById("lower-bubble-sort")!;
+const middleCourse = getCourseById("middle-model-evaluation")!;
+const highCourse = getCourseById("high-generative-ai-rag")!;
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -59,5 +61,24 @@ describe("ResourceLibrary", () => {
     await user.click(screen.getByRole("button", { name: "下载 PowerPoint 课件" }));
 
     expect(container.querySelector('[data-starbao-mood="drawing"]')).toBeInTheDocument();
+  });
+
+  it("offers a deterministic course remediation route for middle and high school courses", () => {
+    render(<ResourceLibrary course={middleCourse} />);
+
+    expect(screen.getByText("需要再练一次？")).toBeVisible();
+    expect(screen.getByRole("link", { name: "进入本课补救练习" })).toHaveAttribute(
+      "href",
+      "/learn/practice/course--middle-model-evaluation?stage=middle_school",
+    );
+  });
+
+  it("uses the course-specific high-school remediation activity route", () => {
+    render(<ResourceLibrary course={highCourse} />);
+
+    expect(screen.getByRole("link", { name: "进入本课补救练习" })).toHaveAttribute(
+      "href",
+      "/learn/practice/course--high-generative-ai-rag?stage=high_school&remediation=high-generative-ai-rag-remediation",
+    );
   });
 });

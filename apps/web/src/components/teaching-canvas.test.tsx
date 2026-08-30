@@ -8,6 +8,7 @@ import { loadLearningState } from "@/lib/learning-store";
 import { TeachingCanvas } from "./teaching-canvas";
 
 const course = getCourseById("lower-bubble-sort")!;
+const foundationsCourse = getCourseById("middle-ai-foundations")!;
 
 describe("TeachingCanvas", () => {
   beforeEach(() => localStorage.clear());
@@ -31,6 +32,20 @@ describe("TeachingCanvas", () => {
     await user.click(screen.getByRole("tab", { name: "资源" }));
     expect(screen.getByRole("button", { name: "下载 Word 讲义" })).toBeVisible();
     expect(screen.getByRole("button", { name: "下载 PowerPoint 课件" })).toBeVisible();
+  });
+
+  it("renders the AI foundations animation from the course's own rule-and-data steps", async () => {
+    const user = userEvent.setup();
+    render(<TeachingCanvas course={foundationsCourse} />);
+
+    await user.click(screen.getByRole("tab", { name: "动画" }));
+
+    expect(screen.getByRole("heading", { name: "演示轨迹" })).toBeVisible();
+    expect(screen.getByText(foundationsCourse.animation.template)).toBeVisible();
+    for (const step of foundationsCourse.animation.steps) {
+      expect(screen.getByText(step.narration)).toBeVisible();
+    }
+    expect(screen.queryByRole("region", { name: "神经网络交互动画" })).not.toBeInTheDocument();
   });
 
   it("supports roving focus with arrows, Home, and End", async () => {

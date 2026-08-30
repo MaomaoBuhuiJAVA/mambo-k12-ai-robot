@@ -36,7 +36,8 @@ function copyMessage(value: StarbaoMessage): StarbaoMessage {
 }
 
 export function isLocalStarbaoChatEnabled(): boolean {
-  return process.env.LOCAL_AI_CHAT === "true" && process.env.NODE_ENV !== "production";
+  return process.env.STARBAO_CORE_OPTIONAL === "true"
+    || (process.env.LOCAL_AI_CHAT === "true" && process.env.NODE_ENV !== "production");
 }
 
 export async function getLocalStarbaoSnapshot(

@@ -95,7 +95,7 @@ describe("IframeRuntimeTransport", () => {
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
     expect(fetcher).toHaveBeenCalledWith(
       expect.stringMatching(/^\/lab-runtime/),
-      expect.objectContaining({ credentials: "omit" }),
+      expect.objectContaining({ credentials: "omit", cache: "no-store" }),
     );
     transport.destroy();
   });

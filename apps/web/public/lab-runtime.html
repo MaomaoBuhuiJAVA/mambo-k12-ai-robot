@@ -103,11 +103,13 @@
           const dictFactory = pyodide.globals.get("dict");
           globals = dictFactory();
           await pyodide.runPythonAsync(
-            executionCore.buildExecutableCode(
-              request.templateId,
-              request.challengeVersion,
-              request.code,
-            ),
+            (request.executionMode === "script"
+              ? executionCore.buildScriptCode(request.code)
+              : executionCore.buildExecutableCode(
+                request.templateId,
+                request.challengeVersion,
+                request.code,
+              )),
             { globals },
           );
           sendToParent("runtime-message", {

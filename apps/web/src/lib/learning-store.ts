@@ -1,14 +1,21 @@
 import type {
   Attempt,
+  ExperimentEvidence,
+  ExperimentMode,
   LearningMode,
+  LearningPathStage,
   LearningState,
   MasteryRecord,
   Stage,
+  StageProgress,
   StudentProfile,
 } from "./domain";
 import { isKnownKnowledgePointId } from "./knowledge-points";
+import { getCourseById } from "@/data/curriculum";
+import { getActivity, isActivityUnlocked } from "@/data/learning-paths";
+import { LAB_TEMPLATE_IDS } from "@/features/lab/lab-protocol";
 
-export const CURRENT_LEARNING_STATE_VERSION = 1;
+export const CURRENT_LEARNING_STATE_VERSION = 2;
 export const LEARNING_STATE_STORAGE_KEY = "mambo.learning-state";
 export const LEGACY_LEARNING_STATE_STORAGE_KEY = "mambo.learning-state.v1";
 export const MAX_PERSISTED_ATTEMPTS = 100;
@@ -16,11 +23,26 @@ export const MAX_PERSISTED_INTERESTS = 20;
 export const MAX_PERSISTED_MASTERY_RECORDS = 200;
 export const MAX_PERSISTED_RECENT_TOPICS = 20;
 export const MAX_PERSISTED_STRING_LENGTH = 160;
+export const MAX_PERSISTED_COMPLETED_ACTIVITIES = 100;
+export const MAX_PERSISTED_EXPERIMENT_EVIDENCE = 60;
+export const MAX_PERSISTED_EXPERIMENT_VARIABLES = 32;
+export const MAX_PERSISTED_EXPERIMENT_METRICS = 32;
+export const MAX_PERSISTED_EXPERIMENT_CONCLUSION_LENGTH = 2_000;
 
 const MAX_PROFILE_GOALS = 20;
 const MAX_MISCONCEPTION_TAGS = 20;
 const MAX_ANSWER_LENGTH = 20_000;
 const DEFAULT_UPDATED_AT = "1970-01-01T00:00:00.000Z";
+const LEARNING_PATH_STAGES: LearningPathStage[] = [
+  "middle_school",
+  "high_school",
+];
+const EXPERIMENT_MODES = new Set<ExperimentMode>([
+  "guided",
+  "independent",
+  "research",
+  "project",
+]);
 
 type StorageAdapter = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -185,6 +207,253 @@ function isMasteryMap(
   return true;
 }
 
+function createEmptyStageProgress(): StageProgress {
+  return {
+    completedActivityIds: [],
+    experimentEvidence: [],
+    activeActivityId: null,
+  };
+}
+
+function createDefaultStageProgressByStage(): Record<
+  LearningPathStage,
+  StageProgress
+> {
+  return {
+    middle_school: createEmptyStageProgress(),
+    high_school: createEmptyStageProgress(),
+  };
+}
+
+function isActivityInStage(
+  activityId: unknown,
+  stage: LearningPathStage,
+): activityId is string {
+  return (
+    isBoundedString(activityId) &&
+    getActivity(activityId)?.stage === stage
+  );
+}
+
+function isKnownCourseId(value: unknown): value is string {
+  return isBoundedString(value) && Boolean(getCourseById(value));
+}
+
+function sanitizeCompletedActivityIds(
+  value: unknown,
+  stage: LearningPathStage,
+): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const completedActivityIds: string[] = [];
+  const seen = new Set<string>();
+  let inspected = 0;
+  for (const activityId of value) {
+    inspected += 1;
+    if (inspected > MAX_PERSISTED_COMPLETED_ACTIVITIES * 4) break;
+    if (
+      !isActivityInStage(activityId, stage) ||
+      seen.has(activityId) ||
+      !isActivityUnlocked(activityId, completedActivityIds)
+    ) continue;
+
+    completedActivityIds.push(activityId);
+    seen.add(activityId);
+    if (completedActivityIds.length >= MAX_PERSISTED_COMPLETED_ACTIVITIES) break;
+  }
+
+  return completedActivityIds;
+}
+
+function sanitizeExperimentVariables(
+  value: unknown,
+): Record<string, string | number | boolean> {
+  if (!isRecord(value)) return {};
+
+  const variables: Record<string, string | number | boolean> = {};
+  let inspected = 0;
+  for (const rawKey in value) {
+    inspected += 1;
+    if (inspected > MAX_PERSISTED_EXPERIMENT_VARIABLES * 4) break;
+    const key = rawKey.trim().slice(0, MAX_PERSISTED_STRING_LENGTH);
+    const variable = value[rawKey];
+    if (!key || Object.keys(variables).length >= MAX_PERSISTED_EXPERIMENT_VARIABLES) continue;
+    if (typeof variable === "string") {
+      variables[key] = variable.slice(0, MAX_PERSISTED_STRING_LENGTH);
+    } else if (typeof variable === "boolean") {
+      variables[key] = variable;
+    } else if (typeof variable === "number" && Number.isFinite(variable)) {
+      variables[key] = variable;
+    }
+  }
+  return variables;
+}
+
+function sanitizeExperimentMetrics(value: unknown): Record<string, number> {
+  if (!isRecord(value)) return {};
+
+  const metrics: Record<string, number> = {};
+  let inspected = 0;
+  for (const rawKey in value) {
+    inspected += 1;
+    if (inspected > MAX_PERSISTED_EXPERIMENT_METRICS * 4) break;
+    const key = rawKey.trim().slice(0, MAX_PERSISTED_STRING_LENGTH);
+    const metric = value[rawKey];
+    if (
+      !key ||
+      Object.keys(metrics).length >= MAX_PERSISTED_EXPERIMENT_METRICS ||
+      typeof metric !== "number" ||
+      !Number.isFinite(metric)
+    ) continue;
+    metrics[key] = metric;
+  }
+  return metrics;
+}
+
+function experimentModeForActivityKind(
+  kind: string,
+): ExperimentMode | null {
+  switch (kind) {
+    case "guided_lab":
+      return "guided";
+    case "independent_lab":
+      return "independent";
+    case "research_challenge":
+      return "research";
+    case "project":
+      return "project";
+    default:
+      return null;
+  }
+}
+
+function sanitizeExperimentEvidence(
+  value: unknown,
+  stage: LearningPathStage,
+): ExperimentEvidence | null {
+  if (!isRecord(value)) return null;
+
+  const runId = typeof value.runId === "string"
+    ? value.runId.trim().slice(0, MAX_PERSISTED_STRING_LENGTH)
+    : "";
+  const activityId = value.activityId;
+  const courseId = value.courseId;
+  const templateId = value.templateId;
+  const activity = isActivityInStage(activityId, stage)
+    ? getActivity(activityId)
+    : undefined;
+  const expectedMode = activity
+    ? experimentModeForActivityKind(activity.kind)
+    : null;
+  if (
+    !runId ||
+    !activity ||
+    !isBoundedString(courseId) ||
+    !isBoundedString(templateId) ||
+    !LAB_TEMPLATE_IDS.includes(templateId as (typeof LAB_TEMPLATE_IDS)[number]) ||
+    activity.courseId !== courseId ||
+    activity.labTemplateId !== templateId ||
+    expectedMode !== value.mode ||
+    typeof value.mode !== "string" ||
+    !EXPERIMENT_MODES.has(value.mode as ExperimentMode) ||
+    !isIsoDate(value.completedAt)
+  ) return null;
+
+  return {
+    runId,
+    activityId: activity.id,
+    courseId,
+    templateId,
+    mode: value.mode as ExperimentMode,
+    variables: sanitizeExperimentVariables(value.variables),
+    metrics: sanitizeExperimentMetrics(value.metrics),
+    conclusion: typeof value.conclusion === "string"
+      ? value.conclusion.slice(0, MAX_PERSISTED_EXPERIMENT_CONCLUSION_LENGTH)
+      : "",
+    completedAt: value.completedAt,
+  };
+}
+
+function sanitizeExperimentEvidenceList(
+  value: unknown,
+  stage: LearningPathStage,
+): ExperimentEvidence[] {
+  if (!Array.isArray(value)) return [];
+
+  const evidenceByRunId = new Map<string, ExperimentEvidence>();
+  let inspected = 0;
+  for (const candidate of value) {
+    inspected += 1;
+    if (inspected > MAX_PERSISTED_EXPERIMENT_EVIDENCE * 4) break;
+    const evidence = sanitizeExperimentEvidence(candidate, stage);
+    if (!evidence) continue;
+    evidenceByRunId.delete(evidence.runId);
+    evidenceByRunId.set(evidence.runId, evidence);
+  }
+  return [...evidenceByRunId.values()].slice(-MAX_PERSISTED_EXPERIMENT_EVIDENCE);
+}
+
+function sanitizeStageProgress(
+  value: unknown,
+  stage: LearningPathStage,
+): StageProgress {
+  const raw = isRecord(value) ? value : {};
+  const completedActivityIds = sanitizeCompletedActivityIds(
+    raw.completedActivityIds,
+    stage,
+  );
+  const activeActivityId = isActivityInStage(raw.activeActivityId, stage) &&
+    isActivityUnlocked(raw.activeActivityId, completedActivityIds)
+      ? raw.activeActivityId
+      : null;
+
+  return {
+    completedActivityIds,
+    experimentEvidence: sanitizeExperimentEvidenceList(raw.experimentEvidence, stage),
+    activeActivityId,
+  };
+}
+
+function sanitizeStageProgressByStage(
+  value: unknown,
+): Record<LearningPathStage, StageProgress> {
+  const raw = isRecord(value) ? value : {};
+  return {
+    middle_school: sanitizeStageProgress(raw.middle_school, "middle_school"),
+    high_school: sanitizeStageProgress(raw.high_school, "high_school"),
+  };
+}
+
+function isStageProgress(value: unknown, stage: LearningPathStage): value is StageProgress {
+  if (!isRecord(value) || !Array.isArray(value.completedActivityIds) || !Array.isArray(value.experimentEvidence)) {
+    return false;
+  }
+  const completedActivityIds = value.completedActivityIds;
+  const experimentEvidence = value.experimentEvidence;
+  if (completedActivityIds.length > MAX_PERSISTED_COMPLETED_ACTIVITIES || experimentEvidence.length > MAX_PERSISTED_EXPERIMENT_EVIDENCE) {
+    return false;
+  }
+  const completed = sanitizeCompletedActivityIds(completedActivityIds, stage);
+  if (completed.length !== completedActivityIds.length || completed.some((id, index) => id !== completedActivityIds[index])) {
+    return false;
+  }
+  const evidence = sanitizeExperimentEvidenceList(experimentEvidence, stage);
+  if (evidence.length !== experimentEvidence.length) return false;
+  if (value.activeActivityId !== null && (!isActivityInStage(value.activeActivityId, stage) || !isActivityUnlocked(value.activeActivityId, completed))) {
+    return false;
+  }
+  return true;
+}
+
+function isStageProgressByStage(
+  value: unknown,
+): value is Record<LearningPathStage, StageProgress> {
+  return (
+    isRecord(value) &&
+    LEARNING_PATH_STAGES.every((stage) => isStageProgress(value[stage], stage))
+  );
+}
+
 function sanitizeCurrentLearningStateCandidate(
   value: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -217,7 +486,15 @@ function sanitizeCurrentLearningStateCandidate(
       )
     : value.recentTopics;
 
-  return { ...value, masteryByKnowledgePoint: sanitizedMastery, attempts, recentTopics };
+  return {
+    ...value,
+    masteryByKnowledgePoint: sanitizedMastery,
+    attempts,
+    recentTopics,
+    stageProgressByStage: sanitizeStageProgressByStage(
+      value.stageProgressByStage,
+    ),
+  };
 }
 
 function isLearningState(value: unknown): value is LearningState {
@@ -231,7 +508,8 @@ function isLearningState(value: unknown): value is LearningState {
     value.attempts.every(isAttempt) &&
     isBoundedStringArray(value.recentTopics, MAX_PERSISTED_RECENT_TOPICS) &&
     isBoundedStringArray(value.interests, MAX_PERSISTED_INTERESTS) &&
-    (value.lastCourseId === null || isBoundedString(value.lastCourseId)) &&
+    (value.lastCourseId === null || isKnownCourseId(value.lastCourseId)) &&
+    isStageProgressByStage(value.stageProgressByStage) &&
     isIsoDate(value.updatedAt)
   );
 }
@@ -247,6 +525,7 @@ export function createDefaultLearningState(
     recentTopics: [],
     interests: [],
     lastCourseId: null,
+    stageProgressByStage: createDefaultStageProgressByStage(),
     updatedAt: DEFAULT_UPDATED_AT,
   };
 }
@@ -344,9 +623,12 @@ export function prepareLearningStateForStorage(
       MAX_PERSISTED_RECENT_TOPICS,
     ),
     interests: sanitizeStringArray(state.interests, MAX_PERSISTED_INTERESTS),
-    lastCourseId: isBoundedString(state.lastCourseId)
+    lastCourseId: isKnownCourseId(state.lastCourseId)
       ? state.lastCourseId
       : null,
+    stageProgressByStage: sanitizeStageProgressByStage(
+      state.stageProgressByStage,
+    ),
     updatedAt: isIsoDate(state.updatedAt) ? state.updatedAt : DEFAULT_UPDATED_AT,
   };
 }
@@ -389,14 +671,15 @@ function migrateLegacyState(value: Record<string, unknown>): LearningState | nul
     interests: isStringArray(value.interests) ? value.interests : [],
     lastCourseId:
       typeof value.lastCourseId === "string" ? value.lastCourseId : null,
+    stageProgressByStage: createDefaultStageProgressByStage(),
     updatedAt: isIsoDate(value.updatedAt) ? value.updatedAt : DEFAULT_UPDATED_AT,
   });
 }
 
-function migrateLegacyV1State(
+function migrateSchemaV1State(
   value: Record<string, unknown>,
 ): LearningState | null {
-  if (value.schemaVersion !== CURRENT_LEARNING_STATE_VERSION) return null;
+  if (value.schemaVersion !== 1) return null;
 
   const profileValue = isRecord(value.profile) ? value.profile : {};
   const accessibilityValue = isRecord(profileValue.accessibility)
@@ -455,6 +738,7 @@ function migrateLegacyV1State(
     interests: normalizeLegacyStringList(value.interests),
     lastCourseId:
       typeof value.lastCourseId === "string" ? value.lastCourseId : null,
+    stageProgressByStage: createDefaultStageProgressByStage(),
     updatedAt: isIsoDate(value.updatedAt) ? value.updatedAt : DEFAULT_UPDATED_AT,
   });
 }
@@ -553,10 +837,7 @@ function normalizeLegacyStringList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-function decodeLearningState(
-  raw: string,
-  allowLegacyV1 = false,
-): LearningState | null {
+function decodeLearningState(raw: string): LearningState | null {
   try {
     const value: unknown = JSON.parse(raw);
     if (isRecord(value)) {
@@ -564,10 +845,8 @@ function decodeLearningState(
       if (isLearningState(sanitized)) return prepareLearningStateForStorage(sanitized);
     }
     if (isRecord(value)) {
-      if (allowLegacyV1) {
-        const migratedV1 = migrateLegacyV1State(value);
-        if (migratedV1) return migratedV1;
-      }
+      const migratedV1 = migrateSchemaV1State(value);
+      if (migratedV1) return migratedV1;
       return migrateLegacyState(value);
     }
   } catch {
@@ -606,7 +885,7 @@ export function loadLearningState(
     const legacyRaw = storage.getItem(LEGACY_LEARNING_STATE_STORAGE_KEY);
     if (legacyRaw === null) return createDefaultLearningState();
 
-    const migrated = decodeLearningState(legacyRaw, true);
+    const migrated = decodeLearningState(legacyRaw);
     if (!migrated) return createDefaultLearningState();
 
     if (saveLearningState(migrated, storage)) {
